@@ -103,60 +103,80 @@ class TestExtractCheckedFiles:
 
 
 class TestValidationNode:
-    """Test the validation_node function."""
+    """Test the validation_node function with LLM-based validation."""
 
     def test_increments_iterations(self, sample_state):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = ("✅ All checks passed!", 0)
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_response = MagicMock()
+            mock_response.tool_calls = []
+            mock_response.content = '{"passed": true, "categories": {}, "summary": "All good"}'
+
+            mock_llm.return_value.bind_tools.return_value.invoke.return_value = mock_response
 
             result = validation_node(sample_state)
             assert result["test_iterations"] == 1
 
     def test_returns_test_result(self, sample_state):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = ("✅ All checks passed!", 0)
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_response = MagicMock()
+            mock_response.tool_calls = []
+            mock_response.content = '{"passed": true, "categories": {}, "summary": "All good"}'
+
+            mock_llm.return_value.bind_tools.return_value.invoke.return_value = mock_response
 
             result = validation_node(sample_state)
             assert "test_result" in result
             assert isinstance(result["test_result"], dict)
 
     def test_sets_status_to_testing(self, sample_state):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = ("✅ All checks passed!", 0)
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_response = MagicMock()
+            mock_response.tool_calls = []
+            mock_response.content = '{"passed": true, "categories": {}, "summary": "All good"}'
+
+            mock_llm.return_value.bind_tools.return_value.invoke.return_value = mock_response
 
             result = validation_node(sample_state)
             assert result["status"] == "testing"
 
     def test_returns_to_orchestrator(self, sample_state):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = ("✅ All checks passed!", 0)
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_response = MagicMock()
+            mock_response.tool_calls = []
+            mock_response.content = '{"passed": true, "categories": {}, "summary": "All good"}'
+
+            mock_llm.return_value.bind_tools.return_value.invoke.return_value = mock_response
 
             result = validation_node(sample_state)
             assert result["current_agent"] == "orchestrator"
 
-    def test_handles_validator_failure(self, sample_state):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = (None, -1)
+    def test_handles_llm_failure(self, sample_state):
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_llm.return_value.bind_tools.return_value.invoke.side_effect = Exception("API Error")
 
             result = validation_node(sample_state)
             assert result["test_result"]["passed"] is False
-            assert "Node.js" in result["test_result"]["errors"][0]
+            assert "error" in result["test_result"]["errors"][0].lower()
 
 
 class TestRunQuickValidation:
     """Test standalone validation function."""
 
     def test_returns_dict(self):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = ("✅ All checks passed!", 0)
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_response = MagicMock()
+            mock_response.tool_calls = []
+            mock_response.content = '{"passed": true, "categories": {}, "summary": "All good"}'
+
+            mock_llm.return_value.bind_tools.return_value.invoke.return_value = mock_response
 
             result = run_quick_validation()
             assert isinstance(result, dict)
             assert "passed" in result
 
-    def test_handles_validator_error(self):
-        with patch("agents.test.agent._run_validator") as mock_validator:
-            mock_validator.return_value = (None, -1)
+    def test_handles_llm_error(self):
+        with patch("agents.test.agent.create_test_llm") as mock_llm:
+            mock_llm.return_value.bind_tools.return_value.invoke.side_effect = Exception("API Error")
 
             result = run_quick_validation()
             assert result["passed"] is False

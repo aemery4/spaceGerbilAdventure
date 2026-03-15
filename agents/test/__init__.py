@@ -1,5 +1,6 @@
 """Test agent module."""
 
 from .agent import validation_node
+from .tools import TEST_TOOLS
 
-__all__ = ["test_node"]
+__all__ = ["validation_node", "TEST_TOOLS"]

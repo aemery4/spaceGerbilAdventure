@@ -2,47 +2,95 @@
 Test Agent for SGA Multi-Agent System.
 
 The Test agent validates game code changes by:
-1. Running the existing validate.js Node.js validator
-2. Parsing validation results for errors/warnings
-3. Providing structured feedback to the Orchestrator
-
-The Test agent runs in parallel with the Documentation agent
-after each Content agent completion.
+1. Reading game files (read-only access)
+2. Simulating gameplay mentally and checking against bug categories
+3. Providing structured pass/fail feedback per category
 """
 
-import subprocess
 import os
+import json
 from typing import Optional
 from langchain_anthropic import ChatAnthropic
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
 from ..state import AgentState, MAX_TEST_ITERATIONS
+from .tools import TEST_TOOLS, read_game_file, list_game_files, search_game_files, get_files_modified
 
 
 # Path to the game code directory (relative to project root)
 GAME_CODE_PATH = "code/game_v3"
 
 
-TEST_AGENT_SYSTEM_PROMPT = """You are the Test agent for Space Gerbil Adventure.
+TEST_AGENT_SYSTEM_PROMPT = """You are the Test Agent for Space Gerbil Adventure. Your job is to validate Content Agent changes by simulating gameplay and checking against known bug categories. You have read-only access to all game files.
 
-Your job is to analyze validation results and provide clear, actionable feedback.
+Gameplay Simulation: Mentally trace through the modified code. Simulate player movement in all directions, enemy spawning and aggro, resource gathering (fuel, rock, plant, crystal), combat interactions, item crafting, NPC dialogue, and planet transitions. Think through what actually executes when a player performs these actions.
 
-When analyzing validation output:
-1. Identify all errors (lines with ✗ or "fail" or "error")
-2. Identify warnings (potential issues that aren't failures)
-3. Categorize errors: syntax, missing files, ID mismatches, runtime failures
-4. Provide specific fix suggestions when possible
+Bug Category Validation: For every Content Agent change, check all 8 categories:
 
-Respond with a JSON object:
+1. Spawn State Initialization — enemies must not be visible or active until their trigger condition is met (proximity, dialogue, or explicit discovery event). Verify trigger logic exists.
+
+2. Missing Visual Feedback — every action that has audio must also have a visible sprite change or animation. No silent-only or invisible-only events.
+
+3. Input Lock / State Corruption — verify movement input is never permanently disabled. All code that sets gamePaused=true or disables input must have a corresponding cleanup path that re-enables it.
+
+4. Data/Content Placeholders — scan all NPC names, item names, and string literals. Flag any value that looks like a variable name, default value, or placeholder (e.g. 'village', 'undefined', 'TODO', 'test').
+
+5. Missing Resource Placement — verify every planet has fuel, rock, plant, and crystal resources initialized in its resource array. Count fuel pickups and verify against the level's fuel goal (P1=10, P2=15, P3=20).
+
+6. Balance/Tuning — verify player base speed is >= the fastest enemy speed. Simulate a combat scenario; player should be able to disengage from any enemy.
+
+7. Invisible Damage Source — verify all damage-dealing code is gated on a living, in-range attacker. No damage-over-time effects should run when no enemy is present. Check that dead enemies (hp<=0) cannot deal damage.
+
+8. Interaction Fallthrough — trace the F key / click handler decision tree. Verify it routes correctly: (a) nothing in range → no message or generic 'nothing nearby'; (b) enemy in range → attack logic; (c) resource in range → gather logic; (d) spaceship in range → fuel check. The spaceship fuel message must ONLY fire when the spaceship is the closest valid target.
+
+Additional UI Checks:
+
+- Message/dialog boxes must render at the bottom of the screen, not center-screen
+- Intro dialog boxes must set gamePaused=true and keep it true until the player clicks OK
+- No dialog box should allow player movement while it is visible
+
+Output: Return a structured report with pass/fail per category, specific line references for any failures, and a clear overall verdict of PASS or FAIL. On FAIL, include reproduction steps for the Content Agent to fix.
+
+## AVAILABLE TOOLS
+
+- read_game_file(file_path): Read a game file (e.g., "js/planet1.js")
+- list_game_files(): List all game files
+- search_game_files(search_term, file_pattern): Search across files
+- get_files_modified(files_list): Read multiple files at once
+
+## RESPONSE FORMAT
+
+After analyzing all files, respond with a JSON report:
 {
     "passed": true|false,
-    "error_count": number,
-    "warning_count": number,
-    "errors": ["list of specific errors"],
-    "warnings": ["list of warnings"],
-    "suggestions": ["actionable fix suggestions"]
+    "categories": {
+        "spawn_state_initialization": {"passed": true|false, "issues": [], "line_refs": []},
+        "missing_visual_feedback": {"passed": true|false, "issues": [], "line_refs": []},
+        "input_lock_state_corruption": {"passed": true|false, "issues": [], "line_refs": []},
+        "data_content_placeholders": {"passed": true|false, "issues": [], "line_refs": []},
+        "missing_resource_placement": {"passed": true|false, "issues": [], "line_refs": []},
+        "balance_tuning": {"passed": true|false, "issues": [], "line_refs": []},
+        "invisible_damage_source": {"passed": true|false, "issues": [], "line_refs": []},
+        "interaction_fallthrough": {"passed": true|false, "issues": [], "line_refs": []}
+    },
+    "ui_checks": {
+        "dialog_position": {"passed": true|false, "issues": []},
+        "intro_dialog_pause": {"passed": true|false, "issues": []},
+        "dialog_blocks_movement": {"passed": true|false, "issues": []}
+    },
+    "reproduction_steps": ["step 1", "step 2"],
+    "summary": "Brief overall summary"
 }
 """
+
+
+# Tool execution map
+TOOL_MAP = {
+    "read_game_file": read_game_file,
+    "list_game_files": list_game_files,
+    "search_game_files": search_game_files,
+    "get_files_modified": get_files_modified,
+}
 
 
 def create_test_llm() -> ChatAnthropic:
@@ -50,7 +98,9 @@ def create_test_llm() -> ChatAnthropic:
     return ChatAnthropic(
         model="claude-sonnet-4-20250514",
         temperature=0,
-        max_tokens=1024,
+        max_tokens=8192,
+        max_retries=3,
+        timeout=120.0,
     )
 
 
@@ -58,7 +108,7 @@ def validation_node(state: AgentState) -> dict:
     """
     Test node function for the StateGraph.
 
-    Runs validate.js and analyzes results. Updates test_result in state.
+    Uses LLM-based gameplay simulation to validate Content Agent changes.
 
     Args:
         state: Current AgentState
@@ -69,69 +119,194 @@ def validation_node(state: AgentState) -> dict:
     # Increment test iteration counter
     new_iterations = state["test_iterations"] + 1
 
-    # Run the validator
-    validation_output, exit_code = _run_validator()
-
-    # If validator ran successfully, analyze results
-    if validation_output is not None:
-        test_result = _analyze_validation(validation_output, exit_code)
-    else:
-        test_result = {
-            "passed": False,
-            "error_count": 1,
-            "warning_count": 0,
-            "errors": ["Failed to run validate.js - Node.js may not be installed"],
-            "warnings": [],
-            "suggestions": ["Ensure Node.js is installed and accessible in PATH"],
+    # Check iteration limit
+    if new_iterations > MAX_TEST_ITERATIONS:
+        return {
+            "test_iterations": new_iterations,
+            "test_result": {
+                "passed": False,
+                "error_count": 1,
+                "errors": [f"Max test iterations ({MAX_TEST_ITERATIONS}) reached"],
+                "suggestions": ["Manual review required"],
+            },
+            "status": "testing",
+            "current_agent": "orchestrator",
         }
 
-    # Determine files that were checked
-    files_checked = _extract_checked_files(validation_output or "")
+    # Build context from Content agent's work
+    task = state["task"]
+    files_modified = state.get("files_modified", [])
+    content_result = state.get("content_result", "")
 
-    return {
-        "test_iterations": new_iterations,
-        "test_result": test_result,
-        "test_files_checked": files_checked,
-        "status": "testing",
-        "current_agent": "orchestrator",  # Return to orchestrator for evaluation
-    }
+    # Create LLM with tools bound
+    llm = create_test_llm()
+    llm_with_tools = llm.bind_tools(TEST_TOOLS)
+
+    # Build the validation request
+    validation_request = f"""## VALIDATION REQUEST
+
+**Original Task:** {task}
+**Files Modified by Content Agent:** {', '.join(files_modified) if files_modified else 'Unknown'}
+
+**Content Agent Summary:**
+{content_result[:2000] if content_result else 'No summary available'}
+
+## YOUR JOB
+
+1. Read the modified files using the tools provided
+2. Simulate gameplay mentally - trace through the code
+3. Check all 8 bug categories and 3 UI checks
+4. Return a structured JSON report with pass/fail per category
+
+Start by reading the modified files, then analyze for bugs.
+"""
+
+    messages = [
+        SystemMessage(content=TEST_AGENT_SYSTEM_PROMPT),
+        HumanMessage(content=validation_request),
+    ]
+
+    files_checked = []
+    max_tool_rounds = 10  # Allow more rounds for thorough analysis
+
+    try:
+        for round_num in range(max_tool_rounds):
+            # Get LLM response
+            response = llm_with_tools.invoke(messages)
+            messages.append(response)
+
+            # Check if there are tool calls
+            if not response.tool_calls:
+                # No more tool calls - agent is done
+                break
+
+            # Execute each tool call
+            for tool_call in response.tool_calls:
+                tool_name = tool_call["name"]
+                tool_args = tool_call["args"]
+
+                # Execute the tool
+                if tool_name in TOOL_MAP:
+                    tool_result = TOOL_MAP[tool_name].invoke(tool_args)
+
+                    # Track files that were read
+                    if tool_name == "read_game_file" and "file_path" in tool_args:
+                        files_checked.append(tool_args["file_path"])
+                    elif tool_name == "get_files_modified" and "files_list" in tool_args:
+                        files_checked.extend([f.strip() for f in tool_args["files_list"].split(",")])
+                else:
+                    tool_result = f"Unknown tool: {tool_name}"
+
+                # Add tool result to messages
+                messages.append(ToolMessage(
+                    content=str(tool_result),
+                    tool_call_id=tool_call["id"],
+                ))
+
+        # Parse the final response
+        final_message = messages[-1]
+        test_result = _parse_test_result(getattr(final_message, "content", ""))
+
+        return {
+            "test_iterations": new_iterations,
+            "test_result": test_result,
+            "test_files_checked": list(set(files_checked)),
+            "status": "testing",
+            "current_agent": "orchestrator",
+        }
+
+    except Exception as e:
+        return {
+            "test_iterations": new_iterations,
+            "test_result": {
+                "passed": False,
+                "error_count": 1,
+                "errors": [f"Test agent error: {str(e)}"],
+                "suggestions": ["Review manually or retry"],
+            },
+            "test_files_checked": files_checked,
+            "status": "testing",
+            "current_agent": "orchestrator",
+        }
 
 
-def _run_validator() -> tuple[Optional[str], int]:
+def _parse_test_result(response_content: str) -> dict:
     """
-    Run validate.js and capture output.
+    Parse the LLM's test result response into structured format.
+
+    Args:
+        response_content: Raw LLM response
 
     Returns:
-        Tuple of (output_string, exit_code) or (None, -1) on failure
+        Structured test result dict
     """
+    # Try to extract JSON from response
     try:
-        # Get the game code directory
-        game_path = os.path.join(os.getcwd(), GAME_CODE_PATH)
+        # Look for JSON block in response
+        if "```json" in response_content:
+            json_start = response_content.find("```json") + 7
+            json_end = response_content.find("```", json_start)
+            json_str = response_content[json_start:json_end].strip()
+        elif "{" in response_content:
+            # Find the outermost JSON object
+            json_start = response_content.find("{")
+            # Find matching closing brace
+            brace_count = 0
+            json_end = json_start
+            for i, char in enumerate(response_content[json_start:], json_start):
+                if char == "{":
+                    brace_count += 1
+                elif char == "}":
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i + 1
+                        break
+            json_str = response_content[json_start:json_end]
+        else:
+            raise ValueError("No JSON found in response")
 
-        result = subprocess.run(
-            ["node", "validate.js"],
-            cwd=game_path,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=30,  # 30 second timeout
-        )
+        result = json.loads(json_str)
 
-        # Combine stdout and stderr
-        output = result.stdout + result.stderr
-        return output, result.returncode
+        # Ensure required fields exist
+        if "passed" not in result:
+            result["passed"] = False
 
-    except subprocess.TimeoutExpired:
-        return "Validation timed out after 30 seconds", -1
-    except FileNotFoundError:
-        return None, -1
-    except Exception as e:
-        return f"Validation error: {str(e)}", -1
+        # Convert to standard format for orchestrator
+        errors = []
+        suggestions = []
+
+        if "categories" in result:
+            for cat_name, cat_data in result["categories"].items():
+                if isinstance(cat_data, dict) and not cat_data.get("passed", True):
+                    for issue in cat_data.get("issues", []):
+                        errors.append(f"[{cat_name}] {issue}")
+
+        if "reproduction_steps" in result:
+            suggestions = result["reproduction_steps"]
+
+        result["error_count"] = len(errors)
+        result["errors"] = errors
+        result["suggestions"] = suggestions
+        result["raw_response"] = response_content
+
+        return result
+
+    except (json.JSONDecodeError, ValueError) as e:
+        # Fallback: try to determine pass/fail from text
+        passed = "PASS" in response_content.upper() and "FAIL" not in response_content.upper()
+
+        return {
+            "passed": passed,
+            "error_count": 0 if passed else 1,
+            "errors": [] if passed else ["Could not parse structured response"],
+            "suggestions": ["Review test agent output manually"],
+            "raw_response": response_content,
+        }
 
 
 def _analyze_validation(output: str, exit_code: int) -> dict:
     """
+    Legacy function for backward compatibility with existing tests.
     Analyze validation output and extract structured results.
 
     Args:
@@ -148,17 +323,13 @@ def _analyze_validation(output: str, exit_code: int) -> dict:
     for line in output.split("\n"):
         line = line.strip()
         if "✗" in line or "MISSING" in line or "fail" in line.lower():
-            # Clean up the error message
             error_msg = line.replace("✗", "").strip()
             if error_msg:
                 errors.append(error_msg)
         elif "warn" in line.lower():
             warnings.append(line)
 
-    # Check for overall pass/fail
     passed = exit_code == 0 and "All checks passed" in output
-
-    # Generate suggestions based on common errors
     suggestions = _generate_suggestions(errors)
 
     return {
@@ -168,7 +339,7 @@ def _analyze_validation(output: str, exit_code: int) -> dict:
         "errors": errors,
         "warnings": warnings,
         "suggestions": suggestions,
-        "raw_output": output,  # Include raw output for debugging
+        "raw_output": output,
     }
 
 
@@ -181,20 +352,15 @@ def _generate_suggestions(errors: list[str]) -> list[str]:
 
         if "missing" in error_lower and ".js" in error_lower:
             suggestions.append(f"Create the missing JavaScript file")
-
         elif "syntax" in error_lower or "unexpected" in error_lower:
             suggestions.append("Check for syntax errors: missing brackets, semicolons, or quotes")
-
         elif "duplicate" in error_lower:
             suggestions.append("Remove duplicate variable declaration - check globals.js for existing definitions")
-
         elif "id" in error_lower and "missing" in error_lower:
             suggestions.append("Add missing HTML element ID to index.html")
-
         elif "launchp" in error_lower:
             suggestions.append("Check planet launch function for runtime errors")
 
-    # Deduplicate
     return list(set(suggestions)) if suggestions else ["Review the errors and fix each one systematically"]
 
 
@@ -203,7 +369,6 @@ def _extract_checked_files(output: str) -> list[str]:
     files = []
     for line in output.split("\n"):
         if "✓" in line or "✗" in line:
-            # Extract filename from lines like "  ✓ js/globals.js"
             parts = line.split()
             for part in parts:
                 if part.endswith(".js") or part.endswith(".html"):
@@ -220,7 +385,11 @@ def run_quick_validation() -> dict:
     Returns:
         Test result dict
     """
-    output, exit_code = _run_validator()
-    if output:
-        return _analyze_validation(output, exit_code)
-    return {"passed": False, "errors": ["Failed to run validator"]}
+    from ..state import create_initial_state
+
+    state = create_initial_state("Quick validation check")
+    state["files_modified"] = ["js/globals.js", "js/planet1.js", "js/planet2.js"]
+    state["content_result"] = "Validation check"
+
+    result = validation_node(state)
+    return result.get("test_result", {"passed": False, "errors": ["Validation failed"]})
