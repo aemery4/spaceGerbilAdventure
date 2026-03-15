@@ -11,12 +11,13 @@ function updateHUD(){
   document.getElementById('items').textContent=save.items.map(i=>M[i]||i).join(' ')||'none';
 }
 function showMsg(t,b,cb,btn){
+  gamePaused=true;
   document.getElementById('mt').textContent=t;
   document.getElementById('mb').textContent=b;
   document.getElementById('message').style.display='block';
   const el=document.getElementById('mbtn');
   el.textContent=btn||'OK';
-  el.onclick=()=>{closeMsg();if(cb)cb();};
+  el.onclick=()=>{closeMsg();gamePaused=false;if(cb)cb();};
 }
 function closeMsg(){document.getElementById('message').style.display='none';}
 function loseLife(restartFn){save.lives--;save.hp=save.maxHp;if(save.lives<=0)save.lives=3;persist();updateHUD();restartFn();}

@@ -1,7 +1,7 @@
 function launchP1(){
   stopGame();
   const TILE=40,COLS=32,ROWS=22;
-  const pl={x:3*TILE+20,y:3*TILE+20,size:14,speed:save.items.includes('boots')?5:3,keys:{}};
+  const pl={x:3*TILE+20,y:3*TILE+20,size:14,speed:save.items.includes('boots')?6:4,keys:{}};
   const cam={x:0,y:0};
   const map=[
     [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
@@ -110,14 +110,7 @@ function launchP1(){
   }
   function doAction(mx,my){
     if(gamePaused)return;
-    if(mx>rocket.x&&mx<rocket.x+rocket.w&&my>rocket.y&&my<rocket.y+rocket.h){
-      if(save.resources.fuel>=10){
-        if(!save.planetsCleared.includes(1))save.planetsCleared.push(1);
-        save.resources.fuel=0;persist();
-        stopGame();showTransition('🚀 Blasting Off!\n🌍 → Zorbax','Jungle planet ahead...',()=>startPlanet(2));
-      } else showMsg('Need More Fuel!','Collect 10 ⚡ fuel. Have: '+save.resources.fuel+'/10.');
-      return;
-    }
+    // Check for resources first (higher priority than spaceship)
     for(let i=res.length-1;i>=0;i--){
       const r=res[i],rx2=r.x*TILE+TILE/2,ry2=r.y*TILE+TILE/2;
       const reach=save.items.includes('scanner')?TILE*3.5:TILE*2;
@@ -127,6 +120,7 @@ function launchP1(){
         return;
       }
     }
+    // Check for aliens (higher priority than spaceship)
     for(let i=aliens.length-1;i>=0;i--){
       const a=aliens[i];
       if(Math.hypot(mx-a.x,my-a.y)<a.sz+10&&Math.hypot(pl.x-a.x,pl.y-a.y)<TILE*3){
@@ -135,6 +129,17 @@ function launchP1(){
         return;
       }
     }
+    // Check spaceship last
+    if(mx>rocket.x&&mx<rocket.x+rocket.w&&my>rocket.y&&my<rocket.y+rocket.h){
+      if(save.resources.fuel>=10){
+        if(!save.planetsCleared.includes(1))save.planetsCleared.push(1);
+        save.resources.fuel=0;persist();
+        stopGame();showTransition('🚀 Blasting Off!\n🌍 → Zorbax','Jungle planet ahead...',()=>startPlanet(2));
+      } else showMsg('Need More Fuel!','Collect 10 ⚡ fuel. Have: '+save.resources.fuel+'/10.');
+      return;
+    }
+    // Nothing nearby fallback
+    showMsg('Nothing Here','Walk closer to resources, aliens, or the saucer to interact.');
   }
   function onK(e){
     pl.keys[e.key]=true;

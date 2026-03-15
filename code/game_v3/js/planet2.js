@@ -15,7 +15,7 @@ function launchP2() {
 
   const p2state = { mapRevealed:false, climbCount:0, bossDead:false };
 
-  const player = { x:2*TILE+14, y:2*TILE+14, size:14, speed:save.items.includes('boots')?5:3, keys:{}, invincible:0 };
+  const player = { x:2*TILE+14, y:2*TILE+14, size:14, speed:save.items.includes('boots')?6:4, keys:{}, invincible:0 };
   const cam = { x:0, y:0 };
 
   // Tile key: 0=jungle, 1=wall, 2=bush(slow), 3=tree(solid), 4=vine, 5=hidden, 6=swamp, 7=village platform, 8=lava(dmg), 9=ruins floor, 10=chest
@@ -89,7 +89,7 @@ function launchP2() {
   ];
   console.log("[SGA] P2-B: resources defined");
 
-  const miniBoss = {x:12*TILE+18,y:6*TILE+18,hp:30,maxhp:30,size:32,speed:1.2,alive:true,attackTimer:0,chargeDir:{x:0,y:0},charging:false,chargeTimer:0};
+  const miniBoss = {x:12*TILE+18,y:6*TILE+18,hp:30,maxhp:30,size:32,speed:1.2,alive:true,discovered:false,attackTimer:0,chargeDir:{x:0,y:0},charging:false,chargeTimer:0};
 
   // Regular monkeys — west jungle
   let monkeys = [
@@ -203,7 +203,7 @@ function launchP2() {
       dialog:'Child of the stars... I have watched this jungle for many cycles. Take my wisdom.',
       shop:[
         {id:'map_reveal',  name:'Reveal Map',     emoji:'🗺️', desc:'Reveals the hidden jungle map',cost:{crystal:2},  effect:()=>{if(!p2state.mapRevealed){p2state.mapRevealed=true;drawMinimap();}}},
-        {id:'elder_boots', name:'Speed Blessing',  emoji:'👟', desc:'Grants Rocket Boots (permanent speed)',cost:{banana:3,plant:3},effect:()=>{if(!save.items.includes('boots')){save.items.push('boots');player.speed=5;updateHUD();persist();}}},
+        {id:'elder_boots', name:'Speed Blessing',  emoji:'👟', desc:'Grants Rocket Boots (permanent speed)',cost:{banana:3,plant:3},effect:()=>{if(!save.items.includes('boots')){save.items.push('boots');player.speed=6;updateHUD();persist();}}},
         {id:'lore_scroll', name:'Lore Scroll',    emoji:'📜', desc:'Reveals the Jungle King location',cost:{banana:1}, effect:()=>{showMsg('📜 Ancient Lore','The Jungle King slumbers at coordinates 12,12.\n\nDefeat him to earn passage to Planet 3!');}},
         {id:'wizard_skin_buy', name:"Wizard Skin", emoji:'🧙', desc:'Unlocks the Wizard skin (check Skin menu)',cost:{banana:5,crystal:4,plant:3}, effect:()=>{if(!save.unlockedSkins.includes('wizard')){save.unlockedSkins.push('wizard');persist();showSkinUnlockToast('wizard');}}},
         {id:'blessing',    name:"Elder's Blessing",emoji:'✨',desc:'Full heal + 3 extra lives',    cost:{banana:6,crystal:4,plant:4},effect:()=>{save.hp=save.maxHp;save.lives=Math.min(save.lives+3,9);updateHUD();persist();}},
@@ -272,7 +272,7 @@ function launchP2() {
       drawMinimap();
     } else {
       showMsg('🌿 Climbing!','Vine swing! +Speed boost for 5 seconds!');
-      player.speed=6; setTimeout(()=>player.speed=3,5000);
+      player.speed=7; setTimeout(()=>player.speed=save.items.includes('boots')?6:4,5000);
     }
   }
 
@@ -395,6 +395,8 @@ Equipped as active weapon!`);
         return;
       }
     }
+    // Nothing in range fallback
+    showMsg('Nothing Here','Walk closer to resources, enemies, or NPCs to interact.');
   }
   const onClick = e=>{
     const rect=canvas.getBoundingClientRect();
@@ -604,8 +606,16 @@ Equipped as active weapon!`);
       else{a.aggro=false;a.x+=a.dx;a.y+=a.dy;if(a.x<TILE||a.x>(COLS-1)*TILE)a.dx*=-1;if(a.y<TILE||a.y>(ROWS-1)*TILE)a.dy*=-1;}
       a.x=Math.max(TILE,Math.min(22*TILE,a.x));a.y=Math.max(TILE,Math.min((ROWS-1)*TILE,a.y));
     });
-    // boss
-    if(miniBoss.alive){
+    // boss - only active after discovery
+    if(miniBoss.alive&&!miniBoss.discovered){
+      // Discovery trigger: player enters boss area (within 6 tiles)
+      let pd=Math.hypot(player.x-miniBoss.x,player.y-miniBoss.y);
+      if(pd<TILE*6){
+        miniBoss.discovered=true;
+        showMsg('👑 JUNGLE KING AWAKENS!','A massive ape rises from the undergrowth!\n\nDefeat it to unlock Planet 3!');
+      }
+    }
+    if(miniBoss.alive&&miniBoss.discovered){
       let pd=Math.hypot(player.x-miniBoss.x,player.y-miniBoss.y);
       miniBoss.attackTimer++;
       if(miniBoss.charging){
