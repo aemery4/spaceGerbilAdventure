@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐹 Space Gerbil — Setup Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+
+  :root {
+    --space: #0a0a1a;
+    --purple: #6c3fc5;
+    --pink: #e040a0;
+    --yellow: #ffd740;
+    --green: #4cef90;
+    --blue: #40c4ff;
+    --card: #13132a;
+    --border: #2a2a50;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--space);
+    color: #e0e0ff;
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Starfield */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 15%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 60%, #fff 0%, transparent 100%),
+      radial-gradient(1.5px 1.5px at 55% 25%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 75% 80%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 90% 40%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 20% 85%, #aaf 0%, transparent 100%),
+      radial-gradient(1px 1px at 65% 55%, #ffa 0%, transparent 100%),
+      radial-gradient(1px 1px at 45% 90%, #fff 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 10%, #aff 0%, transparent 100%),
+      radial-gradient(1px 1px at 5% 45%, #fff 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  .hero {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  .gerbil {
+    font-size: 72px;
+    display: block;
+    animation: float 3s ease-in-out infinite;
+    margin-bottom: 12px;
+  }
+
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50%      { transform: translateY(-12px); }
+  }
+
+  h1 {
+    font-family: 'Fredoka One', sans-serif;
+    font-size: 2.6rem;
+    background: linear-gradient(135deg, var(--yellow), var(--pink), var(--blue));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.1;
+    margin-bottom: 10px;
+  }
+
+  .subtitle {
+    color: #8888bb;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 20px; }
+
+  .step {
+    background: var(--card);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 24px 28px;
+    position: relative;
+    transition: border-color 0.2s;
+  }
+
+  .step:hover { border-color: var(--purple); }
+
+  .step.done {
+    border-color: var(--green);
+    background: #0d1f16;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .step-num {
+    font-family: 'Fredoka One', sans-serif;
+    font-size: 1.8rem;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: #fff;
+  }
+
+  .step.done .step-num {
+    background: linear-gradient(135deg, #2a7a4a, var(--green));
+  }
+
+  .step-title {
+    font-family: 'Fredoka One', sans-serif;
+    font-size: 1.3rem;
+    color: #fff;
+  }
+
+  .step p { color: #b0b0d0; line-height: 1.6; margin-bottom: 10px; }
+  .step p:last-child { margin-bottom: 0; }
+
+  /* Click instructions */
+  .click-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+  }
+
+  .click-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    color: #c8c8ee;
+    font-weight: 600;
+  }
+
+  .click-list li .arrow {
+    color: var(--yellow);
+    font-size: 1.1rem;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  /* Keyboard / button chips */
+  kbd {
+    display: inline-block;
+    background: #1e1e40;
+    border: 1.5px solid #4444aa;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    padding: 2px 10px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.88rem;
+    color: var(--yellow);
+    white-space: nowrap;
+  }
+
+  .btn-mock {
+    display: inline-block;
+    background: #2255cc;
+    color: #fff;
+    border-radius: 6px;
+    padding: 3px 12px;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+
+  .btn-mock.green  { background: #1a6e3a; }
+  .btn-mock.orange { background: #8a4800; }
+
+  /* Screenshot mock */
+  .screenshot {
+    margin-top: 16px;
+    background: #1a1a35;
+    border: 1.5px solid #333366;
+    border-radius: 10px;
+    padding: 16px 18px;
+    font-size: 0.92rem;
+  }
+
+  .screenshot .bar {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
+  }
+
+  .screenshot .dot {
+    width: 11px; height: 11px; border-radius: 50%;
+  }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+
+  .screenshot .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 5px 8px;
+    border-radius: 6px;
+    color: #9090c0;
+    font-family: monospace;
+    font-size: 0.88rem;
+  }
+
+  .screenshot .row.highlight {
+    background: #1234cc33;
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .screenshot .row .icon { font-size: 1rem; }
+
+  /* Check mark toggle */
+  .check-btn {
+    margin-top: 16px;
+    background: none;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    color: #6666aa;
+    padding: 8px 18px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .check-btn:hover { border-color: var(--green); color: var(--green); }
+  .step.done .check-btn { border-color: var(--green); color: var(--green); }
+
+  /* Final play button */
+  .play-section {
+    margin-top: 36px;
+    text-align: center;
+  }
+
+  .play-btn {
+    display: inline-block;
+    font-family: 'Fredoka One', sans-serif;
+    font-size: 1.5rem;
+    background: linear-gradient(135deg, var(--purple), var(--pink));
+    color: #fff;
+    border: none;
+    border-radius: 16px;
+    padding: 18px 48px;
+    cursor: pointer;
+    box-shadow: 0 6px 30px #e040a055;
+    transition: transform 0.15s, box-shadow 0.15s;
+    text-decoration: none;
+  }
+
+  .play-btn:hover {
+    transform: scale(1.05) translateY(-2px);
+    box-shadow: 0 10px 40px #e040a080;
+  }
+
+  .play-note {
+    margin-top: 12px;
+    color: #6666aa;
+    font-size: 0.9rem;
+  }
+
+  /* Tip box */
+  .tip {
+    background: #1a120a;
+    border: 1.5px solid #5a3a00;
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-top: 14px;
+    color: #d0a060;
+    font-size: 0.92rem;
+  }
+  .tip strong { color: var(--yellow); }
+
+  /* Section divider */
+  .divider {
+    text-align: center;
+    color: #333366;
+    font-size: 1.2rem;
+    letter-spacing: 4px;
+    margin: 8px 0;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <span class="gerbil">🐹</span>
+    <h1>Space Gerbil Adventure<br>Setup Guide</h1>
+    <p class="subtitle">Do these steps once — then you're set forever!</p>
+  </div>
+
+  <div class="steps">
+
+    <!-- Step 1 -->
+    <div class="step" id="s1">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">Open VS Code</div>
+      </div>
+      <p>Find VS Code on your computer and open it. It's the blue icon that looks like angle brackets <strong>&lt; &gt;</strong></p>
+      <button class="check-btn" onclick="markDone('s1')">✓ Done!</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step" id="s2">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">Install Live Server</div>
+      </div>
+      <p>This lets you open the game in your browser with one click. You only install it once!</p>
+      <ul class="click-list">
+        <li><span class="arrow">➤</span> On the left side of VS Code, click the <strong>Extensions icon</strong> — it looks like 4 squares (⊞)</li>
+        <li><span class="arrow">➤</span> In the search box at the top, type: <kbd>Live Server</kbd></li>
+        <li><span class="arrow">➤</span> Find the one that says <strong>"Live Server"</strong> by <em>Ritwick Dey</em></li>
+        <li><span class="arrow">➤</span> Click the blue <span class="btn-mock">Install</span> button</li>
+        <li><span class="arrow">➤</span> Wait a few seconds — done! ✅</li>
+      </ul>
+      <div class="tip"><strong>💡 Tip:</strong> If you see "Uninstall" instead of "Install", you already have it — skip to Step 3!</div>
+      <button class="check-btn" onclick="markDone('s2')">✓ Done!</button>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step" id="s3">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">Open the Game Folder</div>
+      </div>
+      <p>Tell VS Code where the game files live.</p>
+      <ul class="click-list">
+        <li><span class="arrow">➤</span> In VS Code, click <strong>File</strong> in the top menu</li>
+        <li><span class="arrow">➤</span> Click <strong>Open Folder...</strong></li>
+        <li><span class="arrow">➤</span> Find the <strong>game_modules</strong> folder (wherever you unzipped it)</li>
+        <li><span class="arrow">➤</span> Click <span class="btn-mock">Select Folder</span></li>
+      </ul>
+      <p style="margin-top:12px">You should now see these files on the left:</p>
+      <div class="screenshot">
+        <div class="bar"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div></div>
+        <div class="row"><span class="icon">📁</span> js</div>
+        <div class="row highlight"><span class="icon">📄</span> index.html &nbsp;← the game!</div>
+        <div class="row"><span class="icon">📄</span> CLAUDE.md</div>
+        <div class="row"><span class="icon">📄</span> SETUP.html</div>
+      </div>
+      <button class="check-btn" onclick="markDone('s3')">✓ Done!</button>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step" id="s4">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div class="step-title">Launch the Game!</div>
+      </div>
+      <p>Almost there! Here's how to open the game every time:</p>
+      <ul class="click-list">
+        <li><span class="arrow">➤</span> In the file list on the left, click on <strong>index.html</strong></li>
+        <li><span class="arrow">➤</span> <strong>Right-click</strong> on <strong>index.html</strong></li>
+        <li><span class="arrow">➤</span> Click <strong>"Open with Live Server"</strong></li>
+        <li><span class="arrow">➤</span> Your browser opens with the game! 🎮</li>
+      </ul>
+      <div class="tip"><strong>💡 From now on:</strong> just right-click <kbd>index.html</kbd> → Open with Live Server. That's the whole thing!</div>
+      <button class="check-btn" onclick="markDone('s4')">✓ Done!</button>
+    </div>
+
+  </div>
+
+  <div class="play-section">
+    <div class="divider">· · · 🚀 · · ·</div>
+    <p style="color:#6666aa; margin-bottom:20px; margin-top:16px">All steps done? Let's gooo!</p>
+    <a class="play-btn" href="index.html">🐹 Play the Game!</a>
+    <p class="play-note">Opens index.html — right-click it next time for Live Server</p>
+  </div>
+
+</div>
+
+<script>
+function markDone(id) {
+  document.getElementById(id).classList.toggle('done');
+}
+</script>
+</body>
+</html>
