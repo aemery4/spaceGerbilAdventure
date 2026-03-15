@@ -54,7 +54,7 @@ def create_test_llm() -> ChatAnthropic:
     )
 
 
-def test_node(state: AgentState) -> dict:
+def validation_node(state: AgentState) -> dict:
     """
     Test node function for the StateGraph.
 

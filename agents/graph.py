@@ -16,7 +16,7 @@ from langgraph.graph import StateGraph, START, END
 
 from .state import AgentState, create_initial_state
 from .orchestrator import orchestrator_node, route_after_orchestrator
-from .test import test_node
+from .test import validation_node
 from .content import content_node
 from .documentation import documentation_node
 
@@ -58,7 +58,7 @@ def create_sga_graph() -> StateGraph:
     # Add nodes
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("content", content_node)
-    graph.add_node("test", test_node)
+    graph.add_node("test", validation_node)
     graph.add_node("documentation", documentation_node)
     graph.add_node("human", _human_escalation_node)
 

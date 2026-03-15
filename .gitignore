@@ -4,6 +4,11 @@
 .env.*.local
 .claude/settings.local.json
 
+# Test artifacts
+.coverage
+htmlcov/
+.pytest_cache/
+
 # Python
 __pycache__/
 *.py[cod]
