@@ -1,3 +1,4 @@
+// HUD display functions
 function updateHUD(){
   document.getElementById('hp').textContent=Math.ceil(save.hp);
   document.getElementById('lives').textContent='❤️'.repeat(Math.max(0,save.lives))+'🖤'.repeat(Math.max(0,3-save.lives));

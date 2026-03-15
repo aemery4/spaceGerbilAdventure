@@ -1,3 +1,4 @@
+// Crafting system
 function toggleCraft(){
   const p=document.getElementById('craftPanel');
   if(p.style.display==='block'){p.style.display='none';gamePaused=false;return;}
