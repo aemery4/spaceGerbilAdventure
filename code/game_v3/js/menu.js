@@ -31,9 +31,10 @@ function drawMenu(){
 
   // Planet cards
   const cards=[
-    {x:140,label:'🌍',name:'Earth — Area 51',n:1},
-    {x:330,label:'🌴',name:'Jungle Zorbax',n:2},
-    {x:520,label:'☢️',name:'Planet 3',n:3},
+    {x:100,label:'🌍',name:'Earth — Area 51',n:1},
+    {x:270,label:'🌴',name:'Jungle Zorbax',n:2},
+    {x:440,label:'❄️',name:'Tundra Frigia',n:3},
+    {x:610,label:'🌊',name:'Aquatic Neptuna',n:4},
   ];
   cards.forEach(c=>{
     const cleared=save.planetsCleared.includes(c.n);
@@ -96,9 +97,10 @@ function menuClick(e){
   const r=canvas.getBoundingClientRect();
   const mx=e.clientX-r.left, my=e.clientY-r.top;
   // Planet cards
-  const cards=[{x:140,n:1},{x:330,n:2},{x:520,n:3}];
+  const cards=[{x:100,n:1},{x:270,n:2},{x:440,n:3},{x:610,n:4}];
   for(const c of cards){
     if(mx>c.x-70&&mx<c.x+70&&my>150&&my<290){
+      if(c.n===4&&!save.planetsCleared.includes(3)&&!save.freePlay) return;
       if(c.n===3&&!save.planetsCleared.includes(2)&&!save.freePlay) return;
       if(c.n===2&&!save.planetsCleared.includes(1)&&!save.freePlay) return;
       startPlanet(c.n); return;
@@ -132,8 +134,8 @@ function startPlanet(n){
   document.getElementById('invBar').style.display='block';
   document.getElementById('ctrl').style.display='block';
   document.getElementById('bh').style.display=n===2?'':'none';
-  document.getElementById('fuelMax').textContent=n===3?'20':n===2?'15':'10';
-  const pLabels={1:'Earth — Area 51',2:'Jungle — Zorbax',3:'Tundra Frigia'};
+  document.getElementById('fuelMax').textContent=n===4?'25':n===3?'20':n===2?'15':'10';
+  const pLabels={1:'Earth — Area 51',2:'Jungle — Zorbax',3:'Tundra Frigia',4:'Aquatic Neptuna'};
   document.getElementById('planet').textContent=pLabels[n]||'Unknown';
   save.currentPlanet=n; save.resources.fuel=0;
   updateHUD();
@@ -141,6 +143,7 @@ function startPlanet(n){
   if(n===1) launchP1();
   else if(n===2) launchP2();
   else if(n===3) launchP3();
+  else if(n===4) launchP4();
   console.log('[SGA] launchP'+n+'() returned');
 }
 function showTransition(text,sub,cb){
