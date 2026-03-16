@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Gerbil Adventure - Game Creator Portal</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            color: #fff;
+            padding: 20px;
+        }
+
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background-image:
+                radial-gradient(2px 2px at 20px 30px, #fff, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+                radial-gradient(2px 2px at 160px 120px, rgba(255,255,255,0.9), transparent),
+                radial-gradient(1px 1px at 230px 80px, #fff, transparent),
+                radial-gradient(2px 2px at 300px 150px, rgba(255,255,255,0.7), transparent),
+                radial-gradient(1px 1px at 400px 60px, #fff, transparent),
+                radial-gradient(2px 2px at 500px 200px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 600px 100px, #fff, transparent),
+                radial-gradient(2px 2px at 700px 180px, rgba(255,255,255,0.9), transparent);
+            background-size: 800px 300px;
+            animation: twinkle 4s ease-in-out infinite;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 2.2rem;
+            color: #ffd700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: #a0d2db;
+            margin-bottom: 20px;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            justify-content: center;
+        }
+
+        .tab-btn {
+            padding: 15px 30px;
+            font-size: 1.1rem;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: bold;
+        }
+
+        .tab-btn.bug {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .tab-btn.feature {
+            background: linear-gradient(135deg, #27ae60, #1e8449);
+            color: white;
+        }
+
+        .tab-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+
+        .tab-btn.active {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
+        }
+
+        .form-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .form-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 1rem;
+            margin-bottom: 8px;
+            color: #a0d2db;
+        }
+
+        input[type="text"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 15px;
+            font-size: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+            transition: border-color 0.3s ease;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus,
+        select:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        select {
+            cursor: pointer;
+        }
+
+        select option {
+            background: #1a1a2e;
+            color: #fff;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 18px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            border: none;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn.bug {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .submit-btn.feature {
+            background: linear-gradient(135deg, #27ae60, #1e8449);
+            color: white;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.success {
+            display: block;
+            background: rgba(39, 174, 96, 0.3);
+            border: 1px solid #27ae60;
+        }
+
+        .status.error {
+            display: block;
+            background: rgba(231, 76, 60, 0.3);
+            border: 1px solid #e74c3c;
+        }
+
+        .status.loading {
+            display: block;
+            background: rgba(52, 152, 219, 0.3);
+            border: 1px solid #3498db;
+        }
+
+        .helper-text {
+            font-size: 0.85rem;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .recent-submissions {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+        }
+
+        .recent-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #ffd700;
+        }
+
+        .submission-item {
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .submission-type {
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .submission-type.bug {
+            background: #e74c3c;
+        }
+
+        .submission-type.feature {
+            background: #27ae60;
+        }
+
+        .submission-status {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        footer a {
+            color: #a0d2db;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="stars"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">🐹🚀</div>
+            <h1>Space Gerbil Game Creator Portal</h1>
+            <p class="subtitle">Help make Space Gerbil Adventure even better!</p>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-btn bug active" onclick="switchTab('bug')">
+                🐛 Report a Bug
+            </button>
+            <button class="tab-btn feature" onclick="switchTab('feature')">
+                ✨ Request a Feature
+            </button>
+        </div>
+
+        <div class="form-container">
+            <!-- Bug Report Form -->
+            <div id="bug-form" class="form-section active">
+                <h2 class="form-title">🐛 Found a Bug?</h2>
+                <p style="margin-bottom: 20px; color: #a0d2db;">
+                    Tell us what went wrong and we'll fix it!
+                </p>
+
+                <form onsubmit="submitBug(event)">
+                    <div class="form-group">
+                        <label for="bug-planet">Which planet were you on?</label>
+                        <select id="bug-planet" required>
+                            <option value="">Select a planet...</option>
+                            <option value="menu">Main Menu</option>
+                            <option value="planet1">Planet 1 - Earth / Area 51</option>
+                            <option value="planet2">Planet 2 - Jungle Planet Zorbax</option>
+                            <option value="planet3">Planet 3 - Tundra Frigia</option>
+                            <option value="other">Other / Not Sure</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bug-title">What happened? (short title)</label>
+                        <input type="text" id="bug-title" placeholder="e.g., Gerbil got stuck in a wall" required>
+                        <p class="helper-text">Keep it short - like a headline!</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bug-details">Tell us more details</label>
+                        <textarea id="bug-details" placeholder="What were you doing when the bug happened? What did you expect to happen instead?" required></textarea>
+                        <p class="helper-text">The more details you give, the easier it is to fix!</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="bug-name">Your name (optional)</label>
+                        <input type="text" id="bug-name" placeholder="Bug Hunter Name">
+                    </div>
+
+                    <button type="submit" class="submit-btn bug" id="bug-submit">
+                        🔍 Submit Bug Report
+                    </button>
+                </form>
+
+                <div id="bug-status" class="status"></div>
+            </div>
+
+            <!-- Feature Request Form -->
+            <div id="feature-form" class="form-section">
+                <h2 class="form-title">✨ Got an Idea?</h2>
+                <p style="margin-bottom: 20px; color: #a0d2db;">
+                    Tell us what cool things you want in the game!
+                </p>
+
+                <form onsubmit="submitFeature(event)">
+                    <div class="form-group">
+                        <label for="feature-category">What kind of feature?</label>
+                        <select id="feature-category" required>
+                            <option value="">Select a category...</option>
+                            <option value="new_planet">New Planet / Level</option>
+                            <option value="new_enemy">New Enemy / Boss</option>
+                            <option value="new_item">New Item / Power-up</option>
+                            <option value="new_skin">New Gerbil Skin</option>
+                            <option value="gameplay">Gameplay Change</option>
+                            <option value="visual">Graphics / Visual Effect</option>
+                            <option value="sound">Sound / Music</option>
+                            <option value="other">Other Cool Idea</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="feature-title">What's your idea? (short title)</label>
+                        <input type="text" id="feature-title" placeholder="e.g., Add a jetpack for the gerbil" required>
+                        <p class="helper-text">Sum up your idea in a few words!</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="feature-details">Describe your idea</label>
+                        <textarea id="feature-details" placeholder="Tell us everything about your idea! How would it work? Why would it be fun?" required></textarea>
+                        <p class="helper-text">Be creative - no idea is too wild!</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="feature-name">Your name (optional)</label>
+                        <input type="text" id="feature-name" placeholder="Game Designer Name">
+                    </div>
+
+                    <button type="submit" class="submit-btn feature" id="feature-submit">
+                        🚀 Submit Feature Request
+                    </button>
+                </form>
+
+                <div id="feature-status" class="status"></div>
+            </div>
+        </div>
+
+        <div class="recent-submissions" id="recent-submissions">
+            <h3 class="recent-title">📋 Your Recent Submissions</h3>
+            <div id="submissions-list">
+                <p style="color: #888; text-align: center;">No submissions yet. Be the first!</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>Space Gerbil Adventure Game Creator Portal</p>
+            <p><a href="../code/game_v3/index.html" target="_blank">Play the Game</a></p>
+        </footer>
+    </div>
+
+    <script>
+        // API endpoint
+        const API_URL = 'http://localhost:5050';
+
+        // Store submissions in localStorage
+        let submissions = JSON.parse(localStorage.getItem('sga_submissions') || '[]');
+
+        function switchTab(tab) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.querySelector(`.tab-btn.${tab}`).classList.add('active');
+
+            // Update forms
+            document.querySelectorAll('.form-section').forEach(form => {
+                form.classList.remove('active');
+            });
+            document.getElementById(`${tab}-form`).classList.add('active');
+        }
+
+        function showStatus(type, elementId, message, isSuccess) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.className = 'status ' + (isSuccess ? 'success' : 'error');
+            statusEl.innerHTML = message;
+        }
+
+        function showLoading(elementId) {
+            const statusEl = document.getElementById(elementId);
+            statusEl.className = 'status loading';
+            statusEl.innerHTML = '🔄 Sending to Space Gerbil HQ... Please wait!';
+        }
+
+        async function submitBug(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('bug-submit');
+            submitBtn.disabled = true;
+            showLoading('bug-status');
+
+            const data = {
+                type: 'bug',
+                planet: document.getElementById('bug-planet').value,
+                title: document.getElementById('bug-title').value,
+                details: document.getElementById('bug-details').value,
+                submitter: document.getElementById('bug-name').value || 'Anonymous Bug Hunter'
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus('bug', 'bug-status',
+                        `🎉 Bug report received! Task ID: ${result.task_id}<br>Our robot agents are investigating!`,
+                        true);
+
+                    // Save to local submissions
+                    addSubmission('bug', data.title, result.task_id);
+
+                    // Clear form
+                    event.target.reset();
+                } else {
+                    showStatus('bug', 'bug-status',
+                        `❌ Oops! Something went wrong: ${result.error}`,
+                        false);
+                }
+            } catch (error) {
+                showStatus('bug', 'bug-status',
+                    `❌ Could not connect to the server. Is the portal server running?`,
+                    false);
+            }
+
+            submitBtn.disabled = false;
+        }
+
+        async function submitFeature(event) {
+            event.preventDefault();
+
+            const submitBtn = document.getElementById('feature-submit');
+            submitBtn.disabled = true;
+            showLoading('feature-status');
+
+            const data = {
+                type: 'feature',
+                category: document.getElementById('feature-category').value,
+                title: document.getElementById('feature-title').value,
+                details: document.getElementById('feature-details').value,
+                submitter: document.getElementById('feature-name').value || 'Anonymous Game Designer'
+            };
+
+            try {
+                const response = await fetch(`${API_URL}/submit`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showStatus('feature', 'feature-status',
+                        `🎉 Feature request received! Task ID: ${result.task_id}<br>Our robot agents are designing it!`,
+                        true);
+
+                    // Save to local submissions
+                    addSubmission('feature', data.title, result.task_id);
+
+                    // Clear form
+                    event.target.reset();
+                } else {
+                    showStatus('feature', 'feature-status',
+                        `❌ Oops! Something went wrong: ${result.error}`,
+                        false);
+                }
+            } catch (error) {
+                showStatus('feature', 'feature-status',
+                    `❌ Could not connect to the server. Is the portal server running?`,
+                    false);
+            }
+
+            submitBtn.disabled = false;
+        }
+
+        function addSubmission(type, title, taskId) {
+            submissions.unshift({
+                type: type,
+                title: title,
+                taskId: taskId,
+                timestamp: new Date().toISOString()
+            });
+
+            // Keep only last 10
+            submissions = submissions.slice(0, 10);
+            localStorage.setItem('sga_submissions', JSON.stringify(submissions));
+
+            renderSubmissions();
+        }
+
+        function renderSubmissions() {
+            const listEl = document.getElementById('submissions-list');
+
+            if (submissions.length === 0) {
+                listEl.innerHTML = '<p style="color: #888; text-align: center;">No submissions yet. Be the first!</p>';
+                return;
+            }
+
+            listEl.innerHTML = submissions.map(sub => `
+                <div class="submission-item">
+                    <div>
+                        <span class="submission-type ${sub.type}">${sub.type === 'bug' ? '🐛 Bug' : '✨ Feature'}</span>
+                        <span style="margin-left: 10px;">${sub.title}</span>
+                    </div>
+                    <span class="submission-status">ID: ${sub.taskId}</span>
+                </div>
+            `).join('');
+        }
+
+        // Initial render
+        renderSubmissions();
+    </script>
+</body>
+</html>
