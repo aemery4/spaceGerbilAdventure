@@ -8,6 +8,9 @@ const ctx=canvas.getContext('2d');
 let menuStars=[];
 for(let i=0;i<120;i++) menuStars.push({x:Math.random()*800,y:Math.random()*520,r:Math.random()*1.5+0.3,t:Math.random()*Math.PI*2});
 
+// Show hello message on first load
+let hasShownHello = false;
+
 function drawMenu(){
   ctx.fillStyle='#000010'; ctx.fillRect(0,0,800,520);
   // stars
@@ -61,6 +64,14 @@ function drawMenu(){
   ctx.fillText('Click a planet or button to start',400,400);
   if(save.planetsCleared.length>0){
     ctx.fillStyle='#335'; ctx.fillText('Cleared: '+save.planetsCleared.map(n=>['','Earth','Zorbax'][n]||'P'+n).join(', '),400,418);}
+
+  // Show hello message on first menu display
+  if (!hasShownHello) {
+    hasShownHello = true;
+    setTimeout(() => {
+      showMsg('Hello!', 'Welcome to Space Gerbil Adventure!\n\nGet ready for an epic journey across the galaxy!');
+    }, 500);
+  }
 
   animFrameId=requestAnimationFrame(drawMenu);
 }
