@@ -16,6 +16,7 @@ The graph supports:
 from langgraph.graph import StateGraph, START, END
 
 from .state import AgentState, create_initial_state
+from .interpretation import interpretation_node
 from .orchestrator import orchestrator_node, route_after_orchestrator
 from .test import validation_node
 from .content import content_node
@@ -31,6 +32,12 @@ def create_sga_graph() -> StateGraph:
 
         START
           │
+          ▼
+    ┌─────────────────┐
+    │ Interpretation  │──── (if needs_clarification) ───► END (with question)
+    └─────────────────┘
+          │
+          │ (if ready)
           ▼
     ┌─────────────┐
     │ Orchestrator│◄──────────────────────────┐
@@ -63,6 +70,7 @@ def create_sga_graph() -> StateGraph:
     graph = StateGraph(AgentState)
 
     # Add nodes
+    graph.add_node("interpretation", interpretation_node)
     graph.add_node("orchestrator", orchestrator_node)
     graph.add_node("content", content_node)
     graph.add_node("test", validation_node)
@@ -71,8 +79,18 @@ def create_sga_graph() -> StateGraph:
     graph.add_node("human", _human_escalation_node)
 
     # Add edges
-    # Start always goes to orchestrator
-    graph.add_edge(START, "orchestrator")
+    # Start goes to interpretation first
+    graph.add_edge(START, "interpretation")
+
+    # Interpretation routes conditionally
+    graph.add_conditional_edges(
+        "interpretation",
+        _route_after_interpretation,
+        {
+            "orchestrator": "orchestrator",
+            "__end__": END,
+        },
+    )
 
     # Orchestrator routes conditionally
     graph.add_conditional_edges(
@@ -102,6 +120,18 @@ def create_sga_graph() -> StateGraph:
     graph.add_edge("human", END)
 
     return graph.compile()
+
+
+def _route_after_interpretation(state: AgentState) -> str:
+    """
+    Route after interpretation node.
+
+    If clarification is needed, end the graph so the question can be returned.
+    Otherwise, proceed to orchestrator.
+    """
+    if state.get("needs_clarification", False):
+        return "__end__"
+    return "orchestrator"
 
 
 def _human_escalation_node(state: AgentState) -> dict:
@@ -144,7 +174,7 @@ def run_task(task: str, log_callback=None) -> dict:
     graph = create_sga_graph()
     initial_state = create_initial_state(task)
 
-    log(f"Task classified, routing to content agent")
+    log(f"Interpreting task...")
 
     # Run the graph with streaming to see each step
     final_state = None
@@ -156,7 +186,14 @@ def run_task(task: str, log_callback=None) -> dict:
         files_modified = node_state.get('files_modified', [])
 
         # More descriptive logging
-        if node_name == "content":
+        if node_name == "interpretation":
+            if node_state.get("needs_clarification"):
+                question = node_state.get("clarification_question", "Unknown")
+                log(f"Needs clarification: {question}")
+            else:
+                interp = node_state.get("interpretation_result", {})
+                log(f"Interpreted as: {interp.get('task_type', 'unknown')} - {interp.get('title', 'N/A')}")
+        elif node_name == "content":
             if files_modified:
                 log(f"Content agent (iteration {iterations}) modified: {', '.join(files_modified)}")
             else:

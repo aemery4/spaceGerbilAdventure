@@ -239,6 +239,17 @@ def run_orchestrator(task: str, task_id: str) -> dict:
                     "message": f"Processing timed out after {ORCHESTRATOR_TIMEOUT} seconds. Check API credits and try again."
                 }
 
+        # Check if clarification is needed
+        if result.get("needs_clarification"):
+            write_log(task_id, f"Clarification needed: {result.get('clarification_question')}")
+            return {
+                "status": "awaiting_clarification",
+                "needs_clarification": True,
+                "clarification_question": result.get("clarification_question"),
+                "clarification_options": result.get("clarification_options", []),
+                "interpretation_result": result.get("interpretation_result", {}),
+            }
+
         return {
             "status": result.get("status", "completed"),
             "agent_outputs": result.get("agent_outputs", {}),
@@ -434,9 +445,18 @@ def process_task(task_id):
     result = run_orchestrator(submission["formatted_task"], task_id)
 
     # Update submission with result
-    submission["status"] = result.get("status", "completed")
+    status = result.get("status", "completed")
+    submission["status"] = status
     submission["result"] = result
-    submission["processed_at"] = datetime.now().isoformat()
+
+    # Only set processed_at if actually completed (not awaiting clarification)
+    if status not in ("awaiting_clarification",):
+        submission["processed_at"] = datetime.now().isoformat()
+
+    # Save clarification info if present
+    if result.get("needs_clarification"):
+        submission["clarification_question"] = result.get("clarification_question")
+        submission["clarification_options"] = result.get("clarification_options", [])
 
     with open(submission_file, "w") as f:
         json.dump(submission, f, indent=2)
@@ -445,18 +465,83 @@ def process_task(task_id):
     queue = load_queue()
     for item in queue:
         if item["task_id"] == task_id:
-            item["status"] = result.get("status", "completed")
+            item["status"] = status
             break
     save_queue(queue)
 
-    print(f"\n{'='*60}")
-    print(f"Task {task_id} completed with status: {result.get('status')}")
-    print(f"{'='*60}\n")
+    if status == "awaiting_clarification":
+        print(f"\n{'='*60}")
+        print(f"Task {task_id} needs clarification:")
+        print(f"  {result.get('clarification_question')}")
+        print(f"{'='*60}\n")
+    else:
+        print(f"\n{'='*60}")
+        print(f"Task {task_id} completed with status: {status}")
+        print(f"{'='*60}\n")
 
     return jsonify({
         "success": True,
         "task_id": task_id,
         "result": result
+    })
+
+
+@app.route("/clarify/<task_id>", methods=["POST"])
+def clarify_task(task_id):
+    """
+    Provide clarification for a task that needs more information.
+
+    Accepts JSON with:
+        - answer: The user's clarification answer
+
+    This updates the task with the clarified information and re-runs processing.
+    """
+    submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
+
+    if not submission_file.exists():
+        return jsonify({"error": "Task not found"}), 404
+
+    data = request.get_json()
+    if not data or "answer" not in data:
+        return jsonify({"error": "No answer provided"}), 400
+
+    answer = data["answer"]
+
+    with open(submission_file) as f:
+        submission = json.load(f)
+
+    # Append clarification to the task
+    original_task = submission.get("formatted_task", "")
+    clarified_task = f"""{original_task}
+
+---
+CLARIFICATION PROVIDED:
+{answer}
+---
+"""
+
+    submission["formatted_task"] = clarified_task
+    submission["clarification_answer"] = answer
+    submission["clarified_at"] = datetime.now().isoformat()
+    submission["status"] = "pending"  # Reset to pending for reprocessing
+
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    # Update queue status
+    queue = load_queue()
+    for item in queue:
+        if item["task_id"] == task_id:
+            item["status"] = "pending"
+            break
+    save_queue(queue)
+
+    write_log(task_id, f"Clarification received: {answer}")
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Clarification received. Ready for reprocessing."
     })
 
 

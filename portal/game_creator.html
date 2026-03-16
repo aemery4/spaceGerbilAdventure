@@ -571,6 +571,72 @@
             color: #fff;
         }
 
+        .task-status.awaiting_clarification {
+            background: #9b59b6;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .clarification-box {
+            background: rgba(155, 89, 182, 0.2);
+            border: 1px solid #9b59b6;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .clarification-question {
+            font-size: 1.1rem;
+            color: #d8a0ff;
+            margin-bottom: 10px;
+        }
+
+        .clarification-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .clarification-option {
+            padding: 10px 20px;
+            background: rgba(155, 89, 182, 0.3);
+            border: 1px solid #9b59b6;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .clarification-option:hover {
+            background: rgba(155, 89, 182, 0.5);
+            transform: scale(1.05);
+        }
+
+        .clarification-input {
+            width: 100%;
+            padding: 12px;
+            margin-top: 10px;
+            border: 1px solid #9b59b6;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            color: #fff;
+        }
+
+        .clarification-submit {
+            margin-top: 10px;
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .clarification-submit:hover {
+            transform: scale(1.05);
+        }
+
         .task-card-body {
             color: #ccc;
             font-size: 0.95rem;
@@ -973,6 +1039,24 @@
             </div>
         </div>
 
+        <!-- Clarification Modal -->
+        <div class="task-details-modal" id="clarification-modal">
+            <div class="task-details-content" style="max-width: 500px;">
+                <div class="task-details-header">
+                    <h3>❓ More Info Needed</h3>
+                    <button class="close-modal-btn" onclick="closeClarificationModal()">&times;</button>
+                </div>
+                <div class="clarification-box">
+                    <p class="clarification-question" id="clarification-question"></p>
+                    <div class="clarification-options" id="clarification-options"></div>
+                    <input type="text" class="clarification-input" id="clarification-input" placeholder="Or type your own answer...">
+                    <button class="clarification-submit" onclick="submitClarification()">
+                        📤 Send Answer
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <div class="recent-submissions" id="recent-submissions">
             <h3 class="recent-title">📋 Your Recent Submissions</h3>
             <div id="submissions-list">
@@ -1233,6 +1317,11 @@
                                         🤖 Process
                                     </button>
                                 ` : ''}
+                                ${task.status === 'awaiting_clarification' ? `
+                                    <button class="task-action-btn process" onclick="showClarificationModal('${task.task_id}')" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
+                                        💬 Answer
+                                    </button>
+                                ` : ''}
                                 ${['escalated', 'cancelled', 'error'].includes(task.status) ? `
                                     <button class="task-action-btn resubmit" onclick="resubmitTask('${task.task_id}')">
                                         🔄 Resubmit
@@ -1269,7 +1358,8 @@
                 'completed': '✅ Completed',
                 'error': '❌ Error',
                 'escalated': '⚠️ Escalated',
-                'cancelled': '🚫 Cancelled'
+                'cancelled': '🚫 Cancelled',
+                'awaiting_clarification': '❓ Needs Info'
             };
             return labels[status] || status;
         }
@@ -1607,6 +1697,78 @@
                 }
             } catch (error) {
                 alert(`Failed to restore task: ${error.message}`);
+            }
+        }
+
+        // Clarification handling
+        let currentClarificationTaskId = null;
+
+        async function showClarificationModal(taskId) {
+            currentClarificationTaskId = taskId;
+
+            try {
+                const response = await fetch(`${API_URL}/task/${taskId}`);
+                const task = await response.json();
+
+                const questionEl = document.getElementById('clarification-question');
+                const optionsEl = document.getElementById('clarification-options');
+                const inputEl = document.getElementById('clarification-input');
+
+                questionEl.textContent = task.clarification_question || 'Could you provide more details?';
+
+                const options = task.clarification_options || [];
+                optionsEl.innerHTML = options.map(opt =>
+                    `<button class="clarification-option" onclick="selectClarificationOption('${opt.replace(/'/g, "\\'")}')">${opt}</button>`
+                ).join('');
+
+                inputEl.value = '';
+                document.getElementById('clarification-modal').classList.add('active');
+
+            } catch (error) {
+                alert(`Could not load clarification details: ${error.message}`);
+            }
+        }
+
+        function selectClarificationOption(option) {
+            document.getElementById('clarification-input').value = option;
+        }
+
+        function closeClarificationModal() {
+            document.getElementById('clarification-modal').classList.remove('active');
+            currentClarificationTaskId = null;
+        }
+
+        async function submitClarification() {
+            const answer = document.getElementById('clarification-input').value.trim();
+
+            if (!answer) {
+                alert('Please provide an answer or select an option.');
+                return;
+            }
+
+            if (!currentClarificationTaskId) {
+                alert('No task selected.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/clarify/${currentClarificationTaskId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ answer })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('Thanks! Your answer has been received. The task is ready to process again.');
+                    closeClarificationModal();
+                    refreshDashboard();
+                } else {
+                    throw new Error(result.error || 'Failed to submit clarification');
+                }
+            } catch (error) {
+                alert(`Failed to submit: ${error.message}`);
             }
         }
 

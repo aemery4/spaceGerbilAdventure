@@ -26,10 +26,17 @@ class AgentState(TypedDict):
         doc_iterations: Number of Documentation agent attempts (max 3)
 
         # Agent outputs
+        interpretation_result: Structured task from Interpretation agent
         content_result: Latest output from Content agent
         test_result: Latest output from Test agent (pass/fail + details)
         doc_result: Latest output from Documentation agent
         deploy_result: Latest output from Deploy agent (commit/push status)
+
+        # Clarification flow
+        needs_clarification: Whether user input is needed
+        clarification_question: Question to ask user
+        clarification_options: Suggested options for user
+        target_files: Files identified by interpretation agent
 
         # File tracking
         files_modified: List of files changed by Content agent
@@ -56,18 +63,25 @@ class AgentState(TypedDict):
     doc_iterations: int
 
     # Agent outputs
+    interpretation_result: Optional[dict]
     content_result: Optional[str]
     test_result: Optional[dict]  # {"passed": bool, "errors": list, "warnings": list}
     doc_result: Optional[str]
     deploy_result: Optional[str]
+
+    # Clarification flow
+    needs_clarification: bool
+    clarification_question: Optional[str]
+    clarification_options: Optional[list[str]]
+    target_files: list[str]
 
     # File tracking
     files_modified: list[str]
     test_files_checked: list[str]
 
     # Control flow
-    current_agent: Literal["orchestrator", "content", "test", "documentation", "deploy", "human"]
-    status: Literal["pending", "in_progress", "testing", "documenting", "deploying", "completed", "escalated"]
+    current_agent: Literal["interpretation", "orchestrator", "content", "test", "documentation", "deploy", "human"]
+    status: Literal["pending", "interpreting", "awaiting_clarification", "in_progress", "testing", "documenting", "deploying", "completed", "escalated"]
     needs_escalation: bool
     escalation_reason: Optional[str]
     escalation_options: Optional[list[str]]
@@ -96,10 +110,15 @@ def create_initial_state(task: str) -> AgentState:
         content_iterations=0,
         test_iterations=0,
         doc_iterations=0,
+        interpretation_result=None,
         content_result=None,
         test_result=None,
         doc_result=None,
         deploy_result=None,
+        needs_clarification=False,
+        clarification_question=None,
+        clarification_options=None,
+        target_files=[],
         files_modified=[],
         test_files_checked=[],
         current_agent="orchestrator",
