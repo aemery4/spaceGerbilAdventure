@@ -49,6 +49,7 @@ SUBMISSIONS_DIR.mkdir(exist_ok=True)
 
 # Task queue file
 QUEUE_FILE = SUBMISSIONS_DIR / "task_queue.json"
+ARCHIVE_FILE = SUBMISSIONS_DIR / "task_archive.json"
 
 
 def load_queue() -> list:
@@ -63,6 +64,20 @@ def save_queue(queue: list):
     """Save the task queue to disk."""
     with open(QUEUE_FILE, "w") as f:
         json.dump(queue, f, indent=2)
+
+
+def load_archive() -> list:
+    """Load the archived tasks from disk."""
+    if ARCHIVE_FILE.exists():
+        with open(ARCHIVE_FILE) as f:
+            return json.load(f)
+    return []
+
+
+def save_archive(archive: list):
+    """Save the archived tasks to disk."""
+    with open(ARCHIVE_FILE, "w") as f:
+        json.dump(archive, f, indent=2)
 
 
 def format_bug_task(data: dict) -> str:
@@ -529,6 +544,107 @@ def resubmit_task(task_id):
         "new_task_id": new_task_id,
         "message": f"Task resubmitted as {new_task_id}"
     })
+
+
+@app.route("/archive/<task_id>", methods=["POST"])
+def archive_task(task_id):
+    """
+    Archive a task, removing it from the main queue view.
+
+    Archived tasks can still be viewed in the archive section.
+    """
+    submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
+
+    if not submission_file.exists():
+        return jsonify({"error": "Task not found"}), 404
+
+    # Remove from main queue
+    queue = load_queue()
+    task_data = None
+    for i, item in enumerate(queue):
+        if item["task_id"] == task_id:
+            task_data = queue.pop(i)
+            break
+    save_queue(queue)
+
+    if not task_data:
+        return jsonify({"error": "Task not in queue"}), 404
+
+    # Add to archive
+    task_data["archived_at"] = datetime.now().isoformat()
+    archive = load_archive()
+    archive.append(task_data)
+    save_archive(archive)
+
+    # Update submission file
+    with open(submission_file) as f:
+        submission = json.load(f)
+    submission["archived"] = True
+    submission["archived_at"] = task_data["archived_at"]
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    print(f"Task {task_id} archived")
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Task archived"
+    })
+
+
+@app.route("/unarchive/<task_id>", methods=["POST"])
+def unarchive_task(task_id):
+    """
+    Restore an archived task back to the main queue.
+    """
+    submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
+
+    if not submission_file.exists():
+        return jsonify({"error": "Task not found"}), 404
+
+    # Remove from archive
+    archive = load_archive()
+    task_data = None
+    for i, item in enumerate(archive):
+        if item["task_id"] == task_id:
+            task_data = archive.pop(i)
+            break
+    save_archive(archive)
+
+    if not task_data:
+        return jsonify({"error": "Task not in archive"}), 404
+
+    # Remove archived_at from task data for queue
+    task_data.pop("archived_at", None)
+
+    # Add back to main queue
+    queue = load_queue()
+    queue.append(task_data)
+    save_queue(queue)
+
+    # Update submission file
+    with open(submission_file) as f:
+        submission = json.load(f)
+    submission.pop("archived", None)
+    submission.pop("archived_at", None)
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    print(f"Task {task_id} unarchived")
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Task restored from archive"
+    })
+
+
+@app.route("/archived", methods=["GET"])
+def get_archived():
+    """Get all archived tasks."""
+    archive = load_archive()
+    return jsonify({"tasks": archive})
 
 
 @app.route("/health", methods=["GET"])

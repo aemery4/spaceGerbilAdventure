@@ -627,6 +627,21 @@
             color: white;
         }
 
+        .task-action-btn.archive {
+            background: rgba(127, 140, 141, 0.3);
+            color: #bdc3c7;
+            border: 1px solid #7f8c8d;
+        }
+
+        .task-action-btn.archive:hover {
+            background: rgba(127, 140, 141, 0.5);
+        }
+
+        .task-action-btn.unarchive {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+            color: white;
+        }
+
         .task-action-btn:hover {
             transform: scale(1.05);
         }
@@ -738,6 +753,9 @@
             </button>
             <button class="tab-btn dashboard" onclick="switchTab('dashboard')">
                 📊 Status Dashboard
+            </button>
+            <button class="tab-btn archive" onclick="switchTab('archive')">
+                📦 Archive
             </button>
         </div>
 
@@ -886,6 +904,27 @@
                     <div class="no-tasks">
                         <div class="no-tasks-icon">📭</div>
                         <p>Loading tasks...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Archive Section -->
+            <div id="archive-form" class="form-section">
+                <h2 class="form-title">📦 Archived Tasks</h2>
+                <p style="margin-bottom: 20px; color: #a0d2db;">
+                    Tasks that have been archived are stored here. You can restore them to the main queue at any time.
+                </p>
+
+                <div class="dashboard-header">
+                    <button class="refresh-btn" onclick="loadArchivedTasks()">
+                        🔄 Refresh Archive
+                    </button>
+                </div>
+
+                <div class="task-list" id="archive-list">
+                    <div class="no-tasks">
+                        <div class="no-tasks-icon">📦</div>
+                        <p>Loading archived tasks...</p>
                     </div>
                 </div>
             </div>
@@ -1050,6 +1089,11 @@
             if (tab === 'dashboard') {
                 refreshDashboard();
             }
+
+            // If switching to archive, load archived tasks
+            if (tab === 'archive') {
+                loadArchivedTasks();
+            }
         }
 
         // ==========================================
@@ -1167,6 +1211,9 @@
                                         ❌ Cancel
                                     </button>
                                 ` : ''}
+                                <button class="task-action-btn archive" onclick="archiveTask('${task.task_id}')">
+                                    📦 Archive
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -1288,6 +1335,15 @@
                                     ❌ Cancel Task
                                 </button>
                             ` : ''}
+                            ${task.archived ? `
+                                <button class="task-action-btn unarchive" onclick="unarchiveTask('${taskId}')">
+                                    📤 Restore from Archive
+                                </button>
+                            ` : `
+                                <button class="task-action-btn archive" onclick="archiveTask('${taskId}')">
+                                    📦 Archive Task
+                                </button>
+                            `}
                         </div>
                     </div>
                 `;
@@ -1443,6 +1499,109 @@
                 }
             } catch (error) {
                 alert(`Failed to resubmit task: ${error.message}`);
+            }
+        }
+
+        async function archiveTask(taskId) {
+            if (!confirm(`Archive task ${taskId}?\n\nIt will be moved to the Archive tab and can be restored later.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/archive/${taskId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Task ${taskId} has been archived.`);
+                    refreshDashboard();
+                    closeModal();
+                } else {
+                    throw new Error(result.error || 'Archive failed');
+                }
+            } catch (error) {
+                alert(`Failed to archive task: ${error.message}`);
+            }
+        }
+
+        async function unarchiveTask(taskId) {
+            if (!confirm(`Restore task ${taskId} from archive?\n\nIt will be moved back to the main task list.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/unarchive/${taskId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Task ${taskId} has been restored.`);
+                    loadArchivedTasks();
+                    closeModal();
+                } else {
+                    throw new Error(result.error || 'Unarchive failed');
+                }
+            } catch (error) {
+                alert(`Failed to restore task: ${error.message}`);
+            }
+        }
+
+        async function loadArchivedTasks() {
+            const listEl = document.getElementById('archive-list');
+
+            try {
+                const response = await fetch(`${API_URL}/archived`);
+                const data = await response.json();
+                const archivedTasks = data.tasks || [];
+
+                if (archivedTasks.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="no-tasks">
+                            <div class="no-tasks-icon">📦</div>
+                            <p>No archived tasks. Tasks you archive will appear here.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Sort by archived_at descending (newest first)
+                archivedTasks.sort((a, b) => new Date(b.archived_at || b.timestamp) - new Date(a.archived_at || a.timestamp));
+
+                listEl.innerHTML = archivedTasks.map(task => `
+                    <div class="task-card" data-task-id="${task.task_id}">
+                        <div class="task-card-header">
+                            <div class="task-card-title">
+                                <span class="task-badge ${task.type}">${task.type === 'bug' ? '🐛 Bug' : '✨ Feature'}</span>
+                                ${task.title}
+                            </div>
+                            <span class="task-status ${task.status}">${getStatusLabel(task.status)}</span>
+                        </div>
+                        <div class="task-card-meta">
+                            <div>
+                                <span class="task-id">${task.task_id}</span>
+                                <span style="margin-left: 10px;">Archived ${formatTimestamp(task.archived_at || task.timestamp)}</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-btn view" onclick="viewTask('${task.task_id}')">
+                                    👁️ Details
+                                </button>
+                                <button class="task-action-btn unarchive" onclick="unarchiveTask('${task.task_id}')">
+                                    📤 Restore
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                listEl.innerHTML = `
+                    <div class="no-tasks">
+                        <div class="no-tasks-icon">❌</div>
+                        <p>Could not load archived tasks. Is the server running?</p>
+                    </div>
+                `;
             }
         }
 
