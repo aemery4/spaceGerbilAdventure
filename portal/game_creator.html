@@ -727,6 +727,38 @@
             background: rgba(0, 0, 0, 0.3);
             padding: 15px;
             border-radius: 8px;
+        }
+
+        .attempt-history {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .attempt-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 12px 15px;
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 10px;
+            border-left: 3px solid #7f8c8d;
+        }
+
+        .attempt-item .attempt-number {
+            font-weight: bold;
+            color: #a0d2db;
+        }
+
+        .attempt-item .attempt-date {
+            color: #888;
+            font-size: 0.85rem;
+        }
+
+        .attempt-item .attempt-error {
+            width: 100%;
+            margin-top: 5px;
             overflow-x: auto;
             font-size: 0.85rem;
             white-space: pre-wrap;
@@ -1317,6 +1349,25 @@
                         </div>
                     ` : ''}
 
+                    ${task.attempts && task.attempts.length > 0 ? `
+                        <div class="task-details-section">
+                            <h4>📊 Attempt History (${task.attempts.length} previous attempt${task.attempts.length > 1 ? 's' : ''})</h4>
+                            <div class="attempt-history">
+                                ${task.attempts.map((attempt, i) => `
+                                    <div class="attempt-item">
+                                        <span class="attempt-number">Attempt #${attempt.attempt_number || i + 1}</span>
+                                        <span class="task-status ${attempt.status}">${getStatusLabel(attempt.status)}</span>
+                                        ${attempt.started_at ? `<span class="attempt-date">Started: ${new Date(attempt.started_at).toLocaleString()}</span>` : ''}
+                                        ${attempt.result?.message ? `<span class="attempt-error" style="color: #e74c3c; font-size: 0.85rem;">Error: ${attempt.result.message.substring(0, 100)}${attempt.result.message.length > 100 ? '...' : ''}</span>` : ''}
+                                    </div>
+                                `).join('')}
+                            </div>
+                            <p style="margin-top: 10px; font-size: 0.9rem; color: #a0d2db;">
+                                Current: Attempt #${task.attempts.length + 1}
+                            </p>
+                        </div>
+                    ` : ''}
+
                     <div class="task-details-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
                         <h4>Actions</h4>
                         <div class="task-actions" style="margin-top: 10px;">
@@ -1480,7 +1531,7 @@
         }
 
         async function resubmitTask(taskId) {
-            if (!confirm(`Resubmit task ${taskId} as a new task?\n\nThis will create a fresh copy that can be processed again.`)) {
+            if (!confirm(`Resubmit task ${taskId}?\n\nThe previous attempt will be saved in the history and a new attempt will begin.`)) {
                 return;
             }
 
@@ -1491,7 +1542,7 @@
                 const result = await response.json();
 
                 if (result.success) {
-                    alert(`Task resubmitted!\n\nNew task ID: ${result.new_task_id}`);
+                    alert(`Task resubmitted!\n\nAttempt #${result.attempt_number} queued for processing.`);
                     refreshDashboard();
                     closeModal();
                 } else {

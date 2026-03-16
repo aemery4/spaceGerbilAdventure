@@ -494,9 +494,10 @@ def cancel_task(task_id):
 @app.route("/resubmit/<task_id>", methods=["POST"])
 def resubmit_task(task_id):
     """
-    Resubmit a cancelled or escalated task as a new task.
+    Resubmit a cancelled or escalated task for retry.
 
-    Creates a new task with the same data and a new task ID.
+    Instead of creating a new task, this resets the existing task
+    and tracks the previous attempt in the history.
     """
     submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
 
@@ -504,45 +505,65 @@ def resubmit_task(task_id):
         return jsonify({"error": "Task not found"}), 404
 
     with open(submission_file) as f:
-        original = json.load(f)
+        submission = json.load(f)
 
-    # Generate new task ID
-    new_task_id = f"{original['type'][:3].upper()}-{uuid.uuid4().hex[:8].upper()}"
+    # Initialize attempts history if not present
+    if "attempts" not in submission:
+        submission["attempts"] = []
 
-    # Create new submission with same data
-    new_submission = {
-        "task_id": new_task_id,
-        "type": original["type"],
-        "data": original["data"],
-        "formatted_task": original["formatted_task"],
-        "timestamp": datetime.now().isoformat(),
-        "status": "pending",
-        "resubmitted_from": task_id
+    # Save current attempt to history
+    attempt = {
+        "attempt_number": len(submission["attempts"]) + 1,
+        "status": submission.get("status"),
+        "started_at": submission.get("started_at"),
+        "processed_at": submission.get("processed_at"),
+        "cancelled_at": submission.get("cancelled_at"),
+        "result": submission.get("result"),
     }
+    submission["attempts"].append(attempt)
 
-    # Save new submission
-    new_submission_file = SUBMISSIONS_DIR / f"{new_task_id}.json"
-    with open(new_submission_file, "w") as f:
-        json.dump(new_submission, f, indent=2)
+    # Reset task for new attempt
+    submission["status"] = "pending"
+    submission["started_at"] = None
+    submission["processed_at"] = None
+    submission["cancelled_at"] = None
+    submission["result"] = None
+    submission["resubmitted_at"] = datetime.now().isoformat()
 
-    # Add to queue
+    # Save updated submission
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    # Update queue status
     queue = load_queue()
-    queue.append({
-        "task_id": new_task_id,
-        "type": new_submission["type"],
-        "title": original["data"].get("title", "Untitled"),
-        "timestamp": new_submission["timestamp"],
-        "status": "pending"
-    })
+    for item in queue:
+        if item["task_id"] == task_id:
+            item["status"] = "pending"
+            break
+    else:
+        # Task might have been removed from queue, add it back
+        queue.append({
+            "task_id": task_id,
+            "type": submission["type"],
+            "title": submission["data"].get("title", "Untitled"),
+            "timestamp": submission["timestamp"],
+            "status": "pending"
+        })
     save_queue(queue)
 
-    print(f"Task {task_id} resubmitted as {new_task_id}")
+    # Clear the log for fresh attempt
+    log_file = SUBMISSIONS_DIR / f"{task_id}.log"
+    if log_file.exists():
+        log_file.unlink()
+
+    attempt_num = len(submission["attempts"]) + 1
+    print(f"Task {task_id} resubmitted (attempt #{attempt_num})")
 
     return jsonify({
         "success": True,
-        "original_task_id": task_id,
-        "new_task_id": new_task_id,
-        "message": f"Task resubmitted as {new_task_id}"
+        "task_id": task_id,
+        "attempt_number": attempt_num,
+        "message": f"Task resubmitted for attempt #{attempt_num}"
     })
 
 
