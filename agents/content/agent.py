@@ -29,18 +29,21 @@ Your job is to implement code changes requested by the Orchestrator. You have to
 
 {FULL_KNOWLEDGE}
 
-## YOUR WORKFLOW
+## MANDATORY WORKFLOW
 
-1. **Understand the task**: Read the task description carefully
-2. **Use the knowledge above**: You already know file structure, templates, and patterns
-3. **Write the code IMMEDIATELY**: Use write_file to create or modify files
-4. **You MUST call write_file**: Your job is not done until you have written at least one file
+Your FIRST or SECOND response MUST be a write_file tool call. No exceptions.
 
-## EFFICIENCY RULES - CRITICAL
-- You already have templates and patterns above - DO NOT read files to learn them
-- Only use read_file if you need very specific details (like an exact variable name)
-- For new planets: use the PLANET_FILE_TEMPLATE directly, don't read other planet files
-- WRITE first, read only if necessary
+Step 1: Optionally read ONE file for context (if needed)
+Step 2: Call write_file with the complete file content
+Step 3: If more files needed (menu.js, index.html), call write_file again
+
+## FAILURE CONDITIONS
+- Responding with text explanations = FAILURE
+- Describing code without write_file = FAILURE
+- Reading more than 2 files before writing = FAILURE
+- NOT calling write_file in your first 2 responses = FAILURE
+
+You have all the templates and patterns you need above. USE THEM. WRITE THE FILE.
 
 ## AVAILABLE TOOLS
 
@@ -118,7 +121,8 @@ def content_node(state: AgentState) -> dict:
 
     # Create LLM with tools bound
     llm = create_content_llm()
-    llm_with_tools = llm.bind_tools(CONTENT_TOOLS)
+    # tool_choice="any" forces at least one tool per response (per LangChain docs)
+    llm_with_tools = llm.bind_tools(CONTENT_TOOLS, tool_choice="any")
 
     # Build initial messages
     messages = [
@@ -128,7 +132,7 @@ Type: {task_type}
 Description: {task}
 {test_context}
 
-Please complete this task. Start by reading the relevant file(s), then make the necessary changes.
+INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). Do NOT respond with text - respond with a write_file tool call containing the complete file content.
 """),
     ]
 
@@ -150,13 +154,22 @@ Please complete this task. Start by reading the relevant file(s), then make the 
 
             # Check if there are tool calls
             if not response.tool_calls:
-                # No more tool calls - agent is done
+                # No tool calls - check if we've written any files yet
+                if not files_modified and round_num < 5:
+                    # No files written yet and we have rounds left - force retry
+                    log_tool(f"WARNING: No tool calls and no write_file yet! Forcing retry...")
+                    messages.append(HumanMessage(content="You must use the write_file tool. Respond ONLY with a write_file tool call containing the complete file. Do not explain - just call write_file NOW."))
+                    continue
+
                 log_tool(f"LLM finished with no more tool calls")
                 if hasattr(response, "content") and response.content:
                     log_tool(f"Final response preview: {response.content[:200]}...")
                 break
 
-            log_tool(f"LLM requested {len(response.tool_calls)} tool(s)")
+            # Check if any of the tool calls is write_file
+            tool_names = [tc["name"] for tc in response.tool_calls]
+            has_write = "write_file" in tool_names
+            log_tool(f"LLM requested {len(response.tool_calls)} tool(s): {tool_names}")
 
             # Execute each tool call
             for tool_call in response.tool_calls:
@@ -184,6 +197,11 @@ Please complete this task. Start by reading the relevant file(s), then make the 
                     content=str(tool_result),
                     tool_call_id=tool_call["id"],
                 ))
+
+            # After processing tool calls, if we've done 2+ rounds without writing, force it
+            if round_num >= 2 and not files_modified and not has_write:
+                log_tool(f"WARNING: {round_num + 1} rounds without write_file! Forcing on next round...")
+                messages.append(HumanMessage(content="STOP READING. You have enough context. NOW call write_file with the complete file content. This is mandatory."))
 
         # Get final response content
         final_message = messages[-1]
