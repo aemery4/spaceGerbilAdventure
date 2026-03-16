@@ -542,7 +542,8 @@
             font-weight: bold;
         }
 
-        .task-status.pending {
+        .task-status.pending,
+        .task-status.queued {
             background: #f39c12;
             color: #000;
         }
@@ -1054,10 +1055,30 @@
                 dotEl.className = 'status-dot online';
                 textEl.textContent = 'Server Online';
 
-                const orchStatus = data.orchestrator_available
-                    ? '✅ Orchestrator Ready'
-                    : '⚠️ Orchestrator Offline (tasks queued only)';
-                infoEl.innerHTML = `${orchStatus} | ${data.queued_tasks} task(s) in queue`;
+                let statusParts = [];
+
+                // Orchestrator status
+                if (data.orchestrator_available) {
+                    statusParts.push('✅ Orchestrator Ready');
+                } else {
+                    statusParts.push('⚠️ Orchestrator Offline');
+                }
+
+                // API key status
+                if (data.api_key_set) {
+                    statusParts.push('🔑 API Key Set');
+                } else {
+                    statusParts.push('❌ API Key Missing');
+                }
+
+                statusParts.push(`${data.queued_tasks} task(s)`);
+
+                infoEl.innerHTML = statusParts.join(' | ');
+
+                // Show warning if API key missing
+                if (!data.api_key_set) {
+                    infoEl.innerHTML += '<br><span style="color: #f39c12; font-size: 0.85rem;">⚠️ Set ANTHROPIC_API_KEY environment variable to enable processing</span>';
+                }
 
             } catch (error) {
                 statusEl.className = 'server-status offline';
@@ -1107,7 +1128,7 @@
                                     👁️ Details
                                 </button>
                                 <button class="task-action-btn process" onclick="processTask('${task.task_id}')"
-                                    ${task.status !== 'pending' ? 'disabled' : ''}>
+                                    ${!['pending', 'queued'].includes(task.status) ? 'disabled' : ''}>
                                     🤖 Process
                                 </button>
                             </div>
@@ -1128,6 +1149,7 @@
         function getStatusLabel(status) {
             const labels = {
                 'pending': '⏳ Pending',
+                'queued': '⏳ Queued',
                 'processing': '🔄 Processing',
                 'completed': '✅ Completed',
                 'error': '❌ Error'

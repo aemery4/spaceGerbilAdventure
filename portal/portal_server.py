@@ -11,6 +11,17 @@ import json
 import uuid
 from datetime import datetime
 from pathlib import Path
+
+# Load environment variables from .env file
+# Check portal/.env first, then fall back to project root .env
+from dotenv import load_dotenv
+portal_env = Path(__file__).parent / ".env"
+root_env = Path(__file__).parent.parent / ".env"
+if portal_env.exists():
+    load_dotenv(portal_env)
+elif root_env.exists():
+    load_dotenv(root_env)
+
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
@@ -306,6 +317,24 @@ def process_task(task_id):
     with open(submission_file) as f:
         submission = json.load(f)
 
+    # Update status to "processing" BEFORE running orchestrator
+    submission["status"] = "processing"
+    submission["started_at"] = datetime.now().isoformat()
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    # Update queue status to processing
+    queue = load_queue()
+    for item in queue:
+        if item["task_id"] == task_id:
+            item["status"] = "processing"
+            break
+    save_queue(queue)
+
+    print(f"\n{'='*60}")
+    print(f"Processing task: {task_id}")
+    print(f"{'='*60}\n")
+
     # Run orchestrator
     result = run_orchestrator(submission["formatted_task"], task_id)
 
@@ -325,6 +354,10 @@ def process_task(task_id):
             break
     save_queue(queue)
 
+    print(f"\n{'='*60}")
+    print(f"Task {task_id} completed with status: {result.get('status')}")
+    print(f"{'='*60}\n")
+
     return jsonify({
         "success": True,
         "task_id": task_id,
@@ -335,9 +368,13 @@ def process_task(task_id):
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint."""
+    import os
+    api_key_set = bool(os.environ.get("ANTHROPIC_API_KEY"))
+
     return jsonify({
         "status": "healthy",
         "orchestrator_available": ORCHESTRATOR_AVAILABLE,
+        "api_key_set": api_key_set,
         "queued_tasks": len(load_queue())
     })
 
