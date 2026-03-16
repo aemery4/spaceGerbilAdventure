@@ -178,6 +178,11 @@ def run_orchestrator(task: str, task_id: str) -> dict:
     Returns:
         Result dictionary from the orchestrator
     """
+    import concurrent.futures
+
+    # Hard timeout for entire orchestrator run (90 seconds)
+    ORCHESTRATOR_TIMEOUT = 90
+
     # Clear previous log
     log_file = SUBMISSIONS_DIR / f"{task_id}.log"
     if log_file.exists():
@@ -201,18 +206,34 @@ def run_orchestrator(task: str, task_id: str) -> dict:
             "message": "API key not configured. Please set ANTHROPIC_API_KEY in a .env file."
         }
 
-    try:
+    def _run_with_logging():
+        """Inner function to run in thread with timeout."""
         write_log(task_id, "Starting orchestrator...")
         write_log(task_id, f"Task: {task[:100]}...")
         write_log(task_id, "API key is configured (validated)")
-
-        # Run the task through the agent system
         write_log(task_id, "Invoking LangGraph agent system...")
+
         result = run_task(task)
 
         write_log(task_id, f"Completed with status: {result.get('status', 'unknown')}")
         write_log(task_id, f"Iterations: {result.get('iteration', 0)}")
         write_log(task_id, f"Final agent: {result.get('current_agent', 'none')}")
+
+        return result
+
+    try:
+        # Run with hard timeout using ThreadPoolExecutor
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_run_with_logging)
+            try:
+                result = future.result(timeout=ORCHESTRATOR_TIMEOUT)
+            except concurrent.futures.TimeoutError:
+                write_log(task_id, f"TIMEOUT: Orchestrator exceeded {ORCHESTRATOR_TIMEOUT}s limit")
+                write_log(task_id, "This usually means the API is not responding or credits are depleted.")
+                return {
+                    "status": "error",
+                    "message": f"Processing timed out after {ORCHESTRATOR_TIMEOUT} seconds. Check API credits and try again."
+                }
 
         return {
             "status": result.get("status", "completed"),
