@@ -434,6 +434,103 @@ def get_log(task_id):
     return jsonify({"log": log_content, "exists": True})
 
 
+@app.route("/cancel/<task_id>", methods=["POST"])
+def cancel_task(task_id):
+    """
+    Cancel a task and move it to cancelled status.
+
+    Cancelled tasks are kept in history and can be resubmitted.
+    """
+    submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
+
+    if not submission_file.exists():
+        return jsonify({"error": "Task not found"}), 404
+
+    with open(submission_file) as f:
+        submission = json.load(f)
+
+    # Update status to cancelled
+    submission["status"] = "cancelled"
+    submission["cancelled_at"] = datetime.now().isoformat()
+
+    with open(submission_file, "w") as f:
+        json.dump(submission, f, indent=2)
+
+    # Update queue status
+    queue = load_queue()
+    for item in queue:
+        if item["task_id"] == task_id:
+            item["status"] = "cancelled"
+            break
+    save_queue(queue)
+
+    # Log the cancellation
+    write_log(task_id, "Task cancelled by user")
+
+    print(f"Task {task_id} cancelled")
+
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": "Task cancelled"
+    })
+
+
+@app.route("/resubmit/<task_id>", methods=["POST"])
+def resubmit_task(task_id):
+    """
+    Resubmit a cancelled or escalated task as a new task.
+
+    Creates a new task with the same data and a new task ID.
+    """
+    submission_file = SUBMISSIONS_DIR / f"{task_id}.json"
+
+    if not submission_file.exists():
+        return jsonify({"error": "Task not found"}), 404
+
+    with open(submission_file) as f:
+        original = json.load(f)
+
+    # Generate new task ID
+    new_task_id = f"{original['type'][:3].upper()}-{uuid.uuid4().hex[:8].upper()}"
+
+    # Create new submission with same data
+    new_submission = {
+        "task_id": new_task_id,
+        "type": original["type"],
+        "data": original["data"],
+        "formatted_task": original["formatted_task"],
+        "timestamp": datetime.now().isoformat(),
+        "status": "pending",
+        "resubmitted_from": task_id
+    }
+
+    # Save new submission
+    new_submission_file = SUBMISSIONS_DIR / f"{new_task_id}.json"
+    with open(new_submission_file, "w") as f:
+        json.dump(new_submission, f, indent=2)
+
+    # Add to queue
+    queue = load_queue()
+    queue.append({
+        "task_id": new_task_id,
+        "type": new_submission["type"],
+        "title": original["data"].get("title", "Untitled"),
+        "timestamp": new_submission["timestamp"],
+        "status": "pending"
+    })
+    save_queue(queue)
+
+    print(f"Task {task_id} resubmitted as {new_task_id}")
+
+    return jsonify({
+        "success": True,
+        "original_task_id": task_id,
+        "new_task_id": new_task_id,
+        "message": f"Task resubmitted as {new_task_id}"
+    })
+
+
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint."""

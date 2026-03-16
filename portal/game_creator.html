@@ -561,6 +561,16 @@
             background: #e74c3c;
         }
 
+        .task-status.escalated {
+            background: #f39c12;
+            color: #000;
+        }
+
+        .task-status.cancelled {
+            background: #7f8c8d;
+            color: #fff;
+        }
+
         .task-card-body {
             color: #ccc;
             font-size: 0.95rem;
@@ -600,6 +610,21 @@
         .task-action-btn.view {
             background: rgba(255, 255, 255, 0.1);
             color: #a0d2db;
+        }
+
+        .task-action-btn.cancel {
+            background: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+            border: 1px solid #e74c3c;
+        }
+
+        .task-action-btn.cancel:hover {
+            background: rgba(231, 76, 60, 0.5);
+        }
+
+        .task-action-btn.resubmit {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
         }
 
         .task-action-btn:hover {
@@ -1127,10 +1152,21 @@
                                 <button class="task-action-btn view" onclick="viewTask('${task.task_id}')">
                                     👁️ Details
                                 </button>
-                                <button class="task-action-btn process" onclick="processTask('${task.task_id}')"
-                                    ${!['pending', 'queued'].includes(task.status) ? 'disabled' : ''}>
-                                    🤖 Process
-                                </button>
+                                ${['pending', 'queued'].includes(task.status) ? `
+                                    <button class="task-action-btn process" onclick="processTask('${task.task_id}')">
+                                        🤖 Process
+                                    </button>
+                                ` : ''}
+                                ${['escalated', 'cancelled', 'error'].includes(task.status) ? `
+                                    <button class="task-action-btn resubmit" onclick="resubmitTask('${task.task_id}')">
+                                        🔄 Resubmit
+                                    </button>
+                                ` : ''}
+                                ${!['completed', 'cancelled'].includes(task.status) ? `
+                                    <button class="task-action-btn cancel" onclick="cancelTask('${task.task_id}')">
+                                        ❌ Cancel
+                                    </button>
+                                ` : ''}
                             </div>
                         </div>
                     </div>
@@ -1152,7 +1188,9 @@
                 'queued': '⏳ Queued',
                 'processing': '🔄 Processing',
                 'completed': '✅ Completed',
-                'error': '❌ Error'
+                'error': '❌ Error',
+                'escalated': '⚠️ Escalated',
+                'cancelled': '🚫 Cancelled'
             };
             return labels[status] || status;
         }
@@ -1231,6 +1269,27 @@
                             <p>${new Date(task.processed_at).toLocaleString()}</p>
                         </div>
                     ` : ''}
+
+                    <div class="task-details-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <h4>Actions</h4>
+                        <div class="task-actions" style="margin-top: 10px;">
+                            ${['pending', 'queued'].includes(task.status) ? `
+                                <button class="task-action-btn process" onclick="processTask('${taskId}')">
+                                    🤖 Process Task
+                                </button>
+                            ` : ''}
+                            ${['escalated', 'cancelled', 'error'].includes(task.status) ? `
+                                <button class="task-action-btn resubmit" onclick="resubmitTask('${taskId}')">
+                                    🔄 Resubmit Task
+                                </button>
+                            ` : ''}
+                            ${!['completed', 'cancelled'].includes(task.status) ? `
+                                <button class="task-action-btn cancel" onclick="cancelTask('${taskId}')">
+                                    ❌ Cancel Task
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
                 `;
 
                 // Start polling for log updates
@@ -1339,6 +1398,52 @@
 
             // Refresh the dashboard
             setTimeout(refreshDashboard, 1000);
+        }
+
+        async function cancelTask(taskId) {
+            if (!confirm(`Are you sure you want to cancel task ${taskId}?\n\nYou can resubmit it later from the cancelled state.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/cancel/${taskId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Task ${taskId} has been cancelled.`);
+                    refreshDashboard();
+                    closeModal();
+                } else {
+                    throw new Error(result.error || 'Cancellation failed');
+                }
+            } catch (error) {
+                alert(`Failed to cancel task: ${error.message}`);
+            }
+        }
+
+        async function resubmitTask(taskId) {
+            if (!confirm(`Resubmit task ${taskId} as a new task?\n\nThis will create a fresh copy that can be processed again.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/resubmit/${taskId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(`Task resubmitted!\n\nNew task ID: ${result.new_task_id}`);
+                    refreshDashboard();
+                    closeModal();
+                } else {
+                    throw new Error(result.error || 'Resubmission failed');
+                }
+            } catch (error) {
+                alert(`Failed to resubmit task: ${error.message}`);
+            }
         }
 
         function toggleAutoRefresh() {
