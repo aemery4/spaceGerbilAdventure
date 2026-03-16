@@ -43,10 +43,19 @@ Game context:
 
 def create_orchestrator_llm() -> ChatAnthropic:
     """Create the LLM instance for the Orchestrator agent."""
+    import os
+
+    # Verify API key is available
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY environment variable is not set. Please create a .env file with your API key.")
+
     return ChatAnthropic(
         model="claude-sonnet-4-20250514",
         temperature=0,
         max_tokens=1024,
+        timeout=60.0,  # 60 second timeout
+        max_retries=2,
     )
 
 

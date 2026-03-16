@@ -143,6 +143,15 @@ Run the validator after any changes.
     return task
 
 
+def write_log(task_id: str, message: str):
+    """Write a message to the task's processing log."""
+    log_file = SUBMISSIONS_DIR / f"{task_id}.log"
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    with open(log_file, "a") as f:
+        f.write(f"[{timestamp}] {message}\n")
+    print(f"[{task_id}] {message}")
+
+
 def run_orchestrator(task: str, task_id: str) -> dict:
     """
     Run the LangGraph orchestrator with the given task.
@@ -154,16 +163,41 @@ def run_orchestrator(task: str, task_id: str) -> dict:
     Returns:
         Result dictionary from the orchestrator
     """
+    # Clear previous log
+    log_file = SUBMISSIONS_DIR / f"{task_id}.log"
+    if log_file.exists():
+        log_file.unlink()
+
     if not ORCHESTRATOR_AVAILABLE:
+        write_log(task_id, "Orchestrator not available - task queued only")
         return {
             "status": "queued",
             "message": "Orchestrator not available. Task has been queued for manual processing."
         }
 
+    # Check for API key before attempting to process
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        write_log(task_id, "ERROR: ANTHROPIC_API_KEY not set!")
+        write_log(task_id, "Please create a .env file in the portal/ or project root directory with:")
+        write_log(task_id, "ANTHROPIC_API_KEY=your-api-key-here")
+        return {
+            "status": "error",
+            "message": "API key not configured. Please set ANTHROPIC_API_KEY in a .env file."
+        }
+
     try:
+        write_log(task_id, "Starting orchestrator...")
+        write_log(task_id, f"Task: {task[:100]}...")
+        write_log(task_id, "API key is configured (validated)")
+
         # Run the task through the agent system
-        print(f"Running orchestrator for task {task_id}...")
+        write_log(task_id, "Invoking LangGraph agent system...")
         result = run_task(task)
+
+        write_log(task_id, f"Completed with status: {result.get('status', 'unknown')}")
+        write_log(task_id, f"Iterations: {result.get('iteration', 0)}")
+        write_log(task_id, f"Final agent: {result.get('current_agent', 'none')}")
 
         return {
             "status": result.get("status", "completed"),
@@ -173,12 +207,33 @@ def run_orchestrator(task: str, task_id: str) -> dict:
             "test_results": result.get("test_results", {})
         }
 
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
+    except ValueError as e:
+        # Handle configuration errors (like missing API key)
+        write_log(task_id, f"CONFIGURATION ERROR: {str(e)}")
         return {
             "status": "error",
             "message": str(e)
+        }
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        write_log(task_id, f"ERROR: {error_msg}")
+
+        # Check for common error types
+        if "timeout" in error_msg.lower():
+            write_log(task_id, "The API request timed out. This could be due to network issues or API overload.")
+        elif "unauthorized" in error_msg.lower() or "401" in error_msg:
+            write_log(task_id, "API key appears to be invalid. Please check your ANTHROPIC_API_KEY.")
+        elif "rate" in error_msg.lower():
+            write_log(task_id, "Rate limit exceeded. Please wait and try again.")
+        elif "credit balance" in error_msg.lower() or "billing" in error_msg.lower():
+            write_log(task_id, "BILLING ERROR: Your Anthropic API credit balance is too low.")
+            write_log(task_id, "Please add credits at: https://console.anthropic.com/settings/billing")
+
+        traceback.print_exc()
+        return {
+            "status": "error",
+            "message": error_msg
         }
 
 
@@ -365,6 +420,20 @@ def process_task(task_id):
     })
 
 
+@app.route("/log/<task_id>", methods=["GET"])
+def get_log(task_id):
+    """Get the processing log for a task."""
+    log_file = SUBMISSIONS_DIR / f"{task_id}.log"
+
+    if not log_file.exists():
+        return jsonify({"log": "", "exists": False})
+
+    with open(log_file) as f:
+        log_content = f.read()
+
+    return jsonify({"log": log_content, "exists": True})
+
+
 @app.route("/health", methods=["GET"])
 def health():
     """Health check endpoint."""
@@ -400,4 +469,5 @@ if __name__ == "__main__":
     ====================================
     """)
 
-    app.run(host="0.0.0.0", port=5050, debug=True)
+    # Note: debug=False to prevent auto-reload from killing long-running orchestrator tasks
+    app.run(host="0.0.0.0", port=5050, debug=False)

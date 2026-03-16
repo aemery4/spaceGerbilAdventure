@@ -1213,6 +1213,11 @@
                         <pre>${task.formatted_task || 'Not available'}</pre>
                     </div>
 
+                    <div class="task-details-section">
+                        <h4>Processing Log <span id="log-status" style="font-size: 0.8rem; color: #888;"></span></h4>
+                        <pre id="processing-log" style="background: #000; color: #0f0; min-height: 100px; max-height: 300px; overflow-y: auto;">Checking for log...</pre>
+                    </div>
+
                     ${task.result ? `
                         <div class="task-details-section">
                             <h4>Processing Result</h4>
@@ -1228,12 +1233,56 @@
                     ` : ''}
                 `;
 
+                // Start polling for log updates
+                startLogPolling(taskId);
+
             } catch (error) {
                 bodyEl.innerHTML = `<p style="color: #e74c3c;">Error loading task details: ${error.message}</p>`;
             }
         }
 
+        let logPollingInterval = null;
+        let currentLogTaskId = null;
+
+        function startLogPolling(taskId) {
+            stopLogPolling();
+            currentLogTaskId = taskId;
+            updateLog(taskId);
+            logPollingInterval = setInterval(() => updateLog(taskId), 2000);
+        }
+
+        function stopLogPolling() {
+            if (logPollingInterval) {
+                clearInterval(logPollingInterval);
+                logPollingInterval = null;
+            }
+            currentLogTaskId = null;
+        }
+
+        async function updateLog(taskId) {
+            try {
+                const response = await fetch(`${API_URL}/log/${taskId}`);
+                const data = await response.json();
+                const logEl = document.getElementById('processing-log');
+                const statusEl = document.getElementById('log-status');
+
+                if (logEl) {
+                    if (data.exists && data.log) {
+                        logEl.textContent = data.log;
+                        logEl.scrollTop = logEl.scrollHeight;
+                        statusEl.textContent = '(auto-refreshing)';
+                    } else {
+                        logEl.textContent = 'No processing log yet. Click "Process" to start.';
+                        statusEl.textContent = '';
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to fetch log:', error);
+            }
+        }
+
         function closeModal() {
+            stopLogPolling();
             document.getElementById('task-modal').classList.remove('active');
         }
 
