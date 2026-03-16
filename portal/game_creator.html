@@ -103,6 +103,11 @@
             color: white;
         }
 
+        .tab-btn.dashboard {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
         .tab-btn:hover {
             transform: scale(1.05);
             box-shadow: 0 5px 20px rgba(0,0,0,0.3);
@@ -371,6 +376,321 @@
             font-size: 0.9rem;
             color: #e74c3c;
         }
+
+        /* Dashboard styles */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .dashboard-title {
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            border: none;
+            border-radius: 20px;
+            color: white;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .refresh-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .auto-refresh-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #a0d2db;
+        }
+
+        .auto-refresh-toggle input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .server-status {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .server-status.online {
+            background: rgba(39, 174, 96, 0.2);
+            border: 1px solid #27ae60;
+        }
+
+        .server-status.offline {
+            background: rgba(231, 76, 60, 0.2);
+            border: 1px solid #e74c3c;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        .status-dot.online {
+            background: #27ae60;
+        }
+
+        .status-dot.offline {
+            background: #e74c3c;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .task-card {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .task-card:hover {
+            background: rgba(255, 255, 255, 0.12);
+            transform: translateX(5px);
+        }
+
+        .task-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .task-card-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .task-id {
+            font-size: 0.75rem;
+            color: #888;
+            font-family: monospace;
+            background: rgba(0,0,0,0.3);
+            padding: 3px 8px;
+            border-radius: 4px;
+        }
+
+        .task-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .task-badge.bug {
+            background: #e74c3c;
+        }
+
+        .task-badge.feature {
+            background: #27ae60;
+        }
+
+        .task-status {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .task-status.pending {
+            background: #f39c12;
+            color: #000;
+        }
+
+        .task-status.processing {
+            background: #3498db;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .task-status.completed {
+            background: #27ae60;
+        }
+
+        .task-status.error {
+            background: #e74c3c;
+        }
+
+        .task-card-body {
+            color: #ccc;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .task-card-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .task-action-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.3s ease;
+        }
+
+        .task-action-btn.process {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+        }
+
+        .task-action-btn.view {
+            background: rgba(255, 255, 255, 0.1);
+            color: #a0d2db;
+        }
+
+        .task-action-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .task-action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .no-tasks {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+
+        .no-tasks-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .task-details-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .task-details-modal.active {
+            display: flex;
+        }
+
+        .task-details-content {
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .task-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .close-modal-btn {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: color 0.3s ease;
+        }
+
+        .close-modal-btn:hover {
+            color: #fff;
+        }
+
+        .task-details-section {
+            margin-bottom: 20px;
+        }
+
+        .task-details-section h4 {
+            color: #a0d2db;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .task-details-section pre {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -389,6 +709,9 @@
             </button>
             <button class="tab-btn feature" onclick="switchTab('feature')">
                 ✨ Request a Feature
+            </button>
+            <button class="tab-btn dashboard" onclick="switchTab('dashboard')">
+                📊 Status Dashboard
             </button>
         </div>
 
@@ -508,6 +831,48 @@
                 </form>
 
                 <div id="feature-status" class="status"></div>
+            </div>
+
+            <!-- Status Dashboard -->
+            <div id="dashboard-form" class="form-section">
+                <div class="dashboard-header">
+                    <h2 class="dashboard-title">📊 Task Status Dashboard</h2>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <label class="auto-refresh-toggle">
+                            <input type="checkbox" id="auto-refresh" checked onchange="toggleAutoRefresh()">
+                            Auto-refresh
+                        </label>
+                        <button class="refresh-btn" onclick="refreshDashboard()">
+                            🔄 Refresh Now
+                        </button>
+                    </div>
+                </div>
+
+                <div class="server-status" id="server-status">
+                    <div class="status-indicator">
+                        <span class="status-dot" id="status-dot"></span>
+                        <span id="server-status-text">Checking server...</span>
+                    </div>
+                    <div id="server-info"></div>
+                </div>
+
+                <div class="task-list" id="task-list">
+                    <div class="no-tasks">
+                        <div class="no-tasks-icon">📭</div>
+                        <p>Loading tasks...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Details Modal -->
+        <div class="task-details-modal" id="task-modal">
+            <div class="task-details-content">
+                <div class="task-details-header">
+                    <h3 id="modal-title">Task Details</h3>
+                    <button class="close-modal-btn" onclick="closeModal()">&times;</button>
+                </div>
+                <div id="modal-body"></div>
             </div>
         </div>
 
@@ -654,7 +1019,286 @@
                 form.classList.remove('active');
             });
             document.getElementById(`${tab}-form`).classList.add('active');
+
+            // If switching to dashboard, refresh it
+            if (tab === 'dashboard') {
+                refreshDashboard();
+            }
         }
+
+        // ==========================================
+        // Status Dashboard
+        // ==========================================
+
+        let autoRefreshInterval = null;
+        let dashboardTasks = [];
+
+        async function refreshDashboard() {
+            await Promise.all([
+                checkServerStatus(),
+                loadTasks()
+            ]);
+        }
+
+        async function checkServerStatus() {
+            const statusEl = document.getElementById('server-status');
+            const dotEl = document.getElementById('status-dot');
+            const textEl = document.getElementById('server-status-text');
+            const infoEl = document.getElementById('server-info');
+
+            try {
+                const response = await fetch(`${API_URL}/health`);
+                const data = await response.json();
+
+                statusEl.className = 'server-status online';
+                dotEl.className = 'status-dot online';
+                textEl.textContent = 'Server Online';
+
+                const orchStatus = data.orchestrator_available
+                    ? '✅ Orchestrator Ready'
+                    : '⚠️ Orchestrator Offline (tasks queued only)';
+                infoEl.innerHTML = `${orchStatus} | ${data.queued_tasks} task(s) in queue`;
+
+            } catch (error) {
+                statusEl.className = 'server-status offline';
+                dotEl.className = 'status-dot offline';
+                textEl.textContent = 'Server Offline';
+                infoEl.textContent = 'Cannot connect to portal server';
+            }
+        }
+
+        async function loadTasks() {
+            const listEl = document.getElementById('task-list');
+
+            try {
+                const response = await fetch(`${API_URL}/queue`);
+                const data = await response.json();
+                dashboardTasks = data.tasks || [];
+
+                if (dashboardTasks.length === 0) {
+                    listEl.innerHTML = `
+                        <div class="no-tasks">
+                            <div class="no-tasks-icon">📭</div>
+                            <p>No tasks yet! Submit a bug report or feature request.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                // Sort by timestamp descending (newest first)
+                dashboardTasks.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+                listEl.innerHTML = dashboardTasks.map(task => `
+                    <div class="task-card" data-task-id="${task.task_id}">
+                        <div class="task-card-header">
+                            <div class="task-card-title">
+                                <span class="task-badge ${task.type}">${task.type === 'bug' ? '🐛 Bug' : '✨ Feature'}</span>
+                                ${task.title}
+                            </div>
+                            <span class="task-status ${task.status}">${getStatusLabel(task.status)}</span>
+                        </div>
+                        <div class="task-card-meta">
+                            <div>
+                                <span class="task-id">${task.task_id}</span>
+                                <span style="margin-left: 10px;">${formatTimestamp(task.timestamp)}</span>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-btn view" onclick="viewTask('${task.task_id}')">
+                                    👁️ Details
+                                </button>
+                                <button class="task-action-btn process" onclick="processTask('${task.task_id}')"
+                                    ${task.status !== 'pending' ? 'disabled' : ''}>
+                                    🤖 Process
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+
+            } catch (error) {
+                listEl.innerHTML = `
+                    <div class="no-tasks">
+                        <div class="no-tasks-icon">❌</div>
+                        <p>Could not load tasks. Is the server running?</p>
+                    </div>
+                `;
+            }
+        }
+
+        function getStatusLabel(status) {
+            const labels = {
+                'pending': '⏳ Pending',
+                'processing': '🔄 Processing',
+                'completed': '✅ Completed',
+                'error': '❌ Error'
+            };
+            return labels[status] || status;
+        }
+
+        function formatTimestamp(ts) {
+            const date = new Date(ts);
+            const now = new Date();
+            const diff = now - date;
+
+            if (diff < 60000) return 'Just now';
+            if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
+            if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
+
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        }
+
+        async function viewTask(taskId) {
+            const modal = document.getElementById('task-modal');
+            const titleEl = document.getElementById('modal-title');
+            const bodyEl = document.getElementById('modal-body');
+
+            titleEl.textContent = `Task: ${taskId}`;
+            bodyEl.innerHTML = '<p>Loading...</p>';
+            modal.classList.add('active');
+
+            try {
+                const response = await fetch(`${API_URL}/task/${taskId}`);
+                const task = await response.json();
+
+                bodyEl.innerHTML = `
+                    <div class="task-details-section">
+                        <h4>Status</h4>
+                        <p><span class="task-status ${task.status}">${getStatusLabel(task.status)}</span></p>
+                    </div>
+
+                    <div class="task-details-section">
+                        <h4>Type</h4>
+                        <p><span class="task-badge ${task.type}">${task.type === 'bug' ? '🐛 Bug Report' : '✨ Feature Request'}</span></p>
+                    </div>
+
+                    <div class="task-details-section">
+                        <h4>Submitted</h4>
+                        <p>${new Date(task.timestamp).toLocaleString()}</p>
+                    </div>
+
+                    <div class="task-details-section">
+                        <h4>Submitter</h4>
+                        <p>${task.data?.submitter || 'Anonymous'}</p>
+                    </div>
+
+                    <div class="task-details-section">
+                        <h4>Original Request</h4>
+                        <pre>${task.data?.details || 'No details'}</pre>
+                    </div>
+
+                    <div class="task-details-section">
+                        <h4>Formatted Task (for Orchestrator)</h4>
+                        <pre>${task.formatted_task || 'Not available'}</pre>
+                    </div>
+
+                    ${task.result ? `
+                        <div class="task-details-section">
+                            <h4>Processing Result</h4>
+                            <pre>${JSON.stringify(task.result, null, 2)}</pre>
+                        </div>
+                    ` : ''}
+
+                    ${task.processed_at ? `
+                        <div class="task-details-section">
+                            <h4>Processed At</h4>
+                            <p>${new Date(task.processed_at).toLocaleString()}</p>
+                        </div>
+                    ` : ''}
+                `;
+
+            } catch (error) {
+                bodyEl.innerHTML = `<p style="color: #e74c3c;">Error loading task details: ${error.message}</p>`;
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('task-modal').classList.remove('active');
+        }
+
+        // Close modal on escape key or clicking outside
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeModal();
+        });
+
+        document.getElementById('task-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'task-modal') closeModal();
+        });
+
+        async function processTask(taskId) {
+            const card = document.querySelector(`[data-task-id="${taskId}"]`);
+            const statusEl = card?.querySelector('.task-status');
+            const processBtn = card?.querySelector('.task-action-btn.process');
+
+            if (statusEl) {
+                statusEl.className = 'task-status processing';
+                statusEl.textContent = '🔄 Processing...';
+            }
+            if (processBtn) {
+                processBtn.disabled = true;
+                processBtn.textContent = '🔄 Running...';
+            }
+
+            try {
+                const response = await fetch(`${API_URL}/process/${taskId}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    if (statusEl) {
+                        statusEl.className = `task-status ${result.result?.status || 'completed'}`;
+                        statusEl.textContent = getStatusLabel(result.result?.status || 'completed');
+                    }
+                    alert(`Task processed!\n\nStatus: ${result.result?.status}\n${result.result?.message || ''}`);
+                } else {
+                    throw new Error(result.error || 'Processing failed');
+                }
+
+            } catch (error) {
+                if (statusEl) {
+                    statusEl.className = 'task-status error';
+                    statusEl.textContent = '❌ Error';
+                }
+                alert(`Processing failed: ${error.message}`);
+            }
+
+            if (processBtn) {
+                processBtn.textContent = '🤖 Process';
+            }
+
+            // Refresh the dashboard
+            setTimeout(refreshDashboard, 1000);
+        }
+
+        function toggleAutoRefresh() {
+            const checkbox = document.getElementById('auto-refresh');
+
+            if (checkbox.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        }
+
+        function startAutoRefresh() {
+            stopAutoRefresh(); // Clear any existing interval
+            autoRefreshInterval = setInterval(() => {
+                // Only refresh if dashboard tab is active
+                if (document.getElementById('dashboard-form').classList.contains('active')) {
+                    refreshDashboard();
+                }
+            }, 5000); // Refresh every 5 seconds
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshInterval) {
+                clearInterval(autoRefreshInterval);
+                autoRefreshInterval = null;
+            }
+        }
+
+        // Start auto-refresh by default
+        startAutoRefresh();
 
         function showStatus(type, elementId, message, isSuccess) {
             const statusEl = document.getElementById(elementId);

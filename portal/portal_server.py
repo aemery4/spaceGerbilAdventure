@@ -14,14 +14,16 @@ from pathlib import Path
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 
-# Add agents directory to path for imports
-AGENTS_DIR = Path(__file__).parent.parent / "agents"
-sys.path.insert(0, str(AGENTS_DIR))
+# Add project root to path for imports
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Try to import orchestrator
 try:
-    from orchestrator.graph import create_graph, OrchestratorState
+    from agents.graph import run_task, create_sga_graph
+    from agents.state import create_initial_state
     ORCHESTRATOR_AVAILABLE = True
+    print("Orchestrator loaded successfully!")
 except ImportError as e:
     print(f"Warning: Could not import orchestrator: {e}")
     print("Running in standalone mode (submissions will be queued but not processed)")
@@ -148,30 +150,21 @@ def run_orchestrator(task: str, task_id: str) -> dict:
         }
 
     try:
-        # Create and run the graph
-        graph = create_graph()
-
-        initial_state = OrchestratorState(
-            task=task,
-            task_id=task_id,
-            messages=[],
-            current_agent=None,
-            agent_outputs={},
-            iteration=0,
-            max_iterations=10,
-            status="pending"
-        )
-
-        # Run the orchestrator
-        result = graph.invoke(initial_state)
+        # Run the task through the agent system
+        print(f"Running orchestrator for task {task_id}...")
+        result = run_task(task)
 
         return {
             "status": result.get("status", "completed"),
             "agent_outputs": result.get("agent_outputs", {}),
-            "iterations": result.get("iteration", 0)
+            "iterations": result.get("iteration", 0),
+            "current_agent": result.get("current_agent"),
+            "test_results": result.get("test_results", {})
         }
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
             "status": "error",
             "message": str(e)
