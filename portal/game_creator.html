@@ -1482,11 +1482,22 @@
                 const result = await response.json();
 
                 if (result.success) {
+                    const status = result.result?.status || 'completed';
+                    const message = result.result?.message || '';
+
                     if (statusEl) {
-                        statusEl.className = `task-status ${result.result?.status || 'completed'}`;
-                        statusEl.textContent = getStatusLabel(result.result?.status || 'completed');
+                        statusEl.className = `task-status ${status}`;
+                        statusEl.textContent = getStatusLabel(status);
                     }
-                    alert(`Task processed!\n\nStatus: ${result.result?.status}\n${result.result?.message || ''}`);
+
+                    // Show different alerts based on status
+                    if (status === 'error') {
+                        alert(`❌ Processing Failed!\n\n${message}`);
+                    } else if (status === 'escalated') {
+                        alert(`⚠️ Task Escalated\n\nThe task requires human attention.\n\n${message}`);
+                    } else {
+                        alert(`✅ Task Processed!\n\nStatus: ${status}\n${message}`);
+                    }
                 } else {
                     throw new Error(result.error || 'Processing failed');
                 }
