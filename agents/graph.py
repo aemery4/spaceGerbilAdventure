@@ -6,9 +6,10 @@ This module constructs the workflow graph that coordinates all agents:
 - Content: Reads/writes game code
 - Test: Validates changes via validate.js
 - Documentation: Maintains CHANGELOG.md
+- Deploy: Git commit and push to remote
 
 The graph supports:
-- Sequential flow: Orchestrator -> Content -> Test -> Documentation -> Complete
+- Sequential flow: Orchestrator -> Content -> Test -> Documentation -> Deploy -> Complete
 - Human escalation after max iterations
 """
 
@@ -19,6 +20,7 @@ from .orchestrator import orchestrator_node, route_after_orchestrator
 from .test import validation_node
 from .content import content_node
 from .documentation import documentation_node
+from .deploy import deploy_node
 
 
 def create_sga_graph() -> StateGraph:
@@ -47,6 +49,11 @@ def create_sga_graph() -> StateGraph:
                                     └──────────────────┘
                                                │
                                                ▼
+                                    ┌──────────────────┐
+                                    │     Deploy       │
+                                    └──────────────────┘
+                                               │
+                                               ▼
                                               END
 
     Returns:
@@ -60,6 +67,7 @@ def create_sga_graph() -> StateGraph:
     graph.add_node("content", content_node)
     graph.add_node("test", validation_node)
     graph.add_node("documentation", documentation_node)
+    graph.add_node("deploy", deploy_node)
     graph.add_node("human", _human_escalation_node)
 
     # Add edges
@@ -84,8 +92,11 @@ def create_sga_graph() -> StateGraph:
     # Test returns to orchestrator for evaluation
     graph.add_edge("test", "orchestrator")
 
-    # Documentation goes to end
-    graph.add_edge("documentation", END)
+    # Documentation goes to deploy
+    graph.add_edge("documentation", "deploy")
+
+    # Deploy goes to end
+    graph.add_edge("deploy", END)
 
     # Human escalation ends the graph
     graph.add_edge("human", END)
@@ -158,6 +169,9 @@ def run_task(task: str, log_callback=None) -> dict:
             log(f"Orchestrator evaluating (status: {status})")
         elif node_name == "documentation":
             log(f"Documentation agent updating changelog")
+        elif node_name == "deploy":
+            deploy_result = node_state.get('deploy_result', 'unknown')
+            log(f"Deploy agent: {deploy_result}")
         elif node_name == "human":
             log(f"Escalating to human review")
 

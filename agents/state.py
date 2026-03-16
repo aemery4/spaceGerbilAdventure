@@ -29,6 +29,7 @@ class AgentState(TypedDict):
         content_result: Latest output from Content agent
         test_result: Latest output from Test agent (pass/fail + details)
         doc_result: Latest output from Documentation agent
+        deploy_result: Latest output from Deploy agent (commit/push status)
 
         # File tracking
         files_modified: List of files changed by Content agent
@@ -58,14 +59,15 @@ class AgentState(TypedDict):
     content_result: Optional[str]
     test_result: Optional[dict]  # {"passed": bool, "errors": list, "warnings": list}
     doc_result: Optional[str]
+    deploy_result: Optional[str]
 
     # File tracking
     files_modified: list[str]
     test_files_checked: list[str]
 
     # Control flow
-    current_agent: Literal["orchestrator", "content", "test", "documentation", "human"]
-    status: Literal["pending", "in_progress", "testing", "documenting", "completed", "escalated"]
+    current_agent: Literal["orchestrator", "content", "test", "documentation", "deploy", "human"]
+    status: Literal["pending", "in_progress", "testing", "documenting", "deploying", "completed", "escalated"]
     needs_escalation: bool
     escalation_reason: Optional[str]
     escalation_options: Optional[list[str]]
@@ -97,6 +99,7 @@ def create_initial_state(task: str) -> AgentState:
         content_result=None,
         test_result=None,
         doc_result=None,
+        deploy_result=None,
         files_modified=[],
         test_files_checked=[],
         current_agent="orchestrator",
