@@ -305,6 +305,72 @@
         footer a:hover {
             text-decoration: underline;
         }
+
+        /* Voice input styles */
+        .input-with-mic {
+            position: relative;
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .input-with-mic input,
+        .input-with-mic textarea {
+            flex: 1;
+        }
+
+        .mic-btn {
+            width: 50px;
+            height: 50px;
+            border: none;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            color: white;
+            font-size: 1.4rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .mic-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 5px 20px rgba(155, 89, 182, 0.5);
+        }
+
+        .mic-btn.recording {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        .mic-btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 20px 10px rgba(231, 76, 60, 0.3); }
+        }
+
+        .voice-hint {
+            font-size: 0.8rem;
+            color: #9b59b6;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .voice-not-supported {
+            display: none;
+            padding: 10px;
+            background: rgba(231, 76, 60, 0.2);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: #e74c3c;
+        }
     </style>
 </head>
 <body>
@@ -334,6 +400,10 @@
                     Tell us what went wrong and we'll fix it!
                 </p>
 
+                <div class="voice-not-supported" id="voice-not-supported">
+                    Your browser doesn't support voice input. Please type your responses instead.
+                </div>
+
                 <form onsubmit="submitBug(event)">
                     <div class="form-group">
                         <label for="bug-planet">Which planet were you on?</label>
@@ -349,14 +419,22 @@
 
                     <div class="form-group">
                         <label for="bug-title">What happened? (short title)</label>
-                        <input type="text" id="bug-title" placeholder="e.g., Gerbil got stuck in a wall" required>
+                        <div class="input-with-mic">
+                            <input type="text" id="bug-title" placeholder="e.g., Gerbil got stuck in a wall" required>
+                            <button type="button" class="mic-btn" onclick="startVoiceInput('bug-title')" title="Click to speak">🎤</button>
+                        </div>
                         <p class="helper-text">Keep it short - like a headline!</p>
+                        <p class="voice-hint">🎤 Click the microphone to speak instead of typing!</p>
                     </div>
 
                     <div class="form-group">
                         <label for="bug-details">Tell us more details</label>
-                        <textarea id="bug-details" placeholder="What were you doing when the bug happened? What did you expect to happen instead?" required></textarea>
+                        <div class="input-with-mic">
+                            <textarea id="bug-details" placeholder="What were you doing when the bug happened? What did you expect to happen instead?" required></textarea>
+                            <button type="button" class="mic-btn" onclick="startVoiceInput('bug-details')" title="Click to speak">🎤</button>
+                        </div>
                         <p class="helper-text">The more details you give, the easier it is to fix!</p>
+                        <p class="voice-hint">🎤 Click the microphone to speak instead of typing!</p>
                     </div>
 
                     <div class="form-group">
@@ -379,6 +457,10 @@
                     Tell us what cool things you want in the game!
                 </p>
 
+                <div class="voice-not-supported">
+                    Your browser doesn't support voice input. Please type your responses instead.
+                </div>
+
                 <form onsubmit="submitFeature(event)">
                     <div class="form-group">
                         <label for="feature-category">What kind of feature?</label>
@@ -397,14 +479,22 @@
 
                     <div class="form-group">
                         <label for="feature-title">What's your idea? (short title)</label>
-                        <input type="text" id="feature-title" placeholder="e.g., Add a jetpack for the gerbil" required>
+                        <div class="input-with-mic">
+                            <input type="text" id="feature-title" placeholder="e.g., Add a jetpack for the gerbil" required>
+                            <button type="button" class="mic-btn" onclick="startVoiceInput('feature-title')" title="Click to speak">🎤</button>
+                        </div>
                         <p class="helper-text">Sum up your idea in a few words!</p>
+                        <p class="voice-hint">🎤 Click the microphone to speak instead of typing!</p>
                     </div>
 
                     <div class="form-group">
                         <label for="feature-details">Describe your idea</label>
-                        <textarea id="feature-details" placeholder="Tell us everything about your idea! How would it work? Why would it be fun?" required></textarea>
+                        <div class="input-with-mic">
+                            <textarea id="feature-details" placeholder="Tell us everything about your idea! How would it work? Why would it be fun?" required></textarea>
+                            <button type="button" class="mic-btn" onclick="startVoiceInput('feature-details')" title="Click to speak">🎤</button>
+                        </div>
                         <p class="helper-text">Be creative - no idea is too wild!</p>
+                        <p class="voice-hint">🎤 Click the microphone to speak instead of typing!</p>
                     </div>
 
                     <div class="form-group">
@@ -440,6 +530,117 @@
 
         // Store submissions in localStorage
         let submissions = JSON.parse(localStorage.getItem('sga_submissions') || '[]');
+
+        // ==========================================
+        // Voice Input (Web Speech API)
+        // ==========================================
+
+        // Check for browser support
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        let recognition = null;
+        let currentMicBtn = null;
+        let currentTargetId = null;
+
+        // Initialize speech recognition if supported
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            recognition.onstart = function() {
+                if (currentMicBtn) {
+                    currentMicBtn.classList.add('recording');
+                    currentMicBtn.innerHTML = '🔴';
+                }
+            };
+
+            recognition.onresult = function(event) {
+                let transcript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    transcript += event.results[i][0].transcript;
+                }
+
+                if (currentTargetId) {
+                    const target = document.getElementById(currentTargetId);
+                    if (target) {
+                        // For final results, capitalize first letter
+                        if (event.results[event.results.length - 1].isFinal) {
+                            transcript = transcript.charAt(0).toUpperCase() + transcript.slice(1);
+                            // Append to existing text with space if needed
+                            if (target.value && !target.value.endsWith(' ')) {
+                                target.value += ' ';
+                            }
+                            target.value += transcript;
+                        }
+                    }
+                }
+            };
+
+            recognition.onerror = function(event) {
+                console.error('Speech recognition error:', event.error);
+                stopRecording();
+
+                if (event.error === 'no-speech') {
+                    alert("Didn't hear anything. Try again and speak clearly!");
+                } else if (event.error === 'not-allowed') {
+                    alert("Microphone access denied. Please allow microphone access in your browser settings.");
+                }
+            };
+
+            recognition.onend = function() {
+                stopRecording();
+            };
+        } else {
+            // Show not supported message
+            document.addEventListener('DOMContentLoaded', function() {
+                document.querySelectorAll('.voice-not-supported').forEach(el => {
+                    el.style.display = 'block';
+                });
+                document.querySelectorAll('.mic-btn').forEach(btn => {
+                    btn.disabled = true;
+                    btn.title = 'Voice input not supported in this browser';
+                });
+                document.querySelectorAll('.voice-hint').forEach(el => {
+                    el.style.display = 'none';
+                });
+            });
+        }
+
+        function startVoiceInput(targetId) {
+            if (!recognition) {
+                alert('Voice input is not supported in your browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+
+            // If already recording, stop
+            if (currentMicBtn && currentMicBtn.classList.contains('recording')) {
+                recognition.stop();
+                return;
+            }
+
+            // Find the mic button for this input
+            const target = document.getElementById(targetId);
+            if (!target) return;
+
+            currentMicBtn = target.parentElement.querySelector('.mic-btn');
+            currentTargetId = targetId;
+
+            try {
+                recognition.start();
+            } catch (e) {
+                console.error('Could not start recognition:', e);
+            }
+        }
+
+        function stopRecording() {
+            if (currentMicBtn) {
+                currentMicBtn.classList.remove('recording');
+                currentMicBtn.innerHTML = '🎤';
+            }
+            currentMicBtn = null;
+            currentTargetId = null;
+        }
 
         function switchTab(tab) {
             // Update buttons
