@@ -120,9 +120,11 @@ def run_playwright_tests(headed: bool = False, timeout: int = 120) -> Playwright
             text=True,
             timeout=timeout,
             shell=True,
+            encoding='utf-8',
+            errors='replace',
         )
 
-        result.raw_output = proc.stdout + proc.stderr
+        result.raw_output = (proc.stdout or "") + (proc.stderr or "")
 
         # Parse results
         result = _parse_playwright_output(result, proc.returncode)
