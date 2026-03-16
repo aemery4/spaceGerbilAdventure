@@ -38,7 +38,7 @@ function drawMenu(){
   ];
   cards.forEach(c=>{
     const cleared=save.planetsCleared.includes(c.n);
-    const locked=(c.n===2&&!save.planetsCleared.includes(1)&&!save.freePlay)||(c.n===3);
+    const locked=(c.n===2&&!save.planetsCleared.includes(1)&&!save.freePlay)||(c.n===3&&!save.planetsCleared.includes(2)&&!save.freePlay)||(c.n===4&&!save.planetsCleared.includes(3)&&!save.freePlay);
     ctx.strokeStyle=cleared?'#4f4':locked?'#333':'#55f';
     ctx.fillStyle=cleared?'rgba(10,40,10,0.8)':locked?'rgba(5,5,15,0.6)':'rgba(20,20,60,0.8)';
     ctx.lineWidth=2;
@@ -155,10 +155,3 @@ function showTransition(text,sub,cb){
   ctx.font='56px serif'; ctx.fillText('🚀',400,170);
   if(cb) setTimeout(cb,2800);
 }
-
-
-// ════════════════════════════════════════
-// js/planet1.js
-// ════════════════════════════════════════
-// ── PLANET1 ───────────────────────────────────────────
-// ── PLANET 1 ──────────────────────────────────────────
