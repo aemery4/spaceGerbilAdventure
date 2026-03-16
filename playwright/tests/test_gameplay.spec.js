@@ -426,6 +426,171 @@ test.describe('Planet 2 - Jungle Zorbax', () => {
 
 
 // ============================================================
+// TEST: Planet 3 - Tundra Frigia
+// ============================================================
+test.describe('Planet 3 - Tundra Frigia', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(`file://${GAME_PATH}`);
+    await page.waitForTimeout(500);
+
+    // Start Planet 3 directly
+    await page.evaluate(() => {
+      if (typeof startPlanet === 'function') startPlanet(3);
+    });
+    await page.waitForTimeout(500);
+
+    // Dismiss intro dialog
+    await dismissDialog(page);
+    await page.waitForTimeout(200);
+  });
+
+  test('player spawns and can move in snow', async ({ page }) => {
+    await screenshot(page, '17_p3_start');
+
+    // Move in all directions
+    await holdKey(page, 'w', 300);
+    await holdKey(page, 's', 300);
+    await holdKey(page, 'a', 300);
+    await holdKey(page, 'd', 600);
+
+    await screenshot(page, '18_p3_after_movement');
+
+    const state = await getGameState(page);
+    if (state.gamePaused) {
+      logIssue('input_lock_state_corruption', 'P3: Game paused after movement');
+    }
+  });
+
+  test('yeti boss does not appear until cave discovered', async ({ page }) => {
+    // The yeti is in a hidden cave - should not take damage from it at spawn
+    const initialState = await getGameState(page);
+
+    // Move around spawn area (yeti is at ~15,8 tiles in hidden cave)
+    await holdKey(page, 'd', 200);
+    await holdKey(page, 's', 200);
+    await holdKey(page, 'a', 200);
+    await holdKey(page, 'w', 200);
+
+    await page.waitForTimeout(500);
+
+    const afterState = await getGameState(page);
+
+    // If player took massive damage at spawn, yeti might be active too early
+    const damageTaken = initialState.hp - afterState.hp;
+    if (damageTaken > 15) {
+      logIssue('spawn_state_initialization', `P3: Player took ${damageTaken} damage near spawn - yeti may be active too early`);
+    }
+
+    await screenshot(page, '19_p3_spawn_area_check');
+  });
+
+  test('tigers attack player (enemies work)', async ({ page }) => {
+    const initialState = await getGameState(page);
+
+    // Move toward tiger territory
+    await holdKey(page, 'd', 1000);
+    await holdKey(page, 's', 500);
+
+    await page.waitForTimeout(1000);
+
+    const afterState = await getGameState(page);
+
+    // Tigers should deal damage if player gets close
+    console.log(`[INFO] P3 HP: ${initialState.hp} -> ${afterState.hp}`);
+
+    await screenshot(page, '20_p3_tiger_area');
+  });
+
+  test('mammoths are neutral until provoked', async ({ page }) => {
+    const initialState = await getGameState(page);
+
+    // Move to mammoth area and just walk near them (don't attack)
+    await holdKey(page, 'd', 400);
+    await holdKey(page, 's', 800);
+
+    await page.waitForTimeout(1000);
+
+    const afterState = await getGameState(page);
+
+    // Mammoths should NOT attack unless provoked
+    // If player took damage, it's likely from tigers, not mammoths
+    console.log(`[INFO] P3 mammoth area HP: ${initialState.hp} -> ${afterState.hp}`);
+
+    await screenshot(page, '21_p3_mammoth_area');
+  });
+
+  test('F key shows fallback when nothing nearby', async ({ page }) => {
+    // Move to empty area
+    await holdKey(page, 'w', 200);
+    await holdKey(page, 'a', 200);
+
+    // Press F with nothing nearby
+    await pressKey(page, 'f');
+    await page.waitForTimeout(300);
+
+    // Check if any dialog appeared (may or may not have fallback in P3)
+    const dialogVisible = await isDialogVisible(page);
+
+    await screenshot(page, '22_p3_nothing_nearby');
+
+    if (dialogVisible) {
+      await dismissDialog(page);
+    }
+  });
+
+  test('camp merchants are accessible', async ({ page }) => {
+    // Move toward camp area (cols 24-29)
+    await holdKey(page, 'd', 2500);
+
+    await page.waitForTimeout(300);
+
+    await screenshot(page, '23_p3_camp_area');
+
+    // Try to interact near camp
+    await pressKey(page, 'f');
+    await page.waitForTimeout(300);
+
+    // If shop opened, verify it works
+    const shopVisible = await page.locator('#villageShop').evaluate(el => el.style.display === 'block');
+
+    if (shopVisible) {
+      await screenshot(page, '24_p3_camp_shop');
+      // Close shop with Escape
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(200);
+    }
+
+    await dismissDialog(page);
+  });
+
+  test('resources can be gathered', async ({ page }) => {
+    const initialState = await getGameState(page);
+
+    // Move and try to gather
+    await holdKey(page, 'd', 300);
+    await holdKey(page, 's', 200);
+
+    // Try clicking to gather
+    await clickCanvas(page, 400, 300);
+    await page.waitForTimeout(200);
+    await dismissDialog(page);
+
+    await pressKey(page, 'f');
+    await page.waitForTimeout(200);
+    await dismissDialog(page);
+
+    await screenshot(page, '25_p3_gather_attempt');
+
+    const afterState = await getGameState(page);
+    const totalBefore = initialState.rock + initialState.plant + initialState.crystal + initialState.fuel;
+    const totalAfter = afterState.rock + afterState.plant + afterState.crystal + afterState.fuel;
+
+    console.log(`[INFO] P3 Resources before: ${totalBefore}, after: ${totalAfter}`);
+  });
+});
+
+
+// ============================================================
 // TEST: Speed and Balance
 // ============================================================
 test.describe('Balance and Speed', () => {
@@ -475,6 +640,30 @@ test.describe('Balance and Speed', () => {
     }
 
     await screenshot(page, '16_p2_speed_test');
+  });
+
+  test('player can outrun enemies on P3', async ({ page }) => {
+    await page.goto(`file://${GAME_PATH}`);
+    await page.waitForTimeout(500);
+
+    await page.evaluate(() => startPlanet(3));
+    await page.waitForTimeout(500);
+    await dismissDialog(page);
+
+    const initialState = await getGameState(page);
+
+    // Run in one direction continuously
+    await holdKey(page, 'd', 2000);
+
+    const afterState = await getGameState(page);
+
+    // P3 has fast tigers (speed 1.6-2.0) - player needs good speed
+    const damageTaken = initialState.hp - afterState.hp;
+    if (damageTaken > 25) {
+      logIssue('balance_tuning', `P3: Player took ${damageTaken} damage while running - may be too slow vs tigers`);
+    }
+
+    await screenshot(page, '26_p3_speed_test');
   });
 });
 

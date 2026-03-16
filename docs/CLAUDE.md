@@ -44,7 +44,7 @@ A space gerbil travels between planets collecting fuel and defeating enemies.
 ## Current planet status
 - Planet 1 ✅ Earth / Area 51 — collect 10 fuel, defeat aliens, launch rocket
 - Planet 2 ✅ Jungle Planet Zorbax — 48×28 map, village merchants, Jungle King boss, collect 15 fuel
-- Planet 3 ❌ Not built yet
+- Planet 3 ✅ Tundra Frigia — tigers, mammoths, Yeti boss, camp merchants, collect 20 fuel
 
 ---
 
