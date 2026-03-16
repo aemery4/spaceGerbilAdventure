@@ -180,8 +180,8 @@ def run_orchestrator(task: str, task_id: str) -> dict:
     """
     import concurrent.futures
 
-    # Hard timeout for entire orchestrator run (90 seconds)
-    ORCHESTRATOR_TIMEOUT = 90
+    # Hard timeout for entire orchestrator run (10 minutes for complex features)
+    ORCHESTRATOR_TIMEOUT = 600
 
     # Clear previous log
     log_file = SUBMISSIONS_DIR / f"{task_id}.log"

@@ -117,11 +117,27 @@ def run_task(task: str) -> dict:
     Returns:
         Final state after workflow completion
     """
+    import sys
+
+    print(f"[LangGraph] Starting task: {task[:100]}...", file=sys.stderr)
+
     graph = create_sga_graph()
     initial_state = create_initial_state(task)
 
-    # Run the graph
-    final_state = graph.invoke(initial_state)
+    print(f"[LangGraph] Initial state - status: {initial_state['status']}, agent: {initial_state['current_agent']}", file=sys.stderr)
+
+    # Run the graph with streaming to see each step
+    final_state = None
+    for step_num, state in enumerate(graph.stream(initial_state)):
+        node_name = list(state.keys())[0] if state else "unknown"
+        node_state = state.get(node_name, {})
+        status = node_state.get('status', 'N/A')
+        agent = node_state.get('current_agent', 'N/A')
+        iterations = node_state.get('content_iterations', 0)
+        print(f"[LangGraph] Step {step_num}: node={node_name}, status={status}, agent={agent}, iterations={iterations}", file=sys.stderr)
+        final_state = node_state
+
+    print(f"[LangGraph] Final state - status: {final_state.get('status')}, agent: {final_state.get('current_agent')}", file=sys.stderr)
 
     return final_state
 

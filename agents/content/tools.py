@@ -12,22 +12,29 @@ from langchain_core.tools import tool
 # Base path to game code
 GAME_CODE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "code", "game_v3")
 
-# Allowed files that Content agent can modify
-ALLOWED_FILES = [
+# Allowed file patterns that Content agent can modify
+# Uses fnmatch patterns - * matches anything, ? matches single char
+ALLOWED_PATTERNS = [
     "js/globals.js",
     "js/save.js",
     "js/hud.js",
     "js/craft.js",
     "js/menu.js",
-    "js/planet1.js",
-    "js/planet2.js",
-    "js/planet3.js",
-    "js/p3-data.js",
-    "js/p3-draw.js",
-    "js/p3-logic.js",
     "js/skins.js",
+    "js/planet*.js",   # Any planet file (planet1.js, planet4.js, etc.)
+    "js/p?-*.js",      # Planet module files (p3-data.js, p4-logic.js, etc.)
     "index.html",
 ]
+
+
+def is_file_allowed(file_path: str) -> bool:
+    """Check if a file path matches any allowed pattern."""
+    import fnmatch
+    file_path = file_path.replace("\\", "/").lstrip("/")
+    for pattern in ALLOWED_PATTERNS:
+        if fnmatch.fnmatch(file_path, pattern):
+            return True
+    return False
 
 
 @tool
@@ -73,9 +80,9 @@ def write_file(file_path: str, content: str) -> str:
     # Normalize path
     file_path = file_path.replace("\\", "/").lstrip("/")
 
-    # Check if file is in allowed list
-    if file_path not in ALLOWED_FILES:
-        return f"Error: Cannot modify {file_path}. Allowed files: {', '.join(ALLOWED_FILES)}"
+    # Check if file matches allowed patterns
+    if not is_file_allowed(file_path):
+        return f"Error: Cannot modify {file_path}. Allowed patterns: {', '.join(ALLOWED_PATTERNS)}"
 
     full_path = os.path.normpath(os.path.join(GAME_CODE_PATH, file_path))
 
