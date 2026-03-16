@@ -15,13 +15,26 @@ from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
 from ..state import AgentState, MAX_TEST_ITERATIONS
 from .tools import TEST_TOOLS, read_game_file, list_game_files, search_game_files, get_files_modified
+from ..knowledge.codebase_patterns import FILE_STRUCTURE, GLOBAL_VARIABLES, TILE_TYPES
 
 
 # Path to the game code directory (relative to project root)
 GAME_CODE_PATH = "code/game_v3"
 
 
-TEST_AGENT_SYSTEM_PROMPT = """You are the Test Agent for Space Gerbil Adventure. Your job is to validate Content Agent changes by simulating gameplay and checking against known bug categories. You have read-only access to all game files.
+TEST_AGENT_SYSTEM_PROMPT = f"""You are the Test Agent for Space Gerbil Adventure. Your job is to validate Content Agent changes by simulating gameplay and checking against known bug categories. You have read-only access to all game files.
+
+## PRE-LOADED CODEBASE KNOWLEDGE (no need to call list_game_files)
+{FILE_STRUCTURE}
+
+{GLOBAL_VARIABLES}
+
+{TILE_TYPES}
+
+## EFFICIENCY RULES
+- You already know the file structure above - don't call list_game_files
+- Only read the specific modified files using get_files_modified or read_game_file
+- Focus on validating the changes, not exploring the codebase
 
 Gameplay Simulation: Mentally trace through the modified code. Simulate player movement in all directions, enemy spawning and aggro, resource gathering (fuel, rock, plant, crystal), combat interactions, item crafting, NPC dialogue, and planet transitions. Think through what actually executes when a player performs these actions.
 
@@ -61,26 +74,26 @@ Output: Return a structured report with pass/fail per category, specific line re
 ## RESPONSE FORMAT
 
 After analyzing all files, respond with a JSON report:
-{
+{{
     "passed": true|false,
-    "categories": {
-        "spawn_state_initialization": {"passed": true|false, "issues": [], "line_refs": []},
-        "missing_visual_feedback": {"passed": true|false, "issues": [], "line_refs": []},
-        "input_lock_state_corruption": {"passed": true|false, "issues": [], "line_refs": []},
-        "data_content_placeholders": {"passed": true|false, "issues": [], "line_refs": []},
-        "missing_resource_placement": {"passed": true|false, "issues": [], "line_refs": []},
-        "balance_tuning": {"passed": true|false, "issues": [], "line_refs": []},
-        "invisible_damage_source": {"passed": true|false, "issues": [], "line_refs": []},
-        "interaction_fallthrough": {"passed": true|false, "issues": [], "line_refs": []}
-    },
-    "ui_checks": {
-        "dialog_position": {"passed": true|false, "issues": []},
-        "intro_dialog_pause": {"passed": true|false, "issues": []},
-        "dialog_blocks_movement": {"passed": true|false, "issues": []}
-    },
+    "categories": {{
+        "spawn_state_initialization": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "missing_visual_feedback": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "input_lock_state_corruption": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "data_content_placeholders": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "missing_resource_placement": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "balance_tuning": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "invisible_damage_source": {{"passed": true|false, "issues": [], "line_refs": []}},
+        "interaction_fallthrough": {{"passed": true|false, "issues": [], "line_refs": []}}
+    }},
+    "ui_checks": {{
+        "dialog_position": {{"passed": true|false, "issues": []}},
+        "intro_dialog_pause": {{"passed": true|false, "issues": []}},
+        "dialog_blocks_movement": {{"passed": true|false, "issues": []}}
+    }},
     "reproduction_steps": ["step 1", "step 2"],
     "summary": "Brief overall summary"
-}
+}}
 """
 
 

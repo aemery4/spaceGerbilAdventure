@@ -107,24 +107,33 @@ def _human_escalation_node(state: AgentState) -> dict:
 
 
 # Convenience function to run the graph
-def run_task(task: str) -> dict:
+def run_task(task: str, log_callback=None) -> dict:
     """
     Run a task through the SGA agent system.
 
     Args:
         task: Task description from human user
+        log_callback: Optional function to call with log messages
 
     Returns:
         Final state after workflow completion
     """
     import sys
+    from datetime import datetime
 
-    print(f"[LangGraph] Starting task: {task[:100]}...", file=sys.stderr)
+    def log(msg):
+        ts = datetime.now().strftime("%H:%M:%S")
+        full_msg = f"[{ts}] {msg}"
+        print(f"[LangGraph] {full_msg}", file=sys.stderr)
+        if log_callback:
+            log_callback(msg)
+
+    log(f"Starting workflow...")
 
     graph = create_sga_graph()
     initial_state = create_initial_state(task)
 
-    print(f"[LangGraph] Initial state - status: {initial_state['status']}, agent: {initial_state['current_agent']}", file=sys.stderr)
+    log(f"Task classified, routing to content agent")
 
     # Run the graph with streaming to see each step
     final_state = None
@@ -132,12 +141,30 @@ def run_task(task: str) -> dict:
         node_name = list(state.keys())[0] if state else "unknown"
         node_state = state.get(node_name, {})
         status = node_state.get('status', 'N/A')
-        agent = node_state.get('current_agent', 'N/A')
         iterations = node_state.get('content_iterations', 0)
-        print(f"[LangGraph] Step {step_num}: node={node_name}, status={status}, agent={agent}, iterations={iterations}", file=sys.stderr)
+        files_modified = node_state.get('files_modified', [])
+
+        # More descriptive logging
+        if node_name == "content":
+            if files_modified:
+                log(f"Content agent (iteration {iterations}) modified: {', '.join(files_modified)}")
+            else:
+                log(f"Content agent (iteration {iterations}) analyzing...")
+        elif node_name == "test":
+            test_result = node_state.get('test_result', {})
+            passed = test_result.get('passed', 'unknown')
+            log(f"Test agent: {'PASSED' if passed else 'FAILED'}")
+        elif node_name == "orchestrator":
+            log(f"Orchestrator evaluating (status: {status})")
+        elif node_name == "documentation":
+            log(f"Documentation agent updating changelog")
+        elif node_name == "human":
+            log(f"Escalating to human review")
+
         final_state = node_state
 
-    print(f"[LangGraph] Final state - status: {final_state.get('status')}, agent: {final_state.get('current_agent')}", file=sys.stderr)
+    final_status = final_state.get('status', 'unknown') if final_state else 'unknown'
+    log(f"Workflow complete - final status: {final_status}")
 
     return final_state
 

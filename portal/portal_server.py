@@ -180,8 +180,8 @@ def run_orchestrator(task: str, task_id: str) -> dict:
     """
     import concurrent.futures
 
-    # Hard timeout for entire orchestrator run (10 minutes for complex features)
-    ORCHESTRATOR_TIMEOUT = 600
+    # Hard timeout for entire orchestrator run (30 minutes for complex features)
+    ORCHESTRATOR_TIMEOUT = 1800
 
     # Clear previous log
     log_file = SUBMISSIONS_DIR / f"{task_id}.log"
@@ -213,7 +213,11 @@ def run_orchestrator(task: str, task_id: str) -> dict:
         write_log(task_id, "API key is configured (validated)")
         write_log(task_id, "Invoking LangGraph agent system...")
 
-        result = run_task(task)
+        # Pass log callback so workflow steps appear in task log
+        def task_log(msg):
+            write_log(task_id, msg)
+
+        result = run_task(task, log_callback=task_log)
 
         write_log(task_id, f"Completed with status: {result.get('status', 'unknown')}")
         write_log(task_id, f"Iterations: {result.get('iteration', 0)}")

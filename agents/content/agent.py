@@ -20,38 +20,27 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, Tool
 
 from ..state import AgentState, MAX_CONTENT_ITERATIONS
 from .tools import CONTENT_TOOLS, read_file, write_file, list_files, search_in_files
-
-
-# Load the CLAUDE.md codebase contract
-def _load_codebase_contract() -> str:
-    """Load the CLAUDE.md file that defines codebase rules."""
-    claude_md_path = os.path.join(
-        os.path.dirname(__file__), "..", "..", "code", "game_v3", "CLAUDE.md"
-    )
-    try:
-        with open(claude_md_path, "r", encoding="utf-8") as f:
-            return f.read()
-    except:
-        return "CLAUDE.md not found - proceed with caution"
-
-
-CODEBASE_CONTRACT = _load_codebase_contract()
+from ..knowledge.codebase_patterns import FULL_KNOWLEDGE
 
 
 CONTENT_AGENT_SYSTEM_PROMPT = f"""You are the Content agent for Space Gerbil Adventure, a browser-based HTML5 canvas game.
 
 Your job is to implement code changes requested by the Orchestrator. You have tools to read and write game files.
 
-## CODEBASE CONTRACT (from CLAUDE.md)
-{CODEBASE_CONTRACT}
+{FULL_KNOWLEDGE}
 
 ## YOUR WORKFLOW
 
 1. **Understand the task**: Read the task description carefully
-2. **Explore first**: Use read_file to understand existing code
-3. **Plan changes**: Identify exactly which file(s) need modification
-4. **Make minimal changes**: Only modify what's necessary - avoid over-engineering
-5. **Follow conventions**: Match existing code style, use const/let (never var)
+2. **Use the knowledge above**: You already know file structure, templates, and patterns
+3. **Write the code IMMEDIATELY**: Use write_file to create or modify files
+4. **You MUST call write_file**: Your job is not done until you have written at least one file
+
+## EFFICIENCY RULES - CRITICAL
+- You already have templates and patterns above - DO NOT read files to learn them
+- Only use read_file if you need very specific details (like an exact variable name)
+- For new planets: use the PLANET_FILE_TEMPLATE directly, don't read other planet files
+- WRITE first, read only if necessary
 
 ## AVAILABLE TOOLS
 
@@ -144,10 +133,17 @@ Please complete this task. Start by reading the relevant file(s), then make the 
     ]
 
     files_modified = []
-    max_tool_rounds = 5  # Limit tool-calling rounds
+    max_tool_rounds = 15  # Allow more rounds for complex tasks like creating new files
 
     try:
+        import sys
+
+        def log_tool(msg):
+            print(f"[Content Agent] {msg}", file=sys.stderr)
+
         for round_num in range(max_tool_rounds):
+            log_tool(f"Round {round_num + 1}/{max_tool_rounds}: Calling LLM...")
+
             # Get LLM response
             response = llm_with_tools.invoke(messages)
             messages.append(response)
@@ -155,12 +151,19 @@ Please complete this task. Start by reading the relevant file(s), then make the 
             # Check if there are tool calls
             if not response.tool_calls:
                 # No more tool calls - agent is done
+                log_tool(f"LLM finished with no more tool calls")
+                if hasattr(response, "content") and response.content:
+                    log_tool(f"Final response preview: {response.content[:200]}...")
                 break
+
+            log_tool(f"LLM requested {len(response.tool_calls)} tool(s)")
 
             # Execute each tool call
             for tool_call in response.tool_calls:
                 tool_name = tool_call["name"]
                 tool_args = tool_call["args"]
+
+                log_tool(f"  -> Tool: {tool_name}, Args: {list(tool_args.keys())}")
 
                 # Execute the tool
                 if tool_name in TOOL_MAP:
@@ -169,8 +172,12 @@ Please complete this task. Start by reading the relevant file(s), then make the 
                     # Track file modifications
                     if tool_name == "write_file" and "file_path" in tool_args:
                         files_modified.append(tool_args["file_path"])
+                        log_tool(f"  -> WROTE: {tool_args['file_path']}")
+                    elif tool_name == "read_file":
+                        log_tool(f"  -> Read: {tool_args.get('file_path', '?')}")
                 else:
                     tool_result = f"Unknown tool: {tool_name}"
+                    log_tool(f"  -> ERROR: Unknown tool {tool_name}")
 
                 # Add tool result to messages
                 messages.append(ToolMessage(
