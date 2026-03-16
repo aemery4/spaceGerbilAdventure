@@ -393,3 +393,60 @@ def run_quick_validation() -> dict:
 
     result = validation_node(state)
     return result.get("test_result", {"passed": False, "errors": ["Validation failed"]})
+
+
+def run_full_validation(include_playwright: bool = True, headed: bool = False) -> dict:
+    """
+    Run full validation including LLM analysis and optional Playwright tests.
+
+    Args:
+        include_playwright: Whether to run Playwright browser tests
+        headed: If True, run Playwright with visible browser
+
+    Returns:
+        Combined test result dict
+    """
+    from ..state import create_initial_state
+
+    # Run LLM-based validation
+    state = create_initial_state("Full validation with browser tests")
+    state["files_modified"] = ["js/globals.js", "js/planet1.js", "js/planet2.js"]
+    state["content_result"] = "Full validation"
+
+    result = validation_node(state)
+    test_result = result.get("test_result", {"passed": False, "errors": ["LLM validation failed"]})
+
+    # Optionally add Playwright tests
+    if include_playwright:
+        try:
+            from .playwright_runner import (
+                run_playwright_tests,
+                integrate_with_test_result,
+                check_playwright_installed,
+                get_test_summary,
+            )
+
+            if check_playwright_installed():
+                print("[Test Agent] Running Playwright browser tests...")
+                pw_result = run_playwright_tests(headed=headed, timeout=120)
+                print(get_test_summary(pw_result))
+
+                # Merge results
+                test_result = integrate_with_test_result(pw_result, test_result)
+            else:
+                test_result["playwright"] = {
+                    "skipped": True,
+                    "reason": "Playwright not installed. Run: cd playwright && npm install && npx playwright install chromium"
+                }
+
+        except ImportError as e:
+            test_result["playwright"] = {
+                "skipped": True,
+                "reason": f"Playwright runner import failed: {e}"
+            }
+        except Exception as e:
+            test_result["playwright"] = {
+                "error": str(e)
+            }
+
+    return test_result

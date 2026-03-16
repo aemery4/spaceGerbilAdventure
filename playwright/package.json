@@ -1,0 +1,14 @@
+{
+  "name": "sga-playwright-tests",
+  "version": "1.0.0",
+  "description": "Playwright browser automation tests for Space Gerbil Adventure",
+  "scripts": {
+    "install-browsers": "npx playwright install chromium",
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:debug": "npx playwright test --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.0"
+  }
+}

@@ -9,6 +9,12 @@
 htmlcov/
 .pytest_cache/
 
+# Playwright
+playwright/node_modules/
+playwright/test-results/
+playwright/screenshots/
+playwright/playwright-report/
+
 # Python
 __pycache__/
 *.py[cod]
