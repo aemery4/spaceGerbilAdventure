@@ -197,7 +197,7 @@ RESPOND ONLY WITH THE JSON OBJECT. No other text.
 def create_interpretation_llm() -> ChatAnthropic:
     """Create the LLM instance for the Interpretation agent using Haiku for cost efficiency."""
     return ChatAnthropic(
-        model="claude-3-5-haiku-20241022",  # Haiku for cost efficiency
+        model="claude-3-haiku-20240307",  # Haiku for cost efficiency
         temperature=0,
         max_tokens=1024,  # Structured output doesn't need many tokens
     )
