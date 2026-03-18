@@ -1,5 +1,5 @@
 const fs=require('fs'),vm=require('vm');
-const FILES=['js/globals.js','js/save.js','js/hud.js','js/craft.js','js/menu.js','js/planet1.js','js/planet2.js','js/p3-data.js','js/p3-draw.js','js/p3-logic.js','js/planet3.js','js/skins.js'];
+const FILES=['js/globals.js','js/save.js','js/hud.js','js/craft.js','js/p1-data.js','js/p1-logic.js','js/p1-draw.js','js/planet1.js','js/p2-data.js','js/p2-logic.js','js/p2-draw.js','js/planet2.js','js/p3-data.js','js/p3-draw.js','js/p3-logic.js','js/planet3.js','js/p4-data.js','js/p4-logic.js','js/p4-draw.js','js/planet4.js','js/menu.js','js/skins.js'];
 let ok=true; const fail=m=>{console.log('  ✗ '+m);ok=false;};
 
 console.log('\n📁 Files...'); for(const f of FILES) fs.existsSync(f)?console.log('  ✓ '+f):fail('MISSING: '+f);
@@ -12,7 +12,7 @@ const mockCtx=new Proxy({},{get:(_,k)=>k==='width'?800:k==='height'?520:k==='can
 const mockEl={style:{display:''},textContent:'',innerHTML:'',appendChild:()=>{},addEventListener:()=>{},getContext:()=>mockCtx,width:800,height:520};
 const sandbox=vm.createContext({window:{addEventListener:()=>{}},document:{getElementById:()=>mockEl,addEventListener:()=>{}},localStorage:{getItem:()=>null,setItem:()=>{}},requestAnimationFrame:()=>1,cancelAnimationFrame:()=>{},setTimeout:()=>{},clearTimeout:()=>{},setInterval:()=>1,clearInterval:()=>{},Math,JSON,Date:{now:()=>1000},performance:{now:()=>1000},AudioContext:function(){return{createOscillator:()=>({connect:()=>{},start:()=>{},stop:()=>{},frequency:{setValueAtTime:()=>{}},type:''}),createGain:()=>({connect:()=>{},gain:{setValueAtTime:()=>{},exponentialRampToValueAtTime:()=>{}}}),destination:{},currentTime:0};},console:{log:()=>{},warn:()=>{},error:()=>{}}});
 let loaded=true; for(const f of FILES){try{vm.runInContext(fs.readFileSync(f,'utf8'),sandbox);}catch(e){fail('Load: '+f+': '+e.message);loaded=false;break;}}
-if(loaded){console.log('  ✓ All loaded');try{vm.runInContext('launchP1()',sandbox);console.log('  ✓ launchP1() OK');}catch(e){fail('launchP1: '+e.message);}try{vm.runInContext('launchP2()',sandbox);console.log('  ✓ launchP2() OK');}catch(e){fail('launchP2: '+e.message);}}
+if(loaded){console.log('  ✓ All loaded');try{vm.runInContext('launchP1()',sandbox);console.log('  ✓ launchP1() OK');}catch(e){fail('launchP1: '+e.message);}try{vm.runInContext('launchP2()',sandbox);console.log('  ✓ launchP2() OK');}catch(e){fail('launchP2: '+e.message);}try{vm.runInContext('launchP4()',sandbox);console.log('  ✓ launchP4() OK');}catch(e){fail('launchP4: '+e.message);}}
 
 console.log('\n'+'─'.repeat(40));
 if(ok)console.log('✅ All checks passed!\n');

@@ -5,65 +5,109 @@
 Space Gerbil Adventure is a 2D canvas game built in plain JavaScript.
 A space gerbil travels between planets collecting fuel and defeating enemies.
 
+## Modular Architecture
+
+ALL planets use the modular pattern:
+- `pX-data.js` — `buildPXData(TILE, COLS, ROWS)` returns {map, resources, enemies, ...}
+- `pX-logic.js` — `pXInitData(state)`, `updatePX()`, action handlers
+- `pX-draw.js` — `drawPX(ctx)`, helper draw functions
+- `planetX.js` — `launchPX()` orchestrator ties modules together
+
 ## File structure — ONLY edit the file that needs changing!
 
-| File | What's inside | When to edit |
-|------|--------------|--------------|
-| `js/globals.js` | Save data shape, lives, gamePaused flag | Almost never |
-| `js/save.js` | persist() and loadSave() | Almost never |
-| `js/hud.js` | updateHUD(), showMsg(), loseLife(), RECIPES list | Adding HUD elements or recipes |
-| `js/craft.js` | toggleCraft(), renderCraft(), crafting panel | Adding/changing crafting items |
-| `js/menu.js` | Main menu, planet select, transitions | Changing menus or adding a planet slot |
-| `js/planet1.js` | launchP1() — Earth/Area 51 level | Changing Planet 1 |
-| `js/planet2.js` | launchP2() — Jungle Planet Zorbax | Changing Planet 2 |
-| `js/skins.js` | ALL_SKINS array, wardrobe screen | Adding new player skins |
-| `js/planet3.js` | launchP3() — (not created yet!) | When adding Planet 3 |
+### Core (rarely edit)
+| File | What's inside |
+|------|--------------|
+| `js/globals.js` | Save data shape, gamePaused flag |
+| `js/save.js` | persist() and loadSave() |
+| `js/hud.js` | updateHUD(), showMsg(), RECIPES |
+| `js/craft.js` | Crafting panel |
+
+### Planet 1 - Earth/Area 51
+| File | What's inside |
+|------|--------------|
+| `js/p1-data.js` | buildP1Data() → {map, rocket, resources, aliens} |
+| `js/p1-logic.js` | p1InitData(), updateP1(), doP1Action() |
+| `js/p1-draw.js` | drawP1(), map/entity rendering |
+| `js/planet1.js` | launchP1() orchestrator |
+
+### Planet 2 - Jungle Zorbax
+| File | What's inside |
+|------|--------------|
+| `js/p2-data.js` | buildP2Data() → {map, resources, enemies, merchants, chests} |
+| `js/p2-logic.js` | p2InitData(), updateP2(), all AI functions |
+| `js/p2-draw.js` | drawP2(), village elements |
+| `js/planet2.js` | launchP2() orchestrator + shop functions |
+
+### Planet 3 - Tundra Frigia
+| File | What's inside |
+|------|--------------|
+| `js/p3-data.js` | buildP3Data() → {map, resources, enemies, merchants} |
+| `js/p3-logic.js` | p3InitData(), updateP3(), tiger/mammoth AI |
+| `js/p3-draw.js` | drawP3(), ice effects |
+| `js/planet3.js` | launchP3() orchestrator |
+
+### Planet 4 - Aquatic Neptuna
+| File | What's inside |
+|------|--------------|
+| `js/p4-data.js` | buildP4Data() → {map, resources, enemies, SEAHORSES} |
+| `js/p4-logic.js` | p4InitData(), updateP4(), octopus boss AI |
+| `js/p4-draw.js` | drawP4(), underwater rendering |
+| `js/planet4.js` | launchP4() orchestrator |
+
+### Menu & Skins
+| File | What's inside |
+|------|--------------|
+| `js/menu.js` | Main menu, planet select |
+| `js/skins.js` | ALL_SKINS, wardrobe |
+
+## Where to Add/Edit Code
+
+| Task | File to edit |
+|------|-------------|
+| Add new resource/enemy/NPC | `pX-data.js` → buildPXData() |
+| Change enemy AI or movement | `pX-logic.js` → updatePX() |
+| Add new click interaction | `pX-logic.js` → doPXAction() |
+| Change how something looks | `pX-draw.js` → drawPXXXX() |
 
 ## Key global variables (shared across all files)
-- `save` — the save object: `{ hp, maxHp, lives, resources:{rock,plant,crystal,banana,fuel}, items:[], planetsCleared:[], skin }`
-- `gamePaused` — boolean, pauses the game loop
-- `animFrameId` — the requestAnimationFrame id
-- `menuMode` — true when on the main menu canvas
+- `save` — `{hp, maxHp, lives, resources:{rock,plant,crystal,banana,fuel}, items:[], planetsCleared:[], skin}`
+- `gamePaused` — pauses the game loop
+- `animFrameId` — requestAnimationFrame ID
+- `menuMode` — true when on main menu
 
 ## Key global functions (usable from any file)
-- `updateHUD()` — refreshes all HUD display elements
-- `showMsg(title, body, callback)` — shows a modal message
-- `loseLife(restartFn)` — removes a life and restarts
-- `persist()` — saves game to localStorage
+- `updateHUD()` — refreshes HUD elements
+- `showMsg(title, body, callback)` — shows modal message
+- `loseLife(restartFn)` — removes a life
+- `persist()` — saves to localStorage
 - `goMenu()` — returns to main menu
-- `stopGame()` — cancels the animation loop
-- `drawPlayerSkin(ctx, x, y, size)` — draws the player at any position
+- `stopGame()` — cancels animation loop
+- `drawPlayerSkin(ctx, x, y, size)` — draws player sprite
 
-## Important rules when editing
-1. Each planet's logic lives entirely inside its `launchPX()` function — variables inside are local
-2. Never use `var` — use `const` or `let`
-3. Declare variables BEFORE the `function loop()` call inside a planet function
-4. The canvas is always `document.getElementById('game')`, 800×520px
-5. When adding Planet 3: create `js/planet3.js`, add `<script src="js/planet3.js"></script>` to `index.html` BEFORE `</body>`, and add a button in `js/menu.js`
+## Shared State Pattern
 
-## Current planet status
-- Planet 1 ✅ Earth / Area 51 — collect 10 fuel, defeat aliens, launch rocket
-- Planet 2 ✅ Jungle Planet Zorbax — 48×28 map, village merchants, Jungle King boss, collect 15 fuel
-- Planet 3 ✅ Tundra Frigia — tigers, mammoths, Yeti boss, camp merchants, collect 20 fuel
+Each planet uses a global `pX` object for cross-module state:
+```javascript
+// In pX-logic.js:
+let pX = null;
+function pXInitData(state) { pX = state; }
+
+// Access anywhere in pX-*.js files:
+pX.player.x, pX.cam.x, pX.map[r][c], pX.enemies, etc.
+```
 
 ---
 
 ## MANDATORY: Run validate.js after every change
 
-After making ANY code change, always instruct the user to run:
-```
+```bash
 node validate.js
 ```
-from the game_modules folder before opening the browser.
 
 This catches:
 - Syntax errors in individual files
-- Duplicate variable declarations across files (the most common black-screen cause)
+- Duplicate variable declarations across files
 - Missing HTML element IDs
 
-If validate.js reports errors → fix them first. Never ask the user to test in the browser until validate.js passes.
-
-For Claude sessions: run the validator mentally by checking:
-1. No `let`/`const` at the top of any p2-*.js file that duplicates a name already in p2-data.js globals
-2. No variable declared with `let`/`const` inside p2InitData() — use bare assignment only
-3. Any new variable shared across p2-* files must be added to the globals block at the top of p2-data.js
+If validate.js reports errors → fix them first!

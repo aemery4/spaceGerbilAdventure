@@ -1,5 +1,5 @@
 const fs=require('fs'),vm=require('vm');
-const FILES=['js/globals.js','js/save.js','js/hud.js','js/craft.js','js/menu.js','js/planet1.js','js/planet2.js','js/p3-data.js','js/p3-draw.js','js/p3-logic.js','js/planet3.js','js/planet4.js','js/skins.js'];
+const FILES=['js/globals.js','js/save.js','js/hud.js','js/craft.js','js/p1-data.js','js/p1-logic.js','js/p1-draw.js','js/planet1.js','js/p2-data.js','js/p2-logic.js','js/p2-draw.js','js/planet2.js','js/p3-data.js','js/p3-draw.js','js/p3-logic.js','js/planet3.js','js/p4-data.js','js/p4-logic.js','js/p4-draw.js','js/planet4.js','js/menu.js','js/skins.js'];
 let ok=true; const fail=m=>{console.log('  ✗ '+m);ok=false;};
 
 console.log('\n📁 Files...'); for(const f of FILES) fs.existsSync(f)?console.log('  ✓ '+f):fail('MISSING: '+f);
