@@ -19,7 +19,7 @@ from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage, ToolMessage
 
 from ..state import AgentState, MAX_CONTENT_ITERATIONS
-from .tools import CONTENT_TOOLS, read_file, write_file, list_files, search_in_files
+from .tools import CONTENT_TOOLS, read_file, write_file, edit_file, list_files, search_in_files
 from ..knowledge.codebase_patterns import FULL_KNOWLEDGE
 
 
@@ -31,26 +31,33 @@ Your job is to implement code changes requested by the Orchestrator. You have to
 
 ## MANDATORY WORKFLOW
 
-Your FIRST or SECOND response MUST be a write_file tool call. No exceptions.
+Your FIRST or SECOND response MUST be a write_file or edit_file tool call. No exceptions.
 
 Step 1: Optionally read ONE file for context (if needed)
-Step 2: Call write_file with the complete file content
-Step 3: If more files needed (menu.js, index.html), call write_file again
+Step 2: Call edit_file for small changes OR write_file for new files
+Step 3: If more files needed, repeat step 2
 
 ## FAILURE CONDITIONS
 - Responding with text explanations = FAILURE
-- Describing code without write_file = FAILURE
-- Reading more than 2 files before writing = FAILURE
-- NOT calling write_file in your first 2 responses = FAILURE
+- Describing code without making changes = FAILURE
+- Reading more than 2 files before editing = FAILURE
+- NOT calling edit_file or write_file in your first 2 responses = FAILURE
 
-You have all the templates and patterns you need above. USE THEM. WRITE THE FILE.
+You have all the templates and patterns you need above. USE THEM. MAKE THE CHANGE.
 
 ## AVAILABLE TOOLS
 
 - read_file(file_path): Read a game file (e.g., "js/planet1.js")
-- write_file(file_path, content): Write complete file content
+- write_file(file_path, content): Write complete file content (use for new files or major rewrites)
+- edit_file(file_path, old_text, new_text): Make targeted text replacements (PREFERRED for small changes!)
 - list_files(): List all game files
 - search_in_files(search_term, file_pattern): Search across files
+
+## WHEN TO USE edit_file vs write_file
+
+- edit_file: Use for bug fixes, small text changes, updating messages, fixing typos
+  Example: edit_file("js/planet1.js", "Click: gather", "F or Click: gather")
+- write_file: Use for creating new files or major structural changes
 
 ## CRITICAL RULES
 
@@ -79,6 +86,7 @@ def create_content_llm() -> ChatAnthropic:
 TOOL_MAP = {
     "read_file": read_file,
     "write_file": write_file,
+    "edit_file": edit_file,
     "list_files": list_files,
     "search_in_files": search_in_files,
 }
@@ -132,7 +140,7 @@ Type: {task_type}
 Description: {task}
 {test_context}
 
-INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). Do NOT respond with text - respond with a write_file tool call containing the complete file content.
+INSTRUCTION: Make the required changes NOW. For small text changes (bug fixes, updating messages), use edit_file(file_path, old_text, new_text). For new files or major changes, use write_file. Do NOT respond with text - respond with a tool call.
 """),
     ]
 
@@ -157,8 +165,8 @@ INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). 
                 # No tool calls - check if we've written any files yet
                 if not files_modified and round_num < 5:
                     # No files written yet and we have rounds left - force retry
-                    log_tool(f"WARNING: No tool calls and no write_file yet! Forcing retry...")
-                    messages.append(HumanMessage(content="You must use the write_file tool. Respond ONLY with a write_file tool call containing the complete file. Do not explain - just call write_file NOW."))
+                    log_tool(f"WARNING: No tool calls and no file edits yet! Forcing retry...")
+                    messages.append(HumanMessage(content="You must use write_file or edit_file tool. For small text changes, use edit_file(file_path, old_text, new_text). Do not explain - just make the change NOW."))
                     continue
 
                 log_tool(f"LLM finished with no more tool calls")
@@ -166,9 +174,9 @@ INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). 
                     log_tool(f"Final response preview: {response.content[:200]}...")
                 break
 
-            # Check if any of the tool calls is write_file
+            # Check if any of the tool calls is write_file or edit_file
             tool_names = [tc["name"] for tc in response.tool_calls]
-            has_write = "write_file" in tool_names
+            has_write = "write_file" in tool_names or "edit_file" in tool_names
             log_tool(f"LLM requested {len(response.tool_calls)} tool(s): {tool_names}")
 
             # Execute each tool call
@@ -186,6 +194,9 @@ INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). 
                     if tool_name == "write_file" and "file_path" in tool_args:
                         files_modified.append(tool_args["file_path"])
                         log_tool(f"  -> WROTE: {tool_args['file_path']}")
+                    elif tool_name == "edit_file" and "file_path" in tool_args:
+                        files_modified.append(tool_args["file_path"])
+                        log_tool(f"  -> EDITED: {tool_args['file_path']}")
                     elif tool_name == "read_file":
                         log_tool(f"  -> Read: {tool_args.get('file_path', '?')}")
                 else:
@@ -200,8 +211,8 @@ INSTRUCTION: Use the write_file tool NOW to create/modify the required file(s). 
 
             # After processing tool calls, if we've done 2+ rounds without writing, force it
             if round_num >= 2 and not files_modified and not has_write:
-                log_tool(f"WARNING: {round_num + 1} rounds without write_file! Forcing on next round...")
-                messages.append(HumanMessage(content="STOP READING. You have enough context. NOW call write_file with the complete file content. This is mandatory."))
+                log_tool(f"WARNING: {round_num + 1} rounds without file edits! Forcing on next round...")
+                messages.append(HumanMessage(content="STOP READING. You have enough context. NOW use edit_file for small changes or write_file for new files. This is mandatory."))
 
         # Get final response content
         final_message = messages[-1]

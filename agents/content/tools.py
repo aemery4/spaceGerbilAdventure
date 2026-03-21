@@ -128,6 +128,61 @@ def list_files() -> str:
 
 
 @tool
+def edit_file(file_path: str, old_text: str, new_text: str) -> str:
+    """
+    Make a targeted edit to a game file by replacing specific text.
+
+    Use this for small, precise changes instead of write_file when you only need
+    to change a few lines. Much more efficient than rewriting entire files.
+
+    Args:
+        file_path: Relative path from game_v3 folder (e.g., "js/planet1.js")
+        old_text: The exact text to find and replace (must match exactly)
+        new_text: The replacement text
+
+    Returns:
+        Success message with number of replacements, or error
+    """
+    # Normalize path
+    file_path = file_path.replace("\\", "/").lstrip("/")
+
+    # Check if file matches allowed patterns
+    if not is_file_allowed(file_path):
+        return f"Error: Cannot modify {file_path}. Allowed patterns: {', '.join(ALLOWED_PATTERNS)}"
+
+    full_path = os.path.normpath(os.path.join(GAME_CODE_PATH, file_path))
+
+    # Security check
+    if not full_path.startswith(os.path.normpath(GAME_CODE_PATH)):
+        return f"Error: Cannot write files outside game directory"
+
+    try:
+        # Read current content
+        with open(full_path, "r", encoding="utf-8") as f:
+            content = f.read()
+
+        # Check if old_text exists
+        if old_text not in content:
+            return f"Error: Could not find the text to replace in {file_path}. Make sure old_text matches exactly (including whitespace)."
+
+        # Count occurrences
+        count = content.count(old_text)
+
+        # Make the replacement
+        new_content = content.replace(old_text, new_text)
+
+        # Write back
+        with open(full_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
+
+        return f"Successfully replaced {count} occurrence(s) in {file_path}"
+    except FileNotFoundError:
+        return f"Error: File not found: {file_path}"
+    except Exception as e:
+        return f"Error editing file: {str(e)}"
+
+
+@tool
 def search_in_files(search_term: str, file_pattern: str = "*.js") -> str:
     """
     Search for a term across game files.
@@ -169,4 +224,4 @@ def search_in_files(search_term: str, file_pattern: str = "*.js") -> str:
 
 
 # Export tools list for the agent
-CONTENT_TOOLS = [read_file, write_file, list_files, search_in_files]
+CONTENT_TOOLS = [read_file, write_file, edit_file, list_files, search_in_files]
