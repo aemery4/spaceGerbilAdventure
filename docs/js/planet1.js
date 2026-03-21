@@ -39,7 +39,7 @@ function launchP1() {
   // Event handlers
   const onKey = e => {
     p1.player.keys[e.key] = true;
-    if (e.key === 'f' || e.key === 'F') doP1Action(p1.player.x, p1.player.y);
+    if (e.key === ' ') doP1Action(p1.player.x, p1.player.y);
     e.preventDefault();
   };
   const offKey = e => p1.player.keys[e.key] = false;
@@ -66,5 +66,5 @@ function launchP1() {
   animFrameId = requestAnimationFrame(loop);
 
   // Welcome message
-  showMsg('🛸 Space Gerbil', 'Area 51! Collect 10 ⚡ fuel and click the saucer.\n\nWASD: move | F or Click: gather/attack | C: craft');
+  showMsg('🛸 Space Gerbil', 'Area 51! Collect 10 ⚡ fuel and click the saucer.\n\nWASD: move | Space or Click: gather/attack | C: craft');
 }

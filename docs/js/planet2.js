@@ -83,7 +83,7 @@ function launchP2() {
       ov.style.display = ov.style.display === 'none' || ov.style.display === '' ? 'block' : 'none';
       if (ov.style.display === 'block') drawP2Minimap();
     }
-    if (e.key === 'f' || e.key === 'F') doP2Action(p2.player.x, p2.player.y);
+    if (e.key === ' ') doP2Action(p2.player.x, p2.player.y);
     e.preventDefault();
   };
   const offKey = e => p2.player.keys[e.key] = false;

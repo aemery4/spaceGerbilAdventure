@@ -43,15 +43,16 @@ function tryGatherP4Resource(mx, my) {
 
 // ── Combat ───────────────────────────────────────────────
 function tryAttackP4Enemy(mx, my) {
-  if (!p4.activeWeapon || p4.weaponCooldown > 0) return false;
+  if (p4.weaponCooldown > 0) return false;
 
   for (let enemy of p4.enemies) {
     if (enemy.hp > 0 && Math.abs(mx - enemy.x) < 25 && Math.abs(my - enemy.y) < 25) {
       if (Math.abs(p4.player.x - enemy.x) < 60 && Math.abs(p4.player.y - enemy.y) < 60) {
-        const damage = p4.activeWeapon === 'laser' ? 3 : p4.activeWeapon === 'sword' ? 2 : 1;
+        const w = p4.activeWeapon;
+        const damage = w === 'laser' ? 3 : w === 'sword' ? 2 : 1;
         enemy.hp -= damage;
         enemy.aggro = true;
-        p4.weaponCooldown = p4.activeWeapon === 'laser' ? 20 : p4.activeWeapon === 'sword' ? 15 : 10;
+        p4.weaponCooldown = w === 'laser' ? 20 : w === 'sword' ? 15 : 10;
 
         // Special octopus defeat
         if (enemy.type === 'octopus' && enemy.hp <= 0 && !p4.bossDefeated) {
@@ -113,16 +114,21 @@ function doP4Action(mx, my) {
 function updateP4() {
   if (gamePaused) return;
 
-  // Update player
-  let newX = p4.player.x, newY = p4.player.y;
-  if (p4.player.keys['a'] || p4.player.keys['arrowleft']) newX -= p4.player.speed;
-  if (p4.player.keys['d'] || p4.player.keys['arrowright']) newX += p4.player.speed;
-  if (p4.player.keys['w'] || p4.player.keys['arrowup']) newY -= p4.player.speed;
-  if (p4.player.keys['s'] || p4.player.keys['arrowdown']) newY += p4.player.speed;
+  // Update player — check terrain for speed modifiers
+  const curTile = p4.map[Math.floor(p4.player.y / p4.TILE)]?.[Math.floor(p4.player.x / p4.TILE)] || 0;
+  let spd = p4.player.speed;
+  if (curTile === 4) spd *= 0.5;  // kelp forest slows
+  if (curTile === 2) spd *= 0.7;  // trench slows slightly
 
-  // Collision detection
+  let newX = p4.player.x, newY = p4.player.y;
+  if (p4.player.keys['a'] || p4.player.keys['arrowleft']) newX -= spd;
+  if (p4.player.keys['d'] || p4.player.keys['arrowright']) newX += spd;
+  if (p4.player.keys['w'] || p4.player.keys['arrowup']) newY -= spd;
+  if (p4.player.keys['s'] || p4.player.keys['arrowdown']) newY += spd;
+
+  // Collision detection — walls and coral are solid
   const col = Math.floor(newX / p4.TILE), row = Math.floor(newY / p4.TILE);
-  if (col >= 0 && col < p4.COLS && row >= 0 && row < p4.ROWS && p4.map[row][col] !== 1) {
+  if (col >= 0 && col < p4.COLS && row >= 0 && row < p4.ROWS && p4.map[row][col] !== 1 && p4.map[row][col] !== 3) {
     p4.player.x = newX;
     p4.player.y = newY;
   }
@@ -139,19 +145,28 @@ function updateP4() {
     const dy = p4.player.y - enemy.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
-    if (dist < 100) enemy.aggro = true;
+    const aggroRange = enemy.type === 'piranha' ? 140 : enemy.type === 'octopus' ? 180 : 100;
+    if (dist < aggroRange) enemy.aggro = true;
+    if (dist > aggroRange * 2) enemy.aggro = false;
 
     if (enemy.aggro && dist > 5) {
       const moveX = (dx / dist) * enemy.speed;
       const moveY = (dy / dist) * enemy.speed;
-
       const newEnemyX = enemy.x + moveX;
       const newEnemyY = enemy.y + moveY;
       const eCol = Math.floor(newEnemyX / p4.TILE), eRow = Math.floor(newEnemyY / p4.TILE);
-
-      if (eCol >= 0 && eCol < p4.COLS && eRow >= 0 && eRow < p4.ROWS && p4.map[eRow][eCol] !== 1) {
-        enemy.x = newEnemyX;
-        enemy.y = newEnemyY;
+      if (eCol >= 0 && eCol < p4.COLS && eRow >= 0 && eRow < p4.ROWS && p4.map[eRow][eCol] !== 1 && p4.map[eRow][eCol] !== 3) {
+        enemy.x = newEnemyX; enemy.y = newEnemyY;
+      }
+    } else if (!enemy.aggro && enemy.type !== 'octopus') {
+      // Patrol behavior — drift around
+      const nx = enemy.x + (enemy.dx || 0);
+      const ny = enemy.y + (enemy.dy || 0);
+      const eCol = Math.floor(nx / p4.TILE), eRow = Math.floor(ny / p4.TILE);
+      if (eCol > 0 && eCol < p4.COLS - 1 && eRow > 0 && eRow < p4.ROWS - 1 && p4.map[eRow][eCol] !== 1 && p4.map[eRow][eCol] !== 3) {
+        enemy.x = nx; enemy.y = ny;
+      } else {
+        enemy.dx = -(enemy.dx || 0); enemy.dy = -(enemy.dy || 0);
       }
     }
 

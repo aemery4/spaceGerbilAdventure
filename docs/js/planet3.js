@@ -192,7 +192,7 @@ function launchP3() {
   };
   const onKey = e => {
     player.keys[e.key]=true;
-    if(e.key==='f'||e.key==='F') doP3Action(player.x, player.y);
+    if(e.key===' ') doP3Action(player.x, player.y);
     e.preventDefault();
   };
   const offKey = e => player.keys[e.key]=false;
