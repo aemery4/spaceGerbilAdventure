@@ -59,16 +59,17 @@ function drawMenu(){
   // Buttons
   drawBtn(250,330,140,32,'🚀 New Game','#226','#55f');
   drawBtn(410,330,140,32,'🎮 Free Play','#141','#4f4');
-  drawBtn(400,380,160,30,'🎭 Skins','rgba(40,0,80,0.8)','rgba(180,80,255,0.6)');
+  drawBtn(250,370,140,30,'🏠 Home Base','#432','#fa4');
+  drawBtn(410,370,140,30,'🎭 Skins','rgba(40,0,80,0.8)','rgba(180,80,255,0.6)');
 
   ctx.fillStyle='#445'; ctx.font='10px Courier New'; ctx.textAlign='center';
-  ctx.fillText(save.freePlay ? 'Free Play: Click any planet to play' : 'Click a planet or button to start',400,400);
+  ctx.fillText(save.freePlay ? 'Free Play: Click any planet to play' : 'Click a planet or button to start',400,410);
   if(save.planetsCleared.length>0&&!save.freePlay){
-    ctx.fillStyle='#335'; ctx.fillText('Cleared: '+save.planetsCleared.map(n=>['','Earth','Zorbax'][n]||'P'+n).join(', '),400,418);}
+    ctx.fillStyle='#335'; ctx.fillText('Cleared: '+save.planetsCleared.map(n=>['','Earth','Zorbax'][n]||'P'+n).join(', '),400,428);}
   if(save.freePlay){
-    ctx.fillStyle='#4f4'; ctx.fillText('🎮 Free Play Mode Active',400,418);}
+    ctx.fillStyle='#4f4'; ctx.fillText('🎮 Free Play Mode Active',400,428);}
   if(save.spaceCoins>0){
-    ctx.fillStyle='#FFD700'; ctx.font='bold 12px Courier New'; ctx.fillText('🪙 '+save.spaceCoins+' Space Coins',400,435);}
+    ctx.fillStyle='#FFD700'; ctx.font='bold 12px Courier New'; ctx.fillText('🪙 '+save.spaceCoins+' Space Coins',400,448);}
 
   // Show hello message on first menu display
   if (!hasShownHello) {
@@ -115,7 +116,8 @@ function menuClick(e){
   // Buttons
   if(mx>180&&mx<320&&my>314&&my<346){ startNewGame(); return; }
   if(mx>340&&mx<480&&my>314&&my<346){ startFreePlay(); setTimeout(()=>showMsg('🎮 Free Play Mode', 'All planets unlocked!\nClick any planet to play.'),100); return; }
-  if(mx>320&&mx<480&&my>365&&my<395){ cancelAnimationFrame(animFrameId);openSkinMenu(); return; }
+  if(mx>180&&mx<320&&my>355&&my<385){ startPlanet(5); return; }
+  if(mx>340&&mx<480&&my>355&&my<395){ cancelAnimationFrame(animFrameId);openSkinMenu(); return; }
 }
 
 let menuMode=true;
@@ -141,15 +143,17 @@ function startPlanet(n){
   document.getElementById('ctrl').style.display='block';
   document.getElementById('bh').style.display=n===2?'':'none';
   document.getElementById('fuelMax').textContent=n===4?'25':n===3?'20':n===2?'15':'10';
-  const pLabels={1:'Earth — Area 51',2:'Jungle — Zorbax',3:'Tundra Frigia',4:'Aquatic Neptuna'};
+  const pLabels={1:'Earth — Area 51',2:'Jungle — Zorbax',3:'Tundra Frigia',4:'Aquatic Neptuna',5:'Home Planet'};
   document.getElementById('planet').textContent=pLabels[n]||'Unknown';
-  save.currentPlanet=n; save.resources.fuel=0;
+  save.currentPlanet=n;
+  if(n!==5) save.resources.fuel=0;
   updateHUD();
   console.log('[SGA] About to launch planet '+n);
   if(n===1) launchP1();
   else if(n===2) launchP2();
   else if(n===3) launchP3();
   else if(n===4) launchP4();
+  else if(n===5) launchP5();
   console.log('[SGA] launchP'+n+'() returned');
 }
 function showTransition(text,sub,cb){
