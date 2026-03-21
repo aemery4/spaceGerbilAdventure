@@ -38,7 +38,7 @@ function drawMenu(){
   ];
   cards.forEach(c=>{
     const cleared=save.planetsCleared.includes(c.n);
-    const locked=(c.n===2&&!save.planetsCleared.includes(1)&&!save.freePlay)||(c.n===3&&!save.planetsCleared.includes(2)&&!save.freePlay)||(c.n===4&&!save.planetsCleared.includes(3)&&!save.freePlay);
+    const locked=save.freePlay?false:(c.n===2&&!save.planetsCleared.includes(1))||(c.n===3&&!save.planetsCleared.includes(2))||(c.n===4&&!save.planetsCleared.includes(3));
     ctx.strokeStyle=cleared?'#4f4':locked?'#333':'#55f';
     ctx.fillStyle=cleared?'rgba(10,40,10,0.8)':locked?'rgba(5,5,15,0.6)':'rgba(20,20,60,0.8)';
     ctx.lineWidth=2;
@@ -53,7 +53,7 @@ function drawMenu(){
     ctx.fillText(c.name,c.x,268);
     ctx.fillStyle=cleared?'#4f4':locked?'#555':'#aaf';
     ctx.font='10px Courier New';
-    ctx.fillText(cleared?'✓ Cleared':locked?'🔒 Locked':'Play',c.x,285);
+    ctx.fillText(cleared?'✓ Cleared':locked?'🔒 Locked':save.freePlay?'Free Play':'Play',c.x,285);
   });
 
   // Buttons
@@ -62,9 +62,11 @@ function drawMenu(){
   drawBtn(400,380,160,30,'🎭 Skins','rgba(40,0,80,0.8)','rgba(180,80,255,0.6)');
 
   ctx.fillStyle='#445'; ctx.font='10px Courier New'; ctx.textAlign='center';
-  ctx.fillText('Click a planet or button to start',400,400);
-  if(save.planetsCleared.length>0){
+  ctx.fillText(save.freePlay ? 'Free Play: Click any planet to play' : 'Click a planet or button to start',400,400);
+  if(save.planetsCleared.length>0&&!save.freePlay){
     ctx.fillStyle='#335'; ctx.fillText('Cleared: '+save.planetsCleared.map(n=>['','Earth','Zorbax'][n]||'P'+n).join(', '),400,418);}
+  if(save.freePlay){
+    ctx.fillStyle='#4f4'; ctx.fillText('🎮 Free Play Mode Active',400,418);}
 
   // Show hello message on first menu display
   if (!hasShownHello) {
@@ -100,15 +102,17 @@ function menuClick(e){
   const cards=[{x:100,n:1},{x:270,n:2},{x:440,n:3},{x:610,n:4}];
   for(const c of cards){
     if(mx>c.x-70&&mx<c.x+70&&my>150&&my<290){
-      if(c.n===4&&!save.planetsCleared.includes(3)&&!save.freePlay) return;
-      if(c.n===3&&!save.planetsCleared.includes(2)&&!save.freePlay) return;
-      if(c.n===2&&!save.planetsCleared.includes(1)&&!save.freePlay) return;
+      if(!save.freePlay){
+        if(c.n===4&&!save.planetsCleared.includes(3)) return;
+        if(c.n===3&&!save.planetsCleared.includes(2)) return;
+        if(c.n===2&&!save.planetsCleared.includes(1)) return;
+      }
       startPlanet(c.n); return;
     }
   }
   // Buttons
   if(mx>180&&mx<320&&my>314&&my<346){ startNewGame(); return; }
-  if(mx>340&&mx<480&&my>314&&my<346){ startFreePlay(); return; }
+  if(mx>340&&mx<480&&my>314&&my<346){ startFreePlay(); setTimeout(()=>showMsg('🎮 Free Play Mode', 'All planets unlocked!\nClick any planet to play.'),100); return; }
   if(mx>320&&mx<480&&my>365&&my<395){ cancelAnimationFrame(animFrameId);openSkinMenu(); return; }
 }
 
@@ -124,7 +128,7 @@ function showMenu(){
 function goMenu(){stopGame();showMenu();}
 function stopGame(){cancelAnimationFrame(animFrameId);animFrameId=null;gamePaused=false;}
 function startNewGame(){save=JSON.parse(JSON.stringify(DEF));persist();startPlanet(1);}
-function startFreePlay(){save.freePlay=true;save.planetsCleared=[1];startPlanet(2);}
+function startFreePlay(){save.freePlay=true;save.planetsCleared=[1,2,3,4];persist();}
 function startPlanet(n){
   console.log('[SGA] startPlanet called with n='+n);
   menuMode=false;

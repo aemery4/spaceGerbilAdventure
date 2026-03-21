@@ -14,3 +14,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - Fix Planet 4 incorrectly appearing as available in main menu before completing Planet 3 (js/menu.js, js/planet4.js)
+- Fix free play button redirecting to Jungle Planet instead of planet selection screen (js/globals.js, js/menu.js)
