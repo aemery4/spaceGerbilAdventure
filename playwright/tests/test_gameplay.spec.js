@@ -187,7 +187,7 @@ test.describe('Planet 1 - Area 51', () => {
     expect(state.gamePaused).toBe(false);
   });
 
-  test('player can gather resources with F key', async ({ page }) => {
+  test('player can gather resources with Space key', async ({ page }) => {
     // Move toward a resource area
     await holdKey(page, 'd', 500);
     await holdKey(page, 's', 300);
@@ -195,7 +195,7 @@ test.describe('Planet 1 - Area 51', () => {
     const beforeState = await getGameState(page);
 
     // Press F to gather (may or may not hit something)
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(200);
 
     // If dialog appeared, dismiss it
@@ -231,7 +231,7 @@ test.describe('Planet 1 - Area 51', () => {
 
   test('dialog appears at bottom and pauses game', async ({ page }) => {
     // Press F to trigger "Nothing Here" dialog
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
     // Check dialog is visible
@@ -359,8 +359,8 @@ test.describe('Planet 2 - Jungle Zorbax', () => {
     await holdKey(page, 'd', 800);
     await holdKey(page, 's', 400);
 
-    // Try gathering with F key
-    await pressKey(page, 'f');
+    // Try gathering with Space key
+    await pressKey(page, ' ');
     await page.waitForTimeout(200);
     await dismissDialog(page);
 
@@ -380,13 +380,13 @@ test.describe('Planet 2 - Jungle Zorbax', () => {
     console.log(`[INFO] Resources before: ${totalBefore}, after: ${totalAfter}`);
   });
 
-  test('F key shows fallback when nothing nearby', async ({ page }) => {
+  test('Space key shows fallback when nothing nearby', async ({ page }) => {
     // Move to empty area
     await holdKey(page, 'w', 200);
     await holdKey(page, 'a', 200);
 
     // Press F with nothing nearby
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
     // Should see "Nothing Here" dialog
@@ -519,13 +519,13 @@ test.describe('Planet 3 - Tundra Frigia', () => {
     await screenshot(page, '21_p3_mammoth_area');
   });
 
-  test('F key shows fallback when nothing nearby', async ({ page }) => {
+  test('Space key shows fallback when nothing nearby', async ({ page }) => {
     // Move to empty area
     await holdKey(page, 'w', 200);
     await holdKey(page, 'a', 200);
 
     // Press F with nothing nearby
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
     // Check if any dialog appeared (may or may not have fallback in P3)
@@ -547,7 +547,7 @@ test.describe('Planet 3 - Tundra Frigia', () => {
     await screenshot(page, '23_p3_camp_area');
 
     // Try to interact near camp
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
     // If shop opened, verify it works
@@ -575,7 +575,7 @@ test.describe('Planet 3 - Tundra Frigia', () => {
     await page.waitForTimeout(200);
     await dismissDialog(page);
 
-    await pressKey(page, 'f');
+    await pressKey(page, ' ');
     await page.waitForTimeout(200);
     await dismissDialog(page);
 

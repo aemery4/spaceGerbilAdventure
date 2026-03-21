@@ -38,7 +38,7 @@ function launchP4() {
   // ── Input handlers ──────────────────────────────────────
   function handleKeyDown(e) {
     if (!gamePaused) player.keys[e.key.toLowerCase()] = true;
-    if (e.key === 'f' || e.key === 'F') doP4Action(p4.player.x, p4.player.y);
+    if (e.key === ' ') { e.preventDefault(); doP4Action(p4.player.x, p4.player.y); }
   }
   function handleKeyUp(e) { player.keys[e.key.toLowerCase()] = false; }
   window.addEventListener('keydown', handleKeyDown);

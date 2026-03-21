@@ -104,7 +104,7 @@ function buildP4Data(TILE, COLS, ROWS) {
     {
       id: 'seahorse1', name: 'Coral', emoji: '🐴', color: '#FF6B9D',
       x: 4 * TILE + 13, y: 3 * TILE + 13,
-      dialog: 'Welcome to Neptuna! Beware the evil octopus lurking in the center. Use F to attack nearby enemies or gather resources!',
+      dialog: 'Welcome to Neptuna! Beware the evil octopus lurking in the center. Use Space to attack nearby enemies or gather resources!',
       interacted: false
     },
     {
