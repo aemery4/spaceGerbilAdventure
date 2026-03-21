@@ -182,6 +182,8 @@ function buildP2Data(TILE, COLS, ROWS) {
         {id:'lore_scroll', name:'Lore Scroll',    emoji:'📜', desc:'Reveals the Jungle King location',cost:{banana:1}, effect:'lore_scroll'},
         {id:'wizard_skin_buy', name:"Wizard Skin", emoji:'🧙', desc:'Unlocks the Wizard skin (check Skin menu)',cost:{banana:5,crystal:4,plant:3}, effect:'wizard_skin_buy'},
         {id:'blessing',    name:"Elder's Blessing",emoji:'✨',desc:'Full heal + 3 extra lives',    cost:{banana:6,crystal:4,plant:4},effect:'blessing'},
+        {id:'coin_maxhp',  name:'Cosmic Vigor',    emoji:'🪙',desc:'+50 max HP permanently',     cost:{coins:100}, effect:'coin_maxhp'},
+        {id:'coin_lives',  name:'Extra Lives x3',  emoji:'🪙',desc:'Gain 3 extra lives',         cost:{coins:75},  effect:'coin_lives'},
       ]
     },
   ];

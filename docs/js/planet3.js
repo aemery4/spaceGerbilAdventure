@@ -60,6 +60,8 @@ function launchP3() {
         {id:'yeti_lore',   name:'Yeti Lore',     emoji:'📜', desc:'Learn Yeti weaknesses (+1 dmg on yeti)',cost:{crystal:4},effect:()=>{if(!save.items.includes('yeti_lore')){save.items.push('yeti_lore');showMsg('📜 Yeti Lore','The Yeti is weakest when stunned!\n\nHeavy weapons (War Club, Yeti Claw) can stun it.\nAttack fast during stun windows!');persist();}}},
         {id:'ice_armor',   name:'Ice Armor',     emoji:'🧊', desc:'Grants extra shield — more protection',cost:{crystal:6,rock:4},effect:()=>{if(!save.items.includes('ice_armor')){save.items.push('ice_armor');save.maxHp+=20;save.hp=Math.min(save.maxHp,save.hp+20);updateHUD();persist();}}},
         {id:'wizard3',     name:'Blizzard Skin', emoji:'🌨️', desc:'Unlocks Blizzard Gerbil skin',       cost:{crystal:8,plant:6},effect:()=>{if(!save.unlockedSkins)save.unlockedSkins=[];if(!save.unlockedSkins.includes('blizzard')){save.unlockedSkins.push('blizzard');checkSkinUnlocks();persist();showMsg('🌨️ Skin Unlocked!','Blizzard Gerbil skin added to your wardrobe!');}}},
+        {id:'coin_fullheal',name:'Cosmic Renewal', emoji:'🪙',desc:'Full heal + restore max HP',  cost:{coins:50}, effect:()=>{save.hp=save.maxHp;updateHUD();persist();}},
+        {id:'coin_allres',  name:'Resource Crate',  emoji:'🪙',desc:'+5 of every resource',       cost:{coins:100},effect:()=>{save.resources.rock+=5;save.resources.plant+=5;save.resources.crystal+=5;save.resources.banana+=5;save.resources.fuel+=5;updateHUD();persist();}},
       ]
     },
   ];
@@ -214,15 +216,16 @@ function launchP3() {
     const grid=document.getElementById('shopGrid');
     grid.innerHTML='';
     merchant.shop.forEach(item=>{
-      const canAfford=Object.entries(item.cost).every(([res,amt])=>(save.resources[res]||0)>=amt);
+      const getRes=r=>r==='coins'?(save.spaceCoins||0):(save.resources[r]||0);
+      const canAfford=Object.entries(item.cost).every(([res,amt])=>getRes(res)>=amt);
       const owned=!item.id.startsWith('buy_')&&!item.id.startsWith('fuel_')&&
                    item.id!=='frostpot'&&item.id!=='iceshard'&&item.id!=='trapkit'&&
                    item.id!=='buy_fur'&&save.items.includes(item.id);
       const el=document.createElement('div');
       el.className='shop-item'+((!canAfford)?' shop-disabled':'')+(owned?' shop-owned':'');
       const costStr=Object.entries(item.cost).map(([r3,a])=>{
-        const icons={rock:'🪨',plant:'❄️',crystal:'💎',banana:'🍌',fuel:'⚡'};
-        const has=(save.resources[r3]||0)>=a;
+        const icons={rock:'🪨',plant:'❄️',crystal:'💎',banana:'🍌',fuel:'⚡',coins:'🪙'};
+        const has=getRes(r3)>=a;
         return `<span class="${has?'has':'lacks'}">${icons[r3]||r3}×${a}</span>`;
       }).join('');
       el.innerHTML=`<div class="shop-item-name">${item.emoji} ${item.name}</div>
@@ -230,7 +233,7 @@ function launchP3() {
         <div class="shop-cost">${costStr}${owned?'<span style="color:#5d9;margin-left:4px">✓ Owned</span>':''}</div>`;
       if(canAfford&&!owned){
         el.onclick=()=>{
-          Object.entries(item.cost).forEach(([res,amt])=>save.resources[res]-=amt);
+          Object.entries(item.cost).forEach(([res,amt])=>{if(res==='coins')save.spaceCoins-=amt;else save.resources[res]-=amt;});
           item.effect(); persist(); renderP3ShopItems(merchant);
           el.style.background='rgba(80,180,200,0.3)';
         };
@@ -245,11 +248,12 @@ function launchP3() {
     addP3(yeti.x,yeti.y,'#aef',40,st); addP3(yeti.x,yeti.y,'#fff',40,st);
     if(!save.items.includes('yeti_claw')) save.items.push('yeti_claw');
     save.planetsCleared=save.planetsCleared||[];
-    if(!save.planetsCleared.includes(3)) save.planetsCleared.push(3);
+    if(!save.planetsCleared.includes(3)) { save.planetsCleared.push(3); save.spaceCoins = (save.spaceCoins || 0) + 250; }
     updateHUD(); persist();
     setTimeout(()=>showMsg('❄️ YETI DEFEATED!',
       'The Yeti lets out a thunderous roar and collapses!\n\n'+
       '🐾 Got: YETI CLAW (best weapon!)\n'+
+      '🪙 +250 Space Coins!\n'+
       '🏆 Planet 3 Cleared!\n\n'+
       'Collect 20 ⚡ fuel to reach Planet 4!'),500);
   }

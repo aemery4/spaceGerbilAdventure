@@ -7,6 +7,7 @@ function updateHUD(){
   document.getElementById('crystal').textContent=save.resources.crystal||0;
   document.getElementById('banana').textContent=save.resources.banana||0;
   document.getElementById('fuel').textContent=save.resources.fuel||0;
+  document.getElementById('coins').textContent=save.spaceCoins||0;
   const M={shield:'🛡',boots:'👟',medkit:'💊',scanner:'📡',magnet:'🧲',armor:'🦺',banana_sword:'🍌Sword',vine_hook:'🪝Hook',rocket_upgrade:'🚀Upg'};
   document.getElementById('items').textContent=save.items.map(i=>M[i]||i).join(' ')||'none';
 }

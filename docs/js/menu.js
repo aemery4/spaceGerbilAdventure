@@ -67,6 +67,8 @@ function drawMenu(){
     ctx.fillStyle='#335'; ctx.fillText('Cleared: '+save.planetsCleared.map(n=>['','Earth','Zorbax'][n]||'P'+n).join(', '),400,418);}
   if(save.freePlay){
     ctx.fillStyle='#4f4'; ctx.fillText('🎮 Free Play Mode Active',400,418);}
+  if(save.spaceCoins>0){
+    ctx.fillStyle='#FFD700'; ctx.font='bold 12px Courier New'; ctx.fillText('🪙 '+save.spaceCoins+' Space Coins',400,435);}
 
   // Show hello message on first menu display
   if (!hasShownHello) {

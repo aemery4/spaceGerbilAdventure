@@ -59,9 +59,10 @@ function tryAttackP4Enemy(mx, my) {
           p4.bossDefeated = true;
           if (!save.planetsCleared.includes(4)) {
             save.planetsCleared.push(4);
+            save.spaceCoins = (save.spaceCoins || 0) + 250;
             persist();
           }
-          showMsg('🐙 Victory!', 'You defeated the evil octopus! Neptuna is safe!', () => {
+          showMsg('🐙 Victory!', 'You defeated the evil octopus! Neptuna is safe!\n\n🪙 +250 Space Coins!', () => {
             goMenu();
           });
           return true;

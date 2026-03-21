@@ -65,10 +65,11 @@ function bossDieP2() {
   p2.p2state.bossDead = true;
   checkSkinUnlocks();
   if (!save.items.includes('banana_sword')) save.items.push('banana_sword', 'vine_hook', 'rocket_upgrade');
+  if (!save.planetsCleared.includes(2)) { save.planetsCleared.push(2); save.spaceCoins = (save.spaceCoins || 0) + 250; }
   addP2(p2.miniBoss.x, p2.miniBoss.y, '#ff0', 40);
   addP2(p2.miniBoss.x, p2.miniBoss.y, '#f80', 40);
   updateHUD(); persist();
-  setTimeout(() => showMsg('👑 JUNGLE KING DEFEATED!', 'The Giant Monkey howls and falls!\n\n🍌 Got: BANANA SWORD\n🪝 Got: VINE GRAPPLING HOOK\n🚀 Got: ROCKET UPGRADE\n\nCollect 15 ⚡ fuel to reach Planet 3!'), 500);
+  setTimeout(() => showMsg('👑 JUNGLE KING DEFEATED!', 'The Giant Monkey howls and falls!\n\n🍌 Got: BANANA SWORD\n🪝 Got: VINE GRAPPLING HOOK\n🚀 Got: ROCKET UPGRADE\n🪙 +250 Space Coins!\n\nCollect 15 ⚡ fuel to reach Planet 3!'), 500);
 }
 
 // ── Shop Effects ─────────────────────────────────────────
@@ -97,6 +98,8 @@ function executeP2ShopEffect(effectId) {
     case 'lore_scroll': showMsg('📜 Ancient Lore', 'The Jungle King slumbers at coordinates 12,12.\n\nDefeat him to earn passage to Planet 3!'); break;
     case 'wizard_skin_buy': if (!save.unlockedSkins.includes('wizard')) { save.unlockedSkins.push('wizard'); persist(); showSkinUnlockToast('wizard'); } break;
     case 'blessing': save.hp = save.maxHp; save.lives = Math.min(save.lives + 3, 9); updateHUD(); persist(); break;
+    case 'coin_maxhp': save.maxHp += 50; save.hp = Math.min(save.hp + 50, save.maxHp); updateHUD(); persist(); break;
+    case 'coin_lives': save.lives = Math.min(save.lives + 3, 9); updateHUD(); persist(); break;
   }
 }
 
@@ -115,13 +118,14 @@ function renderP2ShopItems(merchant) {
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
   merchant.shop.forEach(item => {
-    const canAfford = Object.entries(item.cost).every(([res, amt]) => (save.resources[res] || 0) >= amt);
+    const getRes = r => r === 'coins' ? (save.spaceCoins || 0) : (save.resources[r] || 0);
+    const canAfford = Object.entries(item.cost).every(([res, amt]) => getRes(res) >= amt);
     const owned = item.id.startsWith('buy_') || item.id.startsWith('fuel_') || item.id === 'herb_tonic' || item.id === 'jungle_salve' || item.id === 'mega_salve' || item.id === 'lore_scroll' || item.id === 'blessing' ? false : save.items.includes(item.id.replace('_pip', '').replace('_boost', '').replace('_armor', '').replace('_pip', ''));
     const el = document.createElement('div');
     el.className = 'shop-item' + (!canAfford ? ' shop-disabled' : '') + (owned ? ' shop-owned' : '');
     const costStr = Object.entries(item.cost).map(([r, a]) => {
-      const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', fuel: '⚡' };
-      const has = (save.resources[r] || 0) >= a;
+      const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', fuel: '⚡', coins: '🪙' };
+      const has = getRes(r) >= a;
       return `<span class="${has ? 'has' : 'lacks'}">${icons[r] || r}×${a}</span>`;
     }).join('');
     el.innerHTML = `<div class="shop-item-name">${item.emoji} ${item.name}</div>
@@ -129,7 +133,7 @@ function renderP2ShopItems(merchant) {
       <div class="shop-cost">${costStr}${owned ? '<span style="color:#5d9;margin-left:4px">✓ Owned</span>' : ''}</div>`;
     if (canAfford && !owned) {
       el.onclick = () => {
-        Object.entries(item.cost).forEach(([res, amt]) => save.resources[res] -= amt);
+        Object.entries(item.cost).forEach(([res, amt]) => { if (res === 'coins') save.spaceCoins -= amt; else save.resources[res] -= amt; });
         executeP2ShopEffect(item.effect);
         persist();
         renderP2ShopItems(merchant);

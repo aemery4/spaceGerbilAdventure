@@ -68,7 +68,7 @@ function doP1Action(mx, my) {
   // Check spaceship last
   if (mx > p1.rocket.x && mx < p1.rocket.x + p1.rocket.w && my > p1.rocket.y && my < p1.rocket.y + p1.rocket.h) {
     if (save.resources.fuel >= 10) {
-      if (!save.planetsCleared.includes(1)) save.planetsCleared.push(1);
+      if (!save.planetsCleared.includes(1)) { save.planetsCleared.push(1); save.spaceCoins = (save.spaceCoins || 0) + 250; }
       save.resources.fuel = 0; persist();
       stopGame();
       showTransition('🚀 Blasting Off!\n🌍 → Zorbax', 'Jungle planet ahead...', () => startPlanet(2));
