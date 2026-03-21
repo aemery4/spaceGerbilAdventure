@@ -95,6 +95,7 @@ def format_bug_task(data: dict) -> str:
         "planet1": "Planet 1 (Earth/Area 51)",
         "planet2": "Planet 2 (Jungle Planet Zorbax)",
         "planet3": "Planet 3 (Tundra Frigia)",
+        "planet4": "Planet 4 (Aquatic Neptuna)",
         "other": "an unknown location"
     }
 
