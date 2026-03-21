@@ -55,7 +55,7 @@ function collectFarmResources() {
   });
   if (msg) {
     updateHUD(); persist();
-    showMsg('🌾 Farm Harvest', 'Your farms produced: ' + msg + '!');
+    showToast('🌾 Farm Harvest', 'Your farms produced: ' + msg + '!');
   }
 }
 
@@ -252,7 +252,7 @@ function doP5Action(mx, my) {
             if (t.reward === 'coins') save.spaceCoins = (save.spaceCoins || 0) + t.rewardAmt;
             else save.resources[t.reward] = (save.resources[t.reward] || 0) + t.rewardAmt;
             persist(); updateHUD(); gamePaused = false;
-            showMsg('✅ Trade Complete!', `You received ${t.rewardAmt} ${icons[t.reward]}!`);
+            showToast('✅ Trade Complete!', `You received ${t.rewardAmt} ${icons[t.reward]}!`);
           } : () => { gamePaused = false; },
           has ? 'Trade!' : 'Not enough...');
         return;
@@ -274,19 +274,19 @@ function doP5Action(mx, my) {
       if (b.type === 'hut') {
         save.hp = Math.min(save.maxHp, save.hp + 20);
         updateHUD(); persist();
-        showMsg('🏠 Space Hut', 'You rest at home. +20 HP!');
+        showToast('🏠 Space Hut', 'You rest at home. +20 HP!');
         return;
       }
       if (b.type === 'farm') {
-        showMsg('🌾 Star Farm', 'Your farm is growing nicely! Resources are harvested when you arrive.');
+        showToast('🌾 Star Farm', 'Your farm is growing nicely! Resources are harvested when you arrive.');
         return;
       }
       if (b.type === 'landing') {
-        showMsg('🛬 Landing Pad', 'More alien visitors will arrive thanks to the landing pad!');
+        showToast('🛬 Landing Pad', 'More alien visitors will arrive thanks to the landing pad!');
         return;
       }
       if (b.type === 'fountain') {
-        showMsg('⛲ Fountain', 'The water sparkles peacefully. A nice decoration!');
+        showToast('⛲ Fountain', 'The water sparkles peacefully.');
         return;
       }
     }

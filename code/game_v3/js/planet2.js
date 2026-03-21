@@ -78,7 +78,7 @@ function launchP2() {
   const onKey = e => {
     p2.player.keys[e.key] = true;
     if (e.key === 'm' || e.key === 'M') {
-      if (!p2.p2state.mapRevealed) { showMsg('No Map Yet', 'Climb a vine or tree first!'); return; }
+      if (!p2.p2state.mapRevealed) { showToast('No Map Yet', 'Climb a vine or tree first!'); return; }
       const ov = document.getElementById('mapOv');
       ov.style.display = ov.style.display === 'none' || ov.style.display === '' ? 'block' : 'none';
       if (ov.style.display === 'block') drawP2Minimap();

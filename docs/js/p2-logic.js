@@ -54,7 +54,7 @@ function climbActionP2(tx, ty) {
     showMsg('🌴 Canopy Reached!', 'You can see the whole jungle!\n\nMap revealed! A HIDDEN AREA glows below...');
     drawP2Minimap();
   } else {
-    showMsg('🌿 Climbing!', 'Vine swing! +Speed boost for 5 seconds!');
+    showToast('🌿 Climbing!', 'Vine swing! +Speed boost for 5 seconds!');
     p2.player.speed = 7;
     setTimeout(() => p2.player.speed = save.items.includes('boots') ? 6 : 4, 5000);
   }
@@ -235,7 +235,7 @@ function doP2Action(mx, my) {
     }
   }
   // Nothing in range fallback
-  showMsg('Nothing Here', 'Walk closer to resources, enemies, or NPCs to interact.');
+  showToast('Nothing Here', 'Walk closer to resources, enemies, or NPCs.');
 }
 
 // ── Main Update Function ─────────────────────────────────
@@ -390,7 +390,7 @@ function updateP2() {
     if (Math.hypot(p2.player.x - p.x, p2.player.y - p.y) < p2.TILE * 1.5) {
       p.collected = true; save.resources.banana = (save.resources.banana || 0) + 3;
       addP2(p.x, p.y, '#f90', 12); updateHUD();
-      showMsg('🦜 Parrot Befriended!', '+3 Bananas! The parrot drops jungle treasure and flies off!');
+      showToast('🦜 Parrot Befriended!', '+3 Bananas! The parrot drops jungle treasure and flies off!');
     }
   });
 

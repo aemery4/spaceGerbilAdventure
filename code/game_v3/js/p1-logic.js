@@ -73,13 +73,13 @@ function doP1Action(mx, my) {
       stopGame();
       showTransition('🚀 Blasting Off!\n🌍 → Zorbax', 'Jungle planet ahead...', () => startPlanet(2));
     } else {
-      showMsg('Need More Fuel!', 'Collect 10 ⚡ fuel. Have: ' + save.resources.fuel + '/10.');
+      showToast('Need More Fuel!', 'Collect 10 ⚡ fuel. Have: ' + save.resources.fuel + '/10.');
     }
     return;
   }
 
   // Nothing nearby fallback
-  showMsg('Nothing Here', 'Walk closer to resources, aliens, or the saucer to interact.');
+  showToast('Nothing Here', 'Walk closer to resources, aliens, or the saucer.');
 }
 
 // ── Main Update Function ─────────────────────────────────

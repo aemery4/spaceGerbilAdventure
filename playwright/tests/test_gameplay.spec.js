@@ -229,13 +229,18 @@ test.describe('Planet 1 - Area 51', () => {
     }
   });
 
-  test('dialog appears at bottom and pauses game', async ({ page }) => {
-    // Press F to trigger "Nothing Here" dialog
+  test('dialog or toast appears for feedback', async ({ page }) => {
+    // Press Space to trigger "Nothing Here" toast
     await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
-    // Check dialog is visible
+    // Check toast or dialog is visible
+    const toastVisible = await page.evaluate(() => {
+      const t = document.getElementById('toast');
+      return t && parseFloat(getComputedStyle(t).opacity) > 0.5;
+    });
     const dialogVisible = await isDialogVisible(page);
+    const anyFeedback = toastVisible || dialogVisible;
 
     if (dialogVisible) {
       // Check dialog position (should be at bottom)
@@ -389,11 +394,15 @@ test.describe('Planet 2 - Jungle Zorbax', () => {
     await pressKey(page, ' ');
     await page.waitForTimeout(300);
 
-    // Should see "Nothing Here" dialog
+    // Should see "Nothing Here" toast or dialog
+    const toastVisible = await page.evaluate(() => {
+      const t = document.getElementById('toast');
+      return t && parseFloat(getComputedStyle(t).opacity) > 0.5;
+    });
     const dialogVisible = await isDialogVisible(page);
 
-    if (!dialogVisible) {
-      logIssue('interaction_fallthrough', 'P2: No feedback when F pressed with nothing nearby');
+    if (!dialogVisible && !toastVisible) {
+      logIssue('interaction_fallthrough', 'P2: No feedback when Space pressed with nothing nearby');
     }
 
     await screenshot(page, '13_p2_nothing_nearby');

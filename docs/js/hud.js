@@ -21,6 +21,17 @@ function showMsg(t,b,cb,btn){
   el.onclick=()=>{closeMsg();gamePaused=false;if(cb)cb();};
 }
 function closeMsg(){document.getElementById('message').style.display='none';}
+let _toastTimer=null;
+function showToast(title,body,duration){
+  duration=duration||4000;
+  const el=document.getElementById('toast');
+  if(!el)return;
+  document.getElementById('toastTitle').textContent=title||'';
+  document.getElementById('toastBody').textContent=body||'';
+  el.style.opacity='1';
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(()=>{el.style.opacity='0';},duration);
+}
 function closeShop(){document.getElementById('villageShop').style.display='none';gamePaused=false;}
 function loseLife(restartFn){save.lives--;save.hp=save.maxHp;if(save.lives<=0)save.lives=3;persist();updateHUD();restartFn();}
 function togglePause(){
