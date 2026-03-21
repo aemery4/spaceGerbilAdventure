@@ -1252,19 +1252,9 @@
 
                 // API key status
                 if (data.api_key_set) {
-                    statusParts.push('🔑 API Key Set');
-                } else {
-                    statusParts.push('❌ API Key Missing');
-                }
-
                 statusParts.push(`${data.queued_tasks} task(s)`);
 
                 infoEl.innerHTML = statusParts.join(' | ');
-
-                // Show warning if API key missing
-                if (!data.api_key_set) {
-                    infoEl.innerHTML += '<br><span style="color: #f39c12; font-size: 0.85rem;">⚠️ Set ANTHROPIC_API_KEY environment variable to enable processing</span>';
-                }
 
             } catch (error) {
                 statusEl.className = 'server-status offline';
@@ -1313,21 +1303,6 @@
                                 <button class="task-action-btn view" onclick="viewTask('${task.task_id}')">
                                     👁️ Details
                                 </button>
-                                ${['pending', 'queued'].includes(task.status) ? `
-                                    <button class="task-action-btn process" onclick="processTask('${task.task_id}')">
-                                        🤖 Process
-                                    </button>
-                                ` : ''}
-                                ${task.status === 'awaiting_clarification' ? `
-                                    <button class="task-action-btn process" onclick="showClarificationModal('${task.task_id}')" style="background: linear-gradient(135deg, #9b59b6, #8e44ad);">
-                                        💬 Answer
-                                    </button>
-                                ` : ''}
-                                ${['escalated', 'cancelled', 'error'].includes(task.status) ? `
-                                    <button class="task-action-btn resubmit" onclick="resubmitTask('${task.task_id}')">
-                                        🔄 Resubmit
-                                    </button>
-                                ` : ''}
                                 ${!['completed', 'cancelled'].includes(task.status) ? `
                                     <button class="task-action-btn cancel" onclick="cancelTask('${task.task_id}')">
                                         ❌ Cancel
@@ -1416,62 +1391,10 @@
                         <pre>${task.data?.details || 'No details'}</pre>
                     </div>
 
-                    <div class="task-details-section">
-                        <h4>Formatted Task (for Orchestrator)</h4>
-                        <pre>${task.formatted_task || 'Not available'}</pre>
-                    </div>
-
-                    <div class="task-details-section">
-                        <h4>Processing Log <span id="log-status" style="font-size: 0.8rem; color: #888;"></span></h4>
-                        <pre id="processing-log" style="background: #000; color: #0f0; min-height: 100px; max-height: 300px; overflow-y: auto;">Checking for log...</pre>
-                    </div>
-
-                    ${task.result ? `
-                        <div class="task-details-section">
-                            <h4>Processing Result</h4>
-                            <pre>${JSON.stringify(task.result, null, 2)}</pre>
-                        </div>
-                    ` : ''}
-
-                    ${task.processed_at ? `
-                        <div class="task-details-section">
-                            <h4>Processed At</h4>
-                            <p>${new Date(task.processed_at).toLocaleString()}</p>
-                        </div>
-                    ` : ''}
-
-                    ${task.attempts && task.attempts.length > 0 ? `
-                        <div class="task-details-section">
-                            <h4>📊 Attempt History (${task.attempts.length} previous attempt${task.attempts.length > 1 ? 's' : ''})</h4>
-                            <div class="attempt-history">
-                                ${task.attempts.map((attempt, i) => `
-                                    <div class="attempt-item">
-                                        <span class="attempt-number">Attempt #${attempt.attempt_number || i + 1}</span>
-                                        <span class="task-status ${attempt.status}">${getStatusLabel(attempt.status)}</span>
-                                        ${attempt.started_at ? `<span class="attempt-date">Started: ${new Date(attempt.started_at).toLocaleString()}</span>` : ''}
-                                        ${attempt.result?.message ? `<span class="attempt-error" style="color: #e74c3c; font-size: 0.85rem;">Error: ${attempt.result.message.substring(0, 100)}${attempt.result.message.length > 100 ? '...' : ''}</span>` : ''}
-                                    </div>
-                                `).join('')}
-                            </div>
-                            <p style="margin-top: 10px; font-size: 0.9rem; color: #a0d2db;">
-                                Current: Attempt #${task.attempts.length + 1}
-                            </p>
-                        </div>
-                    ` : ''}
 
                     <div class="task-details-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
                         <h4>Actions</h4>
                         <div class="task-actions" style="margin-top: 10px;">
-                            ${['pending', 'queued'].includes(task.status) ? `
-                                <button class="task-action-btn process" onclick="processTask('${taskId}')">
-                                    🤖 Process Task
-                                </button>
-                            ` : ''}
-                            ${['escalated', 'cancelled', 'error'].includes(task.status) ? `
-                                <button class="task-action-btn resubmit" onclick="resubmitTask('${taskId}')">
-                                    🔄 Resubmit Task
-                                </button>
-                            ` : ''}
                             ${!['completed', 'cancelled'].includes(task.status) ? `
                                 <button class="task-action-btn cancel" onclick="cancelTask('${taskId}')">
                                     ❌ Cancel Task
