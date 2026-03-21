@@ -258,12 +258,20 @@ function updateP2() {
 
   if (p2.player.invincible > 0) p2.player.invincible--;
 
+  // Village safe zone — enemies cannot enter or aggro here (cols 23-30, rows 0-27)
+  function isInP2Village(x, y) {
+    const tx = x / p2.TILE, ty = y / p2.TILE;
+    return tx >= 23 && tx <= 30 && ty >= 0 && ty <= 27;
+  }
+  const playerInVillage = isInP2Village(p2.player.x, p2.player.y);
+
   // Monkey AI
   p2.monkeys.forEach(a => {
     const pd = Math.hypot(p2.player.x - a.x, p2.player.y - a.y);
-    if (pd < p2.TILE * 6) {
+    if (pd < p2.TILE * 6 && !playerInVillage) {
       const ang = Math.atan2(p2.player.y - a.y, p2.player.x - a.x);
-      a.x += Math.cos(ang) * a.speed; a.y += Math.sin(ang) * a.speed;
+      const nx = a.x + Math.cos(ang) * a.speed, ny = a.y + Math.sin(ang) * a.speed;
+      if (!isInP2Village(nx, ny)) { a.x = nx; a.y = ny; }
       a.aggro = true; a.attackTimer++;
       if (pd < a.size + p2.player.size && a.attackTimer > 30 && p2.player.invincible === 0) {
         const dmg = save.items.includes('shield') ? 2.5 : 5;
@@ -272,9 +280,12 @@ function updateP2() {
         if (save.hp <= 0) { loseLife(() => { closeMsg(); startPlanet(2); }); }
       }
     } else {
-      a.aggro = false; a.x += a.dx; a.y += a.dy;
-      if (a.x < p2.TILE || a.x > (p2.COLS - 1) * p2.TILE) a.dx *= -1;
-      if (a.y < p2.TILE || a.y > (p2.ROWS - 1) * p2.TILE) a.dy *= -1;
+      a.aggro = false;
+      const nx = a.x + a.dx, ny = a.y + a.dy;
+      if (nx < p2.TILE || nx > (p2.COLS - 1) * p2.TILE || isInP2Village(nx, ny)) a.dx *= -1;
+      else a.x = nx;
+      if (ny < p2.TILE || ny > (p2.ROWS - 1) * p2.TILE || isInP2Village(a.x, ny)) a.dy *= -1;
+      else a.y = ny;
     }
     a.x = Math.max(p2.TILE, Math.min(22 * p2.TILE, a.x));
     a.y = Math.max(p2.TILE, Math.min((p2.ROWS - 1) * p2.TILE, a.y));
@@ -290,11 +301,13 @@ function updateP2() {
   }
 
   // Boss AI
-  if (p2.miniBoss.alive && p2.miniBoss.discovered) {
+  if (p2.miniBoss.alive && p2.miniBoss.discovered && !playerInVillage) {
     const pd = Math.hypot(p2.player.x - p2.miniBoss.x, p2.player.y - p2.miniBoss.y);
     p2.miniBoss.attackTimer++;
     if (p2.miniBoss.charging) {
-      p2.miniBoss.x += p2.miniBoss.chargeDir.x * 8; p2.miniBoss.y += p2.miniBoss.chargeDir.y * 8;
+      const bnx = p2.miniBoss.x + p2.miniBoss.chargeDir.x * 8, bny = p2.miniBoss.y + p2.miniBoss.chargeDir.y * 8;
+      if (!isInP2Village(bnx, bny)) { p2.miniBoss.x = bnx; p2.miniBoss.y = bny; }
+      else p2.miniBoss.charging = false;
       p2.miniBoss.chargeTimer--;
       if (p2.miniBoss.chargeTimer <= 0) p2.miniBoss.charging = false;
       if (pd < p2.miniBoss.size + p2.player.size && p2.player.invincible === 0) {
@@ -305,7 +318,8 @@ function updateP2() {
       }
     } else {
       const ang = Math.atan2(p2.player.y - p2.miniBoss.y, p2.player.x - p2.miniBoss.x);
-      p2.miniBoss.x += Math.cos(ang) * p2.miniBoss.speed; p2.miniBoss.y += Math.sin(ang) * p2.miniBoss.speed;
+      const bnx2 = p2.miniBoss.x + Math.cos(ang) * p2.miniBoss.speed, bny2 = p2.miniBoss.y + Math.sin(ang) * p2.miniBoss.speed;
+      if (!isInP2Village(bnx2, bny2)) { p2.miniBoss.x = bnx2; p2.miniBoss.y = bny2; }
       if (p2.miniBoss.attackTimer > 240) {
         p2.miniBoss.charging = true; p2.miniBoss.chargeTimer = 20;
         p2.miniBoss.chargeDir = { x: Math.cos(ang), y: Math.sin(ang) };
@@ -401,9 +415,11 @@ function updateP2() {
     const a = p2.golems[i];
     if (a.hp <= 0) { addP2(a.x, a.y, '#888', 20); save.resources.rock = (save.resources.rock || 0) + 2; p2.golems.splice(i, 1); continue; }
     const pd = Math.hypot(p2.player.x - a.x, p2.player.y - a.y);
-    if (pd < p2.TILE * 4) {
+    if (pd < p2.TILE * 4 && !playerInVillage) {
       const ang = Math.atan2(p2.player.y - a.y, p2.player.x - a.x);
-      a.x += Math.cos(ang) * a.speed; a.y += Math.sin(ang) * a.speed; a.aggro = true;
+      const gnx = a.x + Math.cos(ang) * a.speed, gny = a.y + Math.sin(ang) * a.speed;
+      if (!isInP2Village(gnx, gny)) { a.x = gnx; a.y = gny; }
+      a.aggro = true;
       if (a.attackTimer > 0) a.attackTimer--;
       if (pd < a.size + p2.player.size && a.attackTimer <= 0) {
         const dmg = save.items.includes('ruin_shield') ? 1 : save.items.includes('shield') ? 2.5 : 5;
@@ -411,9 +427,12 @@ function updateP2() {
         if (save.hp <= 0) loseLife(() => { closeMsg(); startPlanet(2); });
       }
     } else {
-      a.aggro = false; a.x += a.dx; a.y += a.dy;
-      if (a.x < 30 * p2.TILE || a.x > 46 * p2.TILE) a.dx *= -1;
-      if (a.y < p2.TILE || a.y > (p2.ROWS - 1) * p2.TILE) a.dy *= -1;
+      a.aggro = false;
+      const gnx = a.x + a.dx, gny = a.y + a.dy;
+      if (gnx < 30 * p2.TILE || gnx > 46 * p2.TILE || isInP2Village(gnx, gny)) a.dx *= -1;
+      else a.x = gnx;
+      if (gny < p2.TILE || gny > (p2.ROWS - 1) * p2.TILE || isInP2Village(a.x, gny)) a.dy *= -1;
+      else a.y = gny;
     }
     a.x = Math.max(30 * p2.TILE, Math.min(46 * p2.TILE, a.x));
     a.y = Math.max(p2.TILE, Math.min((p2.ROWS - 1) * p2.TILE, a.y));
@@ -424,9 +443,11 @@ function updateP2() {
     const a = p2.lizards[i];
     if (a.hp <= 0) { addP2(a.x, a.y, '#f80', 16); save.resources.crystal = (save.resources.crystal || 0) + 1; p2.lizards.splice(i, 1); continue; }
     const pd = Math.hypot(p2.player.x - a.x, p2.player.y - a.y);
-    if (pd < p2.TILE * 5) {
+    if (pd < p2.TILE * 5 && !playerInVillage) {
       const ang = Math.atan2(p2.player.y - a.y, p2.player.x - a.x);
-      a.x += Math.cos(ang) * a.speed; a.y += Math.sin(ang) * a.speed; a.aggro = true;
+      const lnx = a.x + Math.cos(ang) * a.speed, lny = a.y + Math.sin(ang) * a.speed;
+      if (!isInP2Village(lnx, lny)) { a.x = lnx; a.y = lny; }
+      a.aggro = true;
       if (a.attackTimer > 0) a.attackTimer--;
       if (pd < a.size + p2.player.size && a.attackTimer <= 0) {
         const dmg = save.items.includes('ruin_shield') ? 0.8 : save.items.includes('shield') ? 1.5 : 3;
@@ -434,9 +455,12 @@ function updateP2() {
         if (save.hp <= 0) loseLife(() => { closeMsg(); startPlanet(2); });
       }
     } else {
-      a.aggro = false; a.x += a.dx; a.y += a.dy;
-      if (a.x < 30 * p2.TILE || a.x > 46 * p2.TILE) a.dx *= -1;
-      if (a.y < p2.TILE || a.y > 14 * p2.TILE) a.dy *= -1;
+      a.aggro = false;
+      const lnx = a.x + a.dx, lny = a.y + a.dy;
+      if (lnx < 30 * p2.TILE || lnx > 46 * p2.TILE || isInP2Village(lnx, lny)) a.dx *= -1;
+      else a.x = lnx;
+      if (lny < p2.TILE || lny > 14 * p2.TILE || isInP2Village(a.x, lny)) a.dy *= -1;
+      else a.y = lny;
     }
     a.x = Math.max(30 * p2.TILE, Math.min(46 * p2.TILE, a.x));
     a.y = Math.max(p2.TILE, Math.min(14 * p2.TILE, a.y));
@@ -448,9 +472,11 @@ function updateP2() {
     if (a.hp <= 0) { addP2(a.x, a.y, '#808', 16); save.resources.plant = (save.resources.plant || 0) + 2; p2.panthers.splice(i, 1); continue; }
     const pd = Math.hypot(p2.player.x - a.x, p2.player.y - a.y);
     a.alpha = pd < p2.TILE * 3 ? 0.95 : pd < p2.TILE * 6 ? 0.6 : 0.2;
-    if (pd < p2.TILE * 5) {
+    if (pd < p2.TILE * 5 && !playerInVillage) {
       const ang = Math.atan2(p2.player.y - a.y, p2.player.x - a.x);
-      a.x += Math.cos(ang) * a.speed; a.y += Math.sin(ang) * a.speed; a.aggro = true;
+      const pnx = a.x + Math.cos(ang) * a.speed, pny = a.y + Math.sin(ang) * a.speed;
+      if (!isInP2Village(pnx, pny)) { a.x = pnx; a.y = pny; }
+      a.aggro = true;
       if (a.attackTimer > 0) a.attackTimer--;
       if (pd < a.size + p2.player.size && a.attackTimer <= 0) {
         const dmg = save.items.includes('ruin_shield') ? 1.2 : save.items.includes('shield') ? 2 : 4;
@@ -458,9 +484,12 @@ function updateP2() {
         if (save.hp <= 0) loseLife(() => { closeMsg(); startPlanet(2); });
       }
     } else {
-      a.aggro = false; a.x += a.dx; a.y += a.dy;
-      if (a.x < 30 * p2.TILE || a.x > 46 * p2.TILE) a.dx *= -1;
-      if (a.y < 14 * p2.TILE || a.y > 26 * p2.TILE) a.dy *= -1;
+      a.aggro = false;
+      const pnx = a.x + a.dx, pny = a.y + a.dy;
+      if (pnx < 30 * p2.TILE || pnx > 46 * p2.TILE || isInP2Village(pnx, pny)) a.dx *= -1;
+      else a.x = pnx;
+      if (pny < 14 * p2.TILE || pny > 26 * p2.TILE || isInP2Village(a.x, pny)) a.dy *= -1;
+      else a.y = pny;
     }
     a.x = Math.max(30 * p2.TILE, Math.min(46 * p2.TILE, a.x));
     a.y = Math.max(14 * p2.TILE, Math.min(26 * p2.TILE, a.y));
