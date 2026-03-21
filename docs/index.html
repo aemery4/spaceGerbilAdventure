@@ -105,6 +105,7 @@ canvas { display:block; border:2px solid #335; }
 </div>
 <div id="invBar">🎒 Items: <span id="items">none</span> <button id="craftBtn" onclick="toggleCraft()">⚗️ Craft [C]</button> <button onclick="toggleGear()" style="padding:2px 8px;background:rgba(140,60,0,0.85);border:1px solid rgba(255,160,50,0.5);color:#fa0;cursor:pointer;font-family:inherit;font-size:10px;border-radius:3px;">⚔️ Gear [G]</button> <span id="weaponHud" style="color:#f80;font-weight:bold;font-size:11px;margin-left:4px;"></span> <button onclick="openSkinMenu()" style="padding:2px 8px;background:rgba(80,0,140,0.85);border:1px solid rgba(180,80,255,0.5);color:#d0a0ff;cursor:pointer;font-family:inherit;font-size:10px;border-radius:3px;margin-left:4px;">🎭 Skins</button></div>
 <canvas id="game" width="800" height="520"></canvas>
+<div id="saveIndicator" style="position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.8);color:#4f4;padding:4px 12px;border-radius:4px;font-size:12px;font-family:monospace;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:200;">💾 Saved!</div>
 <div id="ctrl">WASD/Arrows: move | Space: gather/attack | Click: target | C: craft | G: gear | M: map | P: pause</div>
 
 <div id="message"><h2 id="mt"></h2><p id="mb"></p><button id="mbtn" onclick="closeMsg()">OK</button></div>

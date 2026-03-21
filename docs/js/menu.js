@@ -127,6 +127,7 @@ function showMenu(){
   document.getElementById('invBar').style.display='none';
   document.getElementById('ctrl').style.display='none';
   cancelAnimationFrame(animFrameId);
+  if(canvas&&canvas.removeEventListener){canvas.removeEventListener('click',menuClick);canvas.addEventListener('click',menuClick);}
   animFrameId=requestAnimationFrame(drawMenu);
 }
 function goMenu(){stopGame();showMenu();}
