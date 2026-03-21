@@ -119,17 +119,27 @@ function addP3(x, y, color, n, state) {
   }
 }
 
+// ── Camp Safe Zone ────────────────────────────────────────
+// Enemies cannot enter or aggro inside the survivor camp (cols 24-29, rows 1-14)
+function isInCampZone(x, y, TILE) {
+  const tx = x / TILE, ty = y / TILE;
+  return tx >= 23 && tx <= 30 && ty >= 0 && ty <= 15;
+}
+
 // ── Tiger AI ──────────────────────────────────────────────
 function updateP3Tigers(state) {
   const {TILE, COLS, ROWS, player, tigers} = state;
+  const playerInCamp = isInCampZone(player.x, player.y, TILE);
   tigers.forEach((a,i)=>{
     if(a.slowTimer>0) a.slowTimer--;
     const spd2 = a.slowTimer>0 ? a.speed*0.3 : a.speed;
     const pd=Math.hypot(player.x-a.x,player.y-a.y);
-    if(pd<TILE*5){
+    // Don't aggro if player is in camp or if enemy would enter camp
+    if(pd<TILE*5 && !playerInCamp && !isInCampZone(a.x,a.y,TILE)){
       a.aggro=true;
       const ang=Math.atan2(player.y-a.y,player.x-a.x);
-      a.x+=Math.cos(ang)*spd2; a.y+=Math.sin(ang)*spd2;
+      const nx=a.x+Math.cos(ang)*spd2, ny=a.y+Math.sin(ang)*spd2;
+      if(!isInCampZone(nx,ny,TILE)){ a.x=nx; a.y=ny; }
       if(a.attackTimer>0) a.attackTimer--;
       if(pd<a.size+player.size&&a.attackTimer<=0&&player.invincible===0){
         const dmg=save.items.includes('ruin_shield')?1:2;
@@ -139,9 +149,12 @@ function updateP3Tigers(state) {
       }
     } else {
       a.aggro=false;
-      a.x+=a.dx*(a.slowTimer>0?0.3:1); a.y+=a.dy*(a.slowTimer>0?0.3:1);
-      if(a.x<TILE||a.x>(COLS-2)*TILE) a.dx*=-1;
-      if(a.y<TILE||a.y>(ROWS-2)*TILE) a.dy*=-1;
+      const nx=a.x+a.dx*(a.slowTimer>0?0.3:1), ny=a.y+a.dy*(a.slowTimer>0?0.3:1);
+      // Bounce off camp zone boundary as well as world edges
+      if(nx<TILE||nx>(COLS-2)*TILE||isInCampZone(nx,ny,TILE)) a.dx*=-1;
+      else a.x=nx;
+      if(ny<TILE||ny>(ROWS-2)*TILE||isInCampZone(a.x,ny,TILE)) a.dy*=-1;
+      else a.y=ny;
     }
   });
 }
@@ -149,14 +162,16 @@ function updateP3Tigers(state) {
 // ── Mammoth AI ────────────────────────────────────────────
 function updateP3Mammoths(state) {
   const {TILE, COLS, ROWS, player, mammoths} = state;
+  const playerInCamp = isInCampZone(player.x, player.y, TILE);
   mammoths.forEach(m=>{
     if(m.slowTimer>0) m.slowTimer--;
     const spd2 = m.slowTimer>0 ? m.speed*0.2 : m.speed;
-    if(m.angered){
-      // angered mammoth charges player
+    if(m.angered && !playerInCamp){
+      // angered mammoth charges player (but won't enter camp)
       const pd=Math.hypot(player.x-m.x,player.y-m.y);
       const ang=Math.atan2(player.y-m.y,player.x-m.x);
-      m.x+=Math.cos(ang)*spd2*1.4; m.y+=Math.sin(ang)*spd2*1.4;
+      const nx=m.x+Math.cos(ang)*spd2*1.4, ny=m.y+Math.sin(ang)*spd2*1.4;
+      if(!isInCampZone(nx,ny,TILE)){ m.x=nx; m.y=ny; }
       if(m.attackTimer>0) m.attackTimer--;
       if(pd<m.size+player.size&&m.attackTimer<=0&&player.invincible===0){
         // tusk slam — heavy damage
@@ -167,10 +182,13 @@ function updateP3Mammoths(state) {
         if(save.hp<=0){loseLife(()=>{closeMsg();startPlanet(3);});}
       }
     } else {
-      // neutral wander
-      m.x+=m.dx*(m.slowTimer>0?0.2:1); m.y+=m.dy*(m.slowTimer>0?0.2:1);
-      if(m.x<TILE||m.x>(COLS-2)*TILE) m.dx*=-1;
-      if(m.y<TILE||m.y>(ROWS-2)*TILE) m.dy*=-1;
+      // neutral wander (or angered but player in camp — calm down)
+      if(m.angered && playerInCamp) m.angered = false;
+      const nx=m.x+m.dx*(m.slowTimer>0?0.2:1), ny=m.y+m.dy*(m.slowTimer>0?0.2:1);
+      if(nx<TILE||nx>(COLS-2)*TILE||isInCampZone(nx,ny,TILE)) m.dx*=-1;
+      else m.x=nx;
+      if(ny<TILE||ny>(ROWS-2)*TILE||isInCampZone(m.x,ny,TILE)) m.dy*=-1;
+      else m.y=ny;
     }
   });
 }
