@@ -201,6 +201,7 @@ function openHomeBuildMenu(gx, gy) {
         for (let dr = 0; dr < b.h; dr++)
           for (let dc = 0; dc < b.w; dc++) E.map[gy + dr][gx + dc] = 5;
         placeBuildingMesh(E.scene, b.type, b.w, b.h, gx, gy);
+        if (typeof SFX !== 'undefined') SFX.build();
         persist(); updateHUD();
         closeShop();
         showToast(b.emoji + ' Built!', b.name + ' placed on your home base.');

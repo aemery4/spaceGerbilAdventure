@@ -135,7 +135,8 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
-  E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = [];
+  E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = [];
+  if (typeof hideBossBar === 'function') hideBossBar();
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
   if (cfg.home && typeof buildHomeStructures === 'function') buildHomeStructures(scene);
   if (data.SEAHORSES && typeof buildSeahorses === 'function') buildSeahorses(data, cfg, scene);
@@ -277,13 +278,15 @@ function buildEnemies(data, cfg, scene) {
       const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, variant);
       mesh.position.set(worldX, size, worldZ);
       scene.add(mesh);
-      E.enemies.push({
+      const rec = {
         mesh, hp, maxhp: hp, size, boss, species: variant,
         neutral: variant === 'mammoths', angered: false, // mammoths only fight back if attacked
         speed: (e.speed || 0.6) * 2.2,
         dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
         wander: Math.random() * 3, dmg: boss ? 18 : (variant === 'parrots' ? 0 : variant === 'mammoths' ? 6 : 8)
-      });
+      };
+      if (boss) { rec.mode = 'idle'; rec.atkTimer = 2.5 + Math.random() * 1.5; rec.baseEmissive = mesh.userData.body.material.emissiveIntensity; }
+      E.enemies.push(rec);
     });
   });
 }
@@ -959,6 +962,7 @@ function doAttack(worldPoint) {
 function hitResource(i) {
   const r = E.resources[i];
   r.hp--;
+  if (typeof SFX !== 'undefined') SFX.gather();
   spawnParticles(r.mesh.position, r.mesh.material.color, 8);
   r.mesh.scale.multiplyScalar(0.8);
   if (r.hp <= 0) {
@@ -980,12 +984,18 @@ function hitEnemy(i) {
   const en = E.enemies[i];
   if (en.neutral && !en.angered) { en.angered = true; showToast('🦣 Enraged!', 'The mammoth turns on you!'); }
   en.hp -= weaponDamage();
+  if (typeof SFX !== 'undefined') SFX.hit();
   spawnParticles(en.mesh.position, new THREE.Color(0xff5555), 10);
   en.mesh.userData.body.material.emissiveIntensity = 1.5;
   en.flash = 0.15;
   if (en.hp <= 0) {
     spawnParticles(en.mesh.position, en.mesh.userData.body.material.color, 18);
-    if (en.boss) save.spaceCoins = (save.spaceCoins || 0) + 20;
+    if (typeof SFX !== 'undefined') { en.boss ? SFX.win() : SFX.enemyDie(); }
+    if (en.boss) {
+      save.spaceCoins = (save.spaceCoins || 0) + 100;
+      showToast('🏆 Boss Defeated!', (BOSS_NAME[en.species] || 'The boss') + ' is vanquished! +100 🪙');
+      if (typeof hideBossBar === 'function') hideBossBar();
+    }
     E.scene.remove(en.mesh);
     E.enemies.splice(i, 1);
     persist(); updateHUD();
@@ -1011,6 +1021,7 @@ function checkExitReady() {
   if (!E.cfg.fuelTarget) return;
   if ((save.resources.fuel || 0) >= E.cfg.fuelTarget && !E.exitActive) {
     E.exitActive = true;
+    if (typeof SFX !== 'undefined') SFX.powerup();
     showToast('🚀 Rocket ready!', 'You have enough fuel. Reach the rocket to blast off.');
   }
 }
@@ -1020,6 +1031,7 @@ function planetCleared() {
   const n = E.planetNo;
   if (!save.planetsCleared.includes(n)) save.planetsCleared.push(n);
   save.spaceCoins = (save.spaceCoins || 0) + 50;
+  if (typeof SFX !== 'undefined') SFX.win();
   persist();
   const next = n + 1;
   const hasNext = next <= 4;
@@ -1035,6 +1047,7 @@ function hurtPlayer(dmg) {
   if (save.items.includes('shield')) d *= 0.5;
   save.hp -= d;
   E.hurtCd = 0.8;
+  if (typeof SFX !== 'undefined') SFX.hurt();
   flashDamage();
   updateHUD();
   if (save.hp <= 0) {
@@ -1065,6 +1078,8 @@ function animate() {
     if (typeof updateVillage === 'function') updateVillage(dt);
     if (typeof updateHome === 'function') updateHome(dt);
     if (typeof updateSeahorses === 'function') updateSeahorses(dt);
+    if (typeof updateBossShots === 'function') updateBossShots(dt);
+    if (typeof updateBossBar === 'function') updateBossBar();
     if (E.hurtCd > 0) E.hurtCd -= dt;
   }
   updateCamera(dt);
@@ -1124,18 +1139,22 @@ function updateEnemies(dt) {
     en.wander -= dt;
     const d = p.distanceTo(m.position);
     const hostile = !en.neutral || en.angered; // neutral mammoths ignore you until attacked
-    if (hostile && d < 6) { // chase
-      en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
-    } else if (en.wander <= 0) {
-      en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-      en.wander = 1 + Math.random() * 2;
+    if (en.boss && typeof updateBoss === 'function') {
+      updateBoss(en, dt, d, p);
+    } else {
+      if (hostile && d < 6) { // chase
+        en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+      } else if (en.wander <= 0) {
+        en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        en.wander = 1 + Math.random() * 2;
+      }
+      const nx = m.position.x + en.dir.x * en.speed * dt;
+      const nz = m.position.z + en.dir.z * en.speed * dt;
+      // Village (tile 7) is a safe zone — enemies can't step onto it.
+      const blocked = (x, z) => isSolid(x, z) || (E.cfg.village && tileAt(x, z) === 7);
+      if (!blocked(nx, m.position.z)) m.position.x = nx; else en.dir.x *= -1;
+      if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     }
-    const nx = m.position.x + en.dir.x * en.speed * dt;
-    const nz = m.position.z + en.dir.z * en.speed * dt;
-    // Village (tile 7) is a safe zone — enemies can't step onto it.
-    const blocked = (x, z) => isSolid(x, z) || (E.cfg.village && tileAt(x, z) === 7);
-    if (!blocked(nx, m.position.z)) m.position.x = nx; else en.dir.x *= -1;
-    if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
     m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
     if (m.userData.arms) { // monkeys swing their arms as they move

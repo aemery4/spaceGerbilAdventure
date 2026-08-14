@@ -44,6 +44,7 @@ function updateArcadeCoins() {
 }
 function arcadeAward(n) {
   save.spaceCoins = Math.max(0, (save.spaceCoins || 0) + n);
+  if (n > 0 && typeof SFX !== 'undefined') SFX.coin();
   persist(); updateHUD(); updateArcadeCoins();
 }
 

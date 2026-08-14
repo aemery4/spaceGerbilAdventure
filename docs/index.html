@@ -165,6 +165,7 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
   <div>⚡<span id="fuel">0</span>/<span id="fuelMax">10</span></div>
   <div style="color:#FFD700">🪙<span id="coins">0</span></div>
   <button id="buildBtn" onclick="toggleBuildMode()" style="display:none;padding:1px 7px;background:#181830;border:1px solid #c87;color:#fc9;cursor:pointer;font-family:inherit;font-size:10px;border-radius:2px;">🔨 Build [B]</button>
+  <button id="muteBtn" onclick="toggleMute()" style="padding:1px 7px;background:#111;border:1px solid #446;color:#9ab;cursor:pointer;font-family:inherit;font-size:10px;border-radius:2px;">🔊 Sound</button>
   <button id="pauseBtn" onclick="togglePause()" style="padding:1px 7px;background:#111;border:1px solid #553;color:#887;cursor:pointer;font-family:inherit;font-size:10px;border-radius:2px;">⏸ Pause [P]</button>
   <button onclick="goMenu()" style="padding:1px 7px;background:#111;border:1px solid #335;color:#667;cursor:pointer;font-family:inherit;font-size:10px;border-radius:2px;">Menu</button>
 </div>
@@ -176,7 +177,14 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- 3D viewport -->
-<div id="view3d"></div>
+<div id="view3d">
+  <div id="bossBar" style="display:none;position:absolute;top:10px;left:50%;transform:translateX(-50%);width:70%;max-width:520px;z-index:40;text-align:center;pointer-events:none;">
+    <div id="bossName" style="color:#fff;font-size:12px;font-weight:bold;text-shadow:0 0 6px #f00;margin-bottom:3px;">Boss</div>
+    <div style="height:14px;background:rgba(0,0,0,0.6);border:1px solid #f55;border-radius:7px;overflow:hidden;">
+      <div id="bossFill" style="height:100%;width:100%;background:linear-gradient(90deg,#f22,#f80);transition:width 0.15s;"></div>
+    </div>
+  </div>
+</div>
 
 <!-- Overlay menu -->
 <div id="menu3d">
@@ -230,29 +238,31 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=12"></script>
+<script src="js/three.min.js?v=13"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=12"></script>
-<script src="js/save.js?v=12"></script>
-<script src="js/hud.js?v=12"></script>
-<script src="js/craft.js?v=12"></script>
+<script src="js/globals.js?v=13"></script>
+<script src="js/save.js?v=13"></script>
+<script src="js/hud.js?v=13"></script>
+<script src="js/craft.js?v=13"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=12"></script>
-<script src="js/p2-data.js?v=12"></script>
-<script src="js/p3-data.js?v=12"></script>
-<script src="js/p4-data.js?v=12"></script>
-<script src="js/p5-data.js?v=12"></script>
+<script src="js/p1-data.js?v=13"></script>
+<script src="js/p2-data.js?v=13"></script>
+<script src="js/p3-data.js?v=13"></script>
+<script src="js/p4-data.js?v=13"></script>
+<script src="js/p5-data.js?v=13"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/planets3d.js?v=12"></script>
-<script src="js/engine3d.js?v=12"></script>
-<script src="js/village3d.js?v=12"></script>
-<script src="js/home3d.js?v=12"></script>
-<script src="js/arcade3d.js?v=12"></script>
-<script src="js/seahorse3d.js?v=12"></script>
-<script src="js/menu3d.js?v=12"></script>
-<script src="js/skins.js?v=12"></script>
+<script src="js/sfx3d.js?v=13"></script>
+<script src="js/planets3d.js?v=13"></script>
+<script src="js/engine3d.js?v=13"></script>
+<script src="js/boss3d.js?v=13"></script>
+<script src="js/village3d.js?v=13"></script>
+<script src="js/home3d.js?v=13"></script>
+<script src="js/arcade3d.js?v=13"></script>
+<script src="js/seahorse3d.js?v=13"></script>
+<script src="js/menu3d.js?v=13"></script>
+<script src="js/skins.js?v=13"></script>
 </body>
 </html>

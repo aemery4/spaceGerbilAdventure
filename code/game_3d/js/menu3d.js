@@ -87,6 +87,7 @@ function openHomeBase() { startPlanet(5); }
 // ── Boot ───────────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   loadSave();
+  if (typeof applyMutePref === 'function') applyMutePref();
   updateHUD();
   showMenu();
   document.getElementById('mNew').onclick = startNewGame;
