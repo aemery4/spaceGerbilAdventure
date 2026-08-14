@@ -266,7 +266,7 @@ function buildEnemies(data, cfg, scene) {
                         : Math.max(0.28, (e.size || 13) / 30);
       const SPECIES_COLOR = {
         monkeys: 0x7a4a24, golems: 0x6f7d6a, lizards: 0x4aa02c, panthers: 0x1c1a24, parrots: 0xe0392f,
-        miniBoss: 0x8a5a2a, tigers: 0xe8892a, mammoths: 0x6b4a2f, yeti: 0xeaf2ff,
+        miniBoss: 0x8a5a2a, tigers: 0xceb888, mammoths: 0x6b4a2f, yeti: 0xeaf2ff,
         squid: 0xb257c8, piranha: 0x9aa2a8, octopus: 0xd0405a
       };
       const defaultColor = SPECIES_COLOR[variant] || 0xdd4444;
@@ -290,7 +290,7 @@ function makeEnemyMesh(kind, size, color, boss, species) {
   if (species === 'golems') return makeGolemMesh(size, color);
   if (species === 'lizards') return makeLizardMesh(size, color);
   if (species === 'panthers') return makeCatMesh(size, color, { eye: 0x9dff5a });
-  if (species === 'tigers') return makeCatMesh(size, color, { eye: 0xffe000, stripes: true, belly: 0xf5e8d0 });
+  if (species === 'tigers') return makeCatMesh(size, color, { eye: 0xffe000, fangs: true, belly: 0xf2e8d6 });
   if (species === 'parrots') return makeParrotMesh(size, color);
   if (species === 'miniBoss') return makeApeBossMesh(size, color);
   if (species === 'mammoths') return makeMammothMesh(size, color);
@@ -532,6 +532,14 @@ function makeCatMesh(size, color, opts) {
       const st = new THREE.Mesh(new THREE.BoxGeometry(0.9 * s, 0.09 * s, 0.13 * s), stripeM);
       st.position.set(0, 0.08 * s, (0.7 - i * 0.42) * s); g.add(st);
     }
+  }
+  if (opts.fangs) { // saber teeth jutting down from the muzzle
+    const fangM = new THREE.MeshStandardMaterial({ color: 0xfbf7ea, roughness: 0.4 });
+    [-1, 1].forEach(sx => {
+      const f = new THREE.Mesh(new THREE.ConeGeometry(0.05 * s, 0.4 * s, 6), fangM);
+      f.position.set(sx * 0.1 * s, -0.34 * s, 1.56 * s); f.rotation.x = Math.PI;
+      g.add(f);
+    });
   }
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.body = body;
