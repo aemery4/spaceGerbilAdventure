@@ -70,7 +70,10 @@ function launchPlanet3D(n) {
     4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel and dodge the deep things. Friendly seahorses 🐴 (with a 🔶 marker) will share tips — swim up and press Space. Reach the rocket to escape.',
     5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Walk up to a building and press Space to use it.'
   };
-  showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
+  const showIntro = () => showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
+  // Entering Area 51 gets its own cutscene
+  if (n === 1 && typeof playEnterArea51Cutscene === 'function') { gamePaused = true; playEnterArea51Cutscene(showIntro); }
+  else showIntro();
 }
 // Named shims so existing flow (startPlanet) keeps working
 function launchP1(){ launchPlanet3D(1); }
