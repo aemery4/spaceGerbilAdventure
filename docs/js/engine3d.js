@@ -24,10 +24,11 @@ function ensureRenderer() {
   if (E.renderer) return;
   const wrap = document.getElementById('view3d');
   const W = wrap.clientWidth, H = wrap.clientHeight;
-  E.renderer = new THREE.WebGLRenderer({ antialias: true });
-  E.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
+  E.renderer = new THREE.WebGLRenderer({ antialias: !touch });
+  E.renderer.setPixelRatio(Math.min(window.devicePixelRatio, touch ? 1.4 : 2));
   E.renderer.setSize(W, H);
-  E.renderer.shadowMap.enabled = true;
+  E.renderer.shadowMap.enabled = !touch; // shadows are the biggest mobile GPU cost
   E.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   wrap.appendChild(E.renderer.domElement);
   E.camera = new THREE.PerspectiveCamera(52, W / H, 0.1, 200);
@@ -118,7 +119,7 @@ function buildWorld(n, cfg) {
   const data = cfg.build(cfg.tile, cfg.cols, cfg.rows);
   // Enlarge the playable area by padding with open floor + a new outer wall.
   // Home base is left unpadded so its saved building coordinates stay valid.
-  const grow = cfg.home ? 0 : (cfg.grow != null ? cfg.grow : 8);
+  const grow = cfg.home ? 0 : (cfg.grow != null ? cfg.grow : ((typeof IS_TOUCH !== 'undefined' && IS_TOUCH) ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
   E.rows = E.map.length; E.cols = E.map[0].length;
@@ -1276,13 +1277,15 @@ function updatePlayer(dt) {
   if (k['s'] || k['arrowdown']) mz += 1;
   if (k['a'] || k['arrowleft']) mx -= 1;
   if (k['d'] || k['arrowright']) mx += 1;
+  let mag = 1;
+  if (E.moveVec && (E.moveVec.x || E.moveVec.z)) { mx = E.moveVec.x; mz = E.moveVec.z; mag = Math.min(1, Math.hypot(mx, mz)); } // touch joystick
   let speed = save.items.includes('boots') ? 6.5 : 4.8;
   if (E.cfg.slow.includes(tileAt(E.player.position.x, E.player.position.z))) speed *= 0.5;
   const p = E.player.position;
   if (mx || mz) {
-    const len = Math.hypot(mx, mz); mx /= len; mz /= len;
-    const nx = p.x + mx * speed * dt;
-    const nz = p.z + mz * speed * dt;
+    const len = Math.hypot(mx, mz) || 1; mx /= len; mz /= len;
+    const nx = p.x + mx * speed * mag * dt;
+    const nz = p.z + mz * speed * mag * dt;
     const rad = 0.34;
     if (!isSolid(nx + Math.sign(mx) * rad, p.z)) p.x = nx;
     if (!isSolid(p.x, nz + Math.sign(mz) * rad)) p.z = nz;

@@ -160,6 +160,23 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 #arcadeBackBtn, #arcadeCloseBtn { padding:8px 20px; background:rgba(30,20,60,0.9);
   border:1px solid rgba(120,160,255,0.5); color:#bcf; cursor:pointer; font-family:inherit; font-size:12px; border-radius:8px; }
 #arcadeBackBtn:hover, #arcadeCloseBtn:hover { background:rgba(60,40,110,0.9); }
+/* ===== MOBILE / TOUCH ===== */
+body.touch { height:100vh; height:100dvh; overflow:hidden; justify-content:flex-start; }
+body.touch #hud, body.touch #invBar { width:100vw; font-size:11px; padding:3px 6px; gap:5px 8px; }
+body.touch #view3d, body.touch #menu3d { width:100vw; flex:1 1 auto; height:auto; min-height:0; border-left:none; border-right:none; }
+body.touch #ctrl { display:none !important; }
+body.touch #view3d, body.touch #view3d canvas { touch-action:none; }
+#joyBase { position:absolute; left:20px; bottom:20px; width:112px; height:112px; border-radius:50%;
+  background:rgba(255,255,255,0.08); border:2px solid rgba(255,255,255,0.28); z-index:46; touch-action:none; }
+#joyKnob { position:absolute; left:36px; top:36px; width:40px; height:40px; border-radius:50%;
+  background:rgba(220,230,255,0.55); border:1px solid rgba(255,255,255,0.5); will-change:transform; }
+#touchAct { position:absolute; right:22px; bottom:30px; width:78px; height:78px; border-radius:50%;
+  background:rgba(200,70,40,0.72); border:2px solid rgba(255,170,110,0.6); color:#fff; font-size:32px;
+  display:flex; align-items:center; justify-content:center; z-index:46; touch-action:none; user-select:none; -webkit-user-select:none; }
+#touchAct.pressed { background:rgba(240,110,60,0.92); transform:scale(0.94); }
+body.touch #villageShop, body.touch #arcadePanel, body.touch #skinMenu,
+body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
+  max-width:94vw !important; min-width:0 !important; width:auto; max-height:82dvh; overflow-y:auto; }
 </style>
 </head>
 <body>
@@ -258,32 +275,33 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=26"></script>
+<script src="js/three.min.js?v=29"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=26"></script>
-<script src="js/save.js?v=26"></script>
-<script src="js/hud.js?v=26"></script>
-<script src="js/craft.js?v=26"></script>
+<script src="js/globals.js?v=29"></script>
+<script src="js/save.js?v=29"></script>
+<script src="js/hud.js?v=29"></script>
+<script src="js/craft.js?v=29"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=26"></script>
-<script src="js/p2-data.js?v=26"></script>
-<script src="js/p3-data.js?v=26"></script>
-<script src="js/p4-data.js?v=26"></script>
-<script src="js/p5-data.js?v=26"></script>
+<script src="js/p1-data.js?v=29"></script>
+<script src="js/p2-data.js?v=29"></script>
+<script src="js/p3-data.js?v=29"></script>
+<script src="js/p4-data.js?v=29"></script>
+<script src="js/p5-data.js?v=29"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/sfx3d.js?v=26"></script>
-<script src="js/cutscene3d.js?v=26"></script>
-<script src="js/planets3d.js?v=26"></script>
-<script src="js/engine3d.js?v=26"></script>
-<script src="js/boss3d.js?v=26"></script>
-<script src="js/village3d.js?v=26"></script>
-<script src="js/home3d.js?v=26"></script>
-<script src="js/arcade3d.js?v=26"></script>
-<script src="js/seahorse3d.js?v=26"></script>
-<script src="js/menu3d.js?v=26"></script>
-<script src="js/skins.js?v=26"></script>
+<script src="js/mobile3d.js?v=29"></script>
+<script src="js/sfx3d.js?v=29"></script>
+<script src="js/cutscene3d.js?v=29"></script>
+<script src="js/planets3d.js?v=29"></script>
+<script src="js/engine3d.js?v=29"></script>
+<script src="js/boss3d.js?v=29"></script>
+<script src="js/village3d.js?v=29"></script>
+<script src="js/home3d.js?v=29"></script>
+<script src="js/arcade3d.js?v=29"></script>
+<script src="js/seahorse3d.js?v=29"></script>
+<script src="js/menu3d.js?v=29"></script>
+<script src="js/skins.js?v=29"></script>
 </body>
 </html>
