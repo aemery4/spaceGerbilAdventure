@@ -139,7 +139,7 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
-  E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = [];
+  E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
   if (typeof hideBossBar === 'function') hideBossBar();
   const _ink = document.getElementById('inkOverlay'); if (_ink) { _ink.style.transition = 'none'; _ink.style.opacity = '0'; }
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
@@ -483,10 +483,12 @@ function makeLizardMesh(size, color) {
   }
   const legGeo = new THREE.CylinderGeometry(0.1 * s, 0.08 * s, 0.5 * s, 6);
   legGeo.translate(0, -0.25 * s, 0);
-  [[0.58, 0.7], [-0.58, 0.7], [0.62, -0.55], [-0.62, -0.55]].forEach(([lx, lz]) => {
+  const legs = [[0.58, 0.7], [-0.58, 0.7], [0.62, -0.55], [-0.62, -0.55]].map(([lx, lz]) => {
     const l = new THREE.Mesh(legGeo, skin);
     l.position.set(lx * s, -0.6 * s, lz * s); l.rotation.z = lx > 0 ? 0.8 : -0.8; g.add(l);
+    l.userData.ph = ((lx > 0) === (lz > 0)) ? 0 : Math.PI; return l;
   });
+  g.userData.legs = legs;
   g.add(body, bel, head, snout, ...eyes, tail);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.body = body;
@@ -524,9 +526,11 @@ function makeCatMesh(size, color, opts) {
   });
   const legGeo = new THREE.CylinderGeometry(0.11 * s, 0.09 * s, 0.7 * s, 7);
   legGeo.translate(0, -0.35 * s, 0);
-  [[0.28, 0.8], [-0.28, 0.8], [0.3, -0.72], [-0.3, -0.72]].forEach(([lx, lz]) => {
+  const legs = [[0.28, 0.8], [-0.28, 0.8], [0.3, -0.72], [-0.3, -0.72]].map(([lx, lz]) => {
     const l = new THREE.Mesh(legGeo, furM); l.position.set(lx * s, -0.35 * s, lz * s); g.add(l);
+    l.userData.ph = ((lx > 0) === (lz > 0)) ? 0 : Math.PI; return l;
   });
+  g.userData.legs = legs;
   const tc = new THREE.CatmullRomCurve3([
     new THREE.Vector3(0, -0.35 * s, -1.0 * s), new THREE.Vector3(0.12 * s, -0.1 * s, -1.5 * s),
     new THREE.Vector3(-0.15 * s, 0.32 * s, -1.6 * s), new THREE.Vector3(0.12 * s, 0.62 * s, -1.3 * s)]);
@@ -668,9 +672,11 @@ function makeMammothMesh(size, color) {
   });
   const legGeo = new THREE.CylinderGeometry(0.22 * s, 0.2 * s, 0.65 * s, 8);
   legGeo.translate(0, -0.32 * s, 0);
-  [[0.42, 0.55], [-0.42, 0.55], [0.42, -0.55], [-0.42, -0.55]].forEach(([lx, lz]) => {
+  const legs = [[0.42, 0.55], [-0.42, 0.55], [0.42, -0.55], [-0.42, -0.55]].map(([lx, lz]) => {
     const l = new THREE.Mesh(legGeo, fur); l.position.set(lx * s, -0.5 * s, lz * s); g.add(l);
+    l.userData.ph = ((lx > 0) === (lz > 0)) ? 0 : Math.PI; return l;
   });
+  g.userData.legs = legs;
   g.add(body, hump, head, trunk, ...ears, ...eyes, ...tusks);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.body = body;
@@ -1017,15 +1023,27 @@ function hitResource(i) {
   const r = E.resources[i];
   r.hp--;
   E.punch = 0.18;
+  r.hitAnim = 0.16;
   if (typeof SFX !== 'undefined') SFX.gather();
   spawnParticles(r.mesh.position, r.mesh.material.color, 8);
-  r.mesh.scale.multiplyScalar(0.8);
   if (r.hp <= 0) {
     save.resources[r.type] = (save.resources[r.type] || 0) + 1;
+    spawnCollect(r.mesh.position, r.mesh.material.color);
+    if (typeof SFX !== 'undefined' && r.type === 'fuel') SFX.fuel();
     E.scene.remove(r.mesh);
     E.resources.splice(i, 1);
     persist(); updateHUD();
     if (r.type === 'fuel') checkExitReady();
+  }
+}
+
+// Upward sparkle burst when a resource is collected
+function spawnCollect(pos, color) {
+  const geo = new THREE.SphereGeometry(0.06, 5, 4);
+  for (let i = 0; i < 14; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color }));
+    m.position.copy(pos); E.scene.add(m);
+    E.particles.push({ mesh: m, life: 0.5 + Math.random() * 0.3, vel: new THREE.Vector3((Math.random() - 0.5) * 2.5, 3 + Math.random() * 2.5, (Math.random() - 0.5) * 2.5) });
   }
 }
 
@@ -1052,9 +1070,27 @@ function hitEnemy(i) {
       showToast('🏆 Boss Defeated!', (BOSS_NAME[en.species] || 'The boss') + ' is vanquished! +100 🪙');
       if (typeof hideBossBar === 'function') hideBossBar();
     }
-    E.scene.remove(en.mesh);
+    startEnemyDeath(en);
     E.enemies.splice(i, 1);
     persist(); updateHUD();
+  }
+}
+
+// Enemies topple over and fade out instead of vanishing
+function startEnemyDeath(en) {
+  const m = en.mesh;
+  m.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; } });
+  E.dying.push({ mesh: m, t: 0, dur: 0.7, fall: Math.random() < 0.5 ? 1 : -1, boss: en.boss });
+}
+function updateDying(dt) {
+  if (!E.dying) return;
+  for (let i = E.dying.length - 1; i >= 0; i--) {
+    const d = E.dying[i]; d.t += dt;
+    const p = Math.min(1, d.t / d.dur);
+    d.mesh.rotation.z = d.fall * p * (Math.PI / 2);   // topple
+    d.mesh.scale.setScalar(1 - p * 0.35);
+    d.mesh.traverse(o => { if (o.isMesh) o.material.opacity = 1 - p; });
+    if (p >= 1) { E.scene.remove(d.mesh); E.dying.splice(i, 1); }
   }
 }
 
@@ -1138,6 +1174,7 @@ function animate() {
     updateEnemies(dt);
     updateResources(dt);
     updateParticles(dt);
+    updateDying(dt);
     updateExit(dt);
     if (typeof updateVillage === 'function') updateVillage(dt);
     if (typeof updateHome === 'function') updateHome(dt);
@@ -1240,6 +1277,10 @@ function updateEnemies(dt) {
     }
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
     if (!en.boss) m.rotation.z = Math.sin(E.time * 9 + en.wander) * 0.07; // waddle
+    if (m.userData.legs) { // 4-legged gait
+      en.gait = (en.gait || 0) + dt * en.speed * 2.6;
+      m.userData.legs.forEach(l => { l.rotation.x = Math.sin(en.gait + l.userData.ph) * 0.5; });
+    }
     if (!en.skipYBob) m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
     if (m.userData.arms) { // monkeys swing their arms as they move
       const sw = Math.sin(E.time * 7 + en.wander) * (d < 6 ? 0.7 : 0.35);
@@ -1269,6 +1310,11 @@ function updateResources(dt) {
     r.mesh.rotation.y += dt * 1.4;
     if (r.type === 'fuel' || r.type === 'crystal')
       r.mesh.position.y = 0.45 + Math.sin(E.time * 3 + r.spin) * 0.12;
+    // scale shrinks a little as it's mined, with a pop on each hit
+    const dmg = 0.7 + 0.3 * (r.hp / r.maxhp);
+    const pop = r.hitAnim > 0 ? 1 + r.hitAnim * 2.2 : 1;
+    r.mesh.scale.setScalar(dmg * pop);
+    if (r.hitAnim > 0) r.hitAnim -= dt;
   });
 }
 
