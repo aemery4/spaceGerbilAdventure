@@ -92,10 +92,27 @@ function atkSnow(en, p) { bossSnow(en, p, 4); bossReset(en, 1.4); }
 function atkBigSnow(en, p) {
   const m = en.mesh; if (typeof SFX !== 'undefined') SFX.slam();
   spawnParticles(m.position.clone().add(new THREE.Vector3(0, 0.7, 0)), new THREE.Color(0xffffff), 16);
-  const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
-  spawnBossShot(m.position, dir.multiplyScalar(4.5), 0xffffff, 22, 0.3, 0.65); // slow, big, hits hard
-  showToast('⛄ Giant Snowball!', 'The Yeti hurls a massive snowball!');
-  bossReset(en, 2.0);
+  // Lob a huge snowball high into the air; it crashes down on the player's spot
+  // (faint icy-blue so it stays visible against the white tundra)
+  spawnBossLob(m.position, new THREE.Vector3(p.x, 0, p.z), 0xc4e2ff, 0.7, 24, 1.9);
+  showToast('⛄ Giant Snowball!', 'A huge snowball is falling — move off the shadow!');
+  bossReset(en, 2.1);
+}
+
+// A projectile that arcs up and crashes down on a target spot with AoE.
+// A shadow marks where it will land so the player can dodge.
+function spawnBossLob(from, target, color, radius, dmg, aoeR) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius, 14, 12),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.3, roughness: 0.6 }));
+  mesh.castShadow = true; E.scene.add(mesh);
+  const shadow = new THREE.Mesh(new THREE.CircleGeometry(aoeR, 22),
+    new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.38 }));
+  shadow.rotation.x = -Math.PI / 2; shadow.position.set(target.x, 0.04, target.z); E.scene.add(shadow);
+  E.bossShots.push({
+    mesh, arc: true, dmg, aoeR, shadow, life: 5, vel: new THREE.Vector3(),
+    start: new THREE.Vector3(from.x, 0, from.z), target: new THREE.Vector3(target.x, 0, target.z),
+    t: 0, dur: 1.15, arcH: 5, r: radius
+  });
 }
 function atkIceBurst(en) { bossRadial(en, 12, 0x9fe0ff); bossReset(en, 1.5); }
 function atkFrostStomp(en) {
@@ -201,6 +218,24 @@ function updateBossShots(dt) {
   for (let i = E.bossShots.length - 1; i >= 0; i--) {
     const s = E.bossShots[i];
     s.life -= dt;
+    // Lobbed shot: arc up and crash down on the target spot
+    if (s.arc) {
+      s.t += dt / s.dur;
+      const t = Math.min(1, s.t);
+      s.mesh.position.x = s.start.x + (s.target.x - s.start.x) * t;
+      s.mesh.position.z = s.start.z + (s.target.z - s.start.z) * t;
+      s.mesh.position.y = Math.sin(t * Math.PI) * s.arcH + s.r;
+      s.mesh.rotation.x += dt * 5;
+      if (s.shadow) s.shadow.material.opacity = 0.3 + t * 0.35;
+      if (t >= 1 || s.life <= 0) {
+        spawnParticles(s.mesh.position, s.mesh.material.color, 24);
+        if (typeof SFX !== 'undefined') SFX.slam();
+        if (E.player.position.distanceTo(new THREE.Vector3(s.target.x, 0, s.target.z)) < s.aoeR) hurtPlayer(s.dmg);
+        if (s.shadow) E.scene.remove(s.shadow);
+        E.scene.remove(s.mesh); E.bossShots.splice(i, 1);
+      }
+      continue;
+    }
     s.mesh.position.x += s.vel.x * dt; s.mesh.position.z += s.vel.z * dt;
     s.mesh.rotation.y += dt * 6;
     let dead = s.life <= 0 || isSolid(s.mesh.position.x, s.mesh.position.z);
