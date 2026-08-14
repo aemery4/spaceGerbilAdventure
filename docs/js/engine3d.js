@@ -129,15 +129,24 @@ function buildWorld(n, cfg) {
   scene.fog = new THREE.Fog(cfg.fog[0], cfg.fog[1], cfg.fog[2]);
   E.scene = scene;
 
-  // Lighting
-  scene.add(new THREE.AmbientLight(cfg.ambient, 1.1));
-  const sun = new THREE.DirectionalLight(cfg.sun, 1.15);
-  sun.position.set(cfg.sunPos[0], cfg.sunPos[1], cfg.sunPos[2]);
+  // Lighting: hemisphere ambient (sky/ground tint) + key sun + soft fill
+  const hemi = new THREE.HemisphereLight(cfg.sun, cfg.ground, 0.5);
+  hemi.position.set(E.cols / 2, 30, E.rows / 2);
+  scene.add(hemi);
+  scene.add(new THREE.AmbientLight(cfg.ambient, 0.6));
+  const sun = new THREE.DirectionalLight(cfg.sun, 1.25);
+  sun.position.set(cfg.sunPos[0] + E.cols / 2, cfg.sunPos[1] + 6, cfg.sunPos[2] + E.rows / 2);
+  sun.target.position.set(E.cols / 2, 0, E.rows / 2);
+  scene.add(sun.target);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.bias = -0.0004;
   const S = Math.max(E.cols, E.rows);
-  Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 1, far: 80 });
+  Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 1, far: 120 });
   scene.add(sun);
+  const fill = new THREE.DirectionalLight(cfg.sun, 0.3);
+  fill.position.set(E.cols / 2 - cfg.sunPos[0], cfg.sunPos[1] * 0.5 + 4, E.rows / 2 - cfg.sunPos[2]);
+  scene.add(fill);
 
   // Ground
   const groundGeo = new THREE.PlaneGeometry(E.cols, E.rows);
@@ -151,7 +160,7 @@ function buildWorld(n, cfg) {
 
   // Subtle grid overlay for readability
   const grid = new THREE.GridHelper(Math.max(E.cols, E.rows), Math.max(E.cols, E.rows), cfg.grid, cfg.grid);
-  grid.material.opacity = 0.18; grid.material.transparent = true;
+  grid.material.opacity = 0.07; grid.material.transparent = true;
   grid.position.set(E.cols / 2, 0.02, E.rows / 2);
   scene.add(grid);
 
