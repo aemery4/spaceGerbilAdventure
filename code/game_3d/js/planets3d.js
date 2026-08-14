@@ -63,7 +63,7 @@ const PLANETS_3D = {
       7: { kind: 'floor', color: 0xcfe0ee, h: 0.05 }
     },
     ambient: 0x8aa0b8, sun: 0xffffff, sunPos: [4, 16, 8],
-    enemyKind: 'beast'
+    enemyKind: 'beast', village: true, campStyle: 'snow'
   },
   4: {
     name: 'Aquatic Neptuna', emoji: '🌊', tile: 26, cols: 48, rows: 28,

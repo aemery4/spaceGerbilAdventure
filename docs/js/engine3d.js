@@ -66,7 +66,7 @@ function launchPlanet3D(n) {
   const intro = {
     1: 'Area 51! Gather 10 ⚡ fuel, then reach the glowing saucer to leave.',
     2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Visit the Treetop Village (the wooden platform — a safe zone) and press Space by a merchant 🔶 to trade. Reach the rocket to escape.',
-    3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth — reach the rocket.',
+    3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth. Warm up at the camp (the platform — a safe zone) and press Space by a trader 🔶. Reach the rocket to escape.',
     4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel, dodge the deep things, reach the rocket.',
     5: 'Home Base. Wander your planet in 3D. Press Menu to head back out.'
   };
@@ -135,7 +135,7 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
-  E.merchants = [];
+  E.merchants = []; E.campfire = null;
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
 
   updateHUD();

@@ -7,11 +7,44 @@
 
 let activeShop = null;
 
+// Planet 3 has no merchants in its data — define a tundra camp here.
+// All effect ids reuse handlers already in executeP2ShopEffect().
+const CAMP_MERCHANTS_P3 = [
+  { id: 'freya', name: 'Freya the Trapper', emoji: '🧥', color: '#7ea8d8',
+    x: 25 * 26 + 13, y: 4 * 26 + 13,
+    dialog: 'Cold out there, spaceling. Warm remedies and fuel for the road ahead.',
+    shop: [
+      { id: 'herb_tonic', name: 'Warm Broth', emoji: '🍲', desc: 'Restores 30 HP', cost: { plant: 3 }, effect: 'heal30' },
+      { id: 'jungle_salve', name: 'Pine Salve', emoji: '🌲', desc: 'Restores 60 HP', cost: { plant: 5, rock: 1 }, effect: 'heal60' },
+      { id: 'fuel_chunk', name: 'Fuel Cell', emoji: '⚡', desc: 'Get 2 fuel cells', cost: { rock: 3, plant: 2 }, effect: 'fuel_chunk' },
+      { id: 'mega_salve', name: 'Frost Balm', emoji: '💚', desc: '+30 max HP permanently', cost: { plant: 8, crystal: 3 }, effect: 'mega_salve' }
+    ] },
+  { id: 'bjorn', name: 'Bjorn the Smith', emoji: '🔨', color: '#c0c8d0',
+    x: 27 * 26 + 13, y: 7 * 26 + 13,
+    dialog: 'Steel and stone! Best gear this side of the glacier, guaranteed.',
+    shop: [
+      { id: 'buy_crystal', name: 'Buy Crystal', emoji: '💎', desc: 'Get 1 crystal', cost: { rock: 4 }, effect: 'buy_crystal' },
+      { id: 'rock_armor', name: 'Iron Plating', emoji: '🛡️', desc: 'Gives Energy Shield if not owned', cost: { rock: 6, crystal: 2 }, effect: 'rock_armor' },
+      { id: 'elder_boots', name: 'Snow Treads', emoji: '👟', desc: 'Grants Rocket Boots (permanent speed)', cost: { rock: 3, plant: 3 }, effect: 'elder_boots' },
+      { id: 'fuel_x3', name: 'Fuel Cells x3', emoji: '⚡', desc: 'Get 3 fuel', cost: { crystal: 2, rock: 2 }, effect: 'fuel_x3' }
+    ] },
+  { id: 'shaman', name: 'Frost Shaman', emoji: '🔮', color: '#a0d8f0',
+    x: 26 * 26 + 13, y: 10 * 26 + 13,
+    dialog: 'The aurora whispers of your journey. Accept these blessings, traveller.',
+    shop: [
+      { id: 'blessing', name: 'Aurora Blessing', emoji: '✨', desc: 'Full heal + 3 extra lives', cost: { crystal: 4, plant: 4 }, effect: 'blessing' },
+      { id: 'map_reveal', name: 'Read the Winds', emoji: '🗺️', desc: 'Clears the tundra layout', cost: { crystal: 2 }, effect: 'map_reveal' },
+      { id: 'coin_maxhp', name: 'Cosmic Vigor', emoji: '🪙', desc: '+50 max HP permanently', cost: { coins: 100 }, effect: 'coin_maxhp' },
+      { id: 'coin_lives', name: 'Extra Lives x3', emoji: '🪙', desc: 'Gain 3 extra lives', cost: { coins: 75 }, effect: 'coin_lives' }
+    ] }
+];
+
 // ── Build the village into the current scene (called from buildWorld) ──
 function buildVillage(data, cfg, scene) {
   E.merchants = [];
   const T = cfg.tile;
-  const merchants = data.VILLAGE_MERCHANTS || [];
+  const merchants = data.VILLAGE_MERCHANTS || (E.planetNo === 3 ? CAMP_MERCHANTS_P3 : []);
+  const makeStructure = cfg.campStyle === 'snow' ? makeTentMesh : makeHutMesh;
 
   // Platform height (tile 7 is a raised wooden floor patch)
   const platY = 0.06;
@@ -30,7 +63,7 @@ function buildVillage(data, cfg, scene) {
     }
   }
   hutSpots.forEach(([x, z], i) => {
-    const hut = makeHutMesh(0.9 + (i % 3) * 0.12);
+    const hut = makeStructure(0.9 + (i % 3) * 0.12);
     hut.position.set(x + 0.5, platY, z + 0.5);
     hut.rotation.y = (i * 1.3) % (Math.PI * 2);
     scene.add(hut);
@@ -47,6 +80,38 @@ function buildVillage(data, cfg, scene) {
     scene.add(npc);
     E.merchants.push({ data: m, mesh: npc, x: wx, z: wz, marker: npc.userData.marker, bob: Math.random() * 6 });
   });
+
+  // Snow camps get a warming campfire at their centre
+  E.campfire = null;
+  if (cfg.campStyle === 'snow' && merchants.length) {
+    const cx = merchants.reduce((s, m) => s + m.x / T, 0) / merchants.length;
+    const cz = merchants.reduce((s, m) => s + m.y / T, 0) / merchants.length;
+    const fire = makeCampfireMesh();
+    fire.position.set(cx, platY, cz);
+    scene.add(fire);
+    E.campfire = fire.userData.flame;
+  }
+}
+
+function makeCampfireMesh() {
+  const g = new THREE.Group();
+  const stone = new THREE.MeshStandardMaterial({ color: 0x565663, roughness: 1 });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.35, 0.1, 6, 14), stone);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.08;
+  const logMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1e, roughness: 1 });
+  for (let i = 0; i < 3; i++) {
+    const l = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), logMat);
+    l.rotation.z = Math.PI / 2; l.rotation.y = i * 1.0; l.position.y = 0.12; g.add(l);
+  }
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.55, 8),
+    new THREE.MeshStandardMaterial({ color: 0xff7020, emissive: 0xff5010, emissiveIntensity: 1.4 }));
+  flame.position.y = 0.42;
+  const light = new THREE.PointLight(0xff8030, 1.3, 6);
+  light.position.y = 0.6;
+  g.add(ring, flame, light);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.flame = flame;
+  return g;
 }
 
 // ── Meshes ─────────────────────────────────────────────────────
@@ -62,6 +127,30 @@ function makeHutMesh(scale) {
   const d = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.05), door);
   d.position.set(0, 0.25, 0.58);
   g.add(base, r, d);
+  g.scale.setScalar(scale);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  return g;
+}
+
+function makeTentMesh(scale) {
+  const g = new THREE.Group();
+  const hide = new THREE.MeshStandardMaterial({ color: 0xb07a48, roughness: 0.9 });
+  const pole = new THREE.MeshStandardMaterial({ color: 0x4a2f18, roughness: 1 });
+  const door = new THREE.MeshStandardMaterial({ color: 0x2a1a0e, roughness: 1 });
+  const tent = new THREE.Mesh(new THREE.ConeGeometry(0.7, 1.3, 10), hide);
+  tent.position.y = 0.65;
+  for (let i = 0; i < 3; i++) { // support poles poking out the top
+    const a = i / 3 * Math.PI * 2;
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 5), pole);
+    p.position.set(Math.cos(a) * 0.08, 1.28, Math.sin(a) * 0.08);
+    p.rotation.z = Math.cos(a) * 0.28; p.rotation.x = Math.sin(a) * 0.28; g.add(p);
+  }
+  const d = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 3), door);
+  d.position.set(0, 0.3, 0.6);
+  const snow = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.35, 10),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }));
+  snow.position.y = 1.05;
+  g.add(tent, d, snow);
   g.scale.setScalar(scale);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;
@@ -93,6 +182,10 @@ function makeMerchantMesh(colorHex) {
 
 // ── Per-frame village animation (called from the engine loop) ──
 function updateVillage(dt) {
+  if (E.campfire) {
+    E.campfire.scale.y = 1 + Math.sin(E.time * 15) * 0.18;
+    E.campfire.material.emissiveIntensity = 1.2 + Math.sin(E.time * 22) * 0.4;
+  }
   if (!E.merchants) return;
   E.merchants.forEach(mn => {
     mn.bob += dt;
