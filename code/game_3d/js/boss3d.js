@@ -69,7 +69,7 @@ function bossReset(en, t) { en.mode = 'idle'; en.atkTimer = t + Math.random(); }
 const BOSS_ATTACKS = {
   miniBoss: [atkJump, atkJump, atkCharge, atkSlam, atkBananas, atkSummon],
   yeti: [atkSnow, atkSnow, atkBigSnow, atkIceBurst, atkFrostStomp, atkCharge],
-  octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkTentacleSlam, atkLunge]
+  octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkInkCloud, atkTentacleSlam, atkLunge]
 };
 
 function startBossAttack(en, p) { bossPick(BOSS_ATTACKS[en.species] || [atkSlam])(en, p); }
@@ -126,6 +126,31 @@ function atkInkRadial(en) { bossRadial(en, 10, 0x8a3ab0); bossReset(en, 1.4); }
 function atkInkSpiral(en) { bossSpiral(en, 14, 0x9a4ac0); bossReset(en, 1.5); }
 function atkInkAimed(en, p) { bossSpread(en, p, 3, 0x8a3ab0, 6, 1); bossReset(en, 1.3); }
 function atkTentacleSlam(en) { bossSlam(en, 3.7, 16); bossReset(en, 1.5); }
+function atkInkCloud(en) {
+  if (typeof SFX !== 'undefined') SFX.slam();
+  spawnInkCloud(en.mesh.position, 14);
+  inkScreen();
+  showToast('🐙 Ink Cloud!', 'The octopus blinds you with a cloud of ink!');
+  bossReset(en, 1.9);
+}
+
+// Expanding dark ink cloud (small AoE) around a position
+function spawnInkCloud(pos, dmg) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 16, 12),
+    new THREE.MeshStandardMaterial({ color: 0x150826, emissive: 0x2a0a3a, emissiveIntensity: 0.35, transparent: true, opacity: 0.85 }));
+  mesh.position.copy(pos); mesh.position.y = 0.8; E.scene.add(mesh);
+  E.bossShots.push({ mesh, cloud: true, t: 0, dur: 1.6, maxR: 3.2, dmg, hitDone: false, life: 2, vel: new THREE.Vector3(), target: new THREE.Vector3(pos.x, 0, pos.z) });
+}
+
+// Splat a dark ink overlay across the viewport that fades out (blinds briefly)
+function inkScreen() {
+  const o = document.getElementById('inkOverlay');
+  if (!o) return;
+  o.style.transition = 'opacity 0.15s';
+  o.style.opacity = '0.85';
+  clearTimeout(o._t);
+  o._t = setTimeout(() => { o.style.transition = 'opacity 2s'; o.style.opacity = '0'; }, 300);
+}
 function atkLunge(en, p) {
   const m = en.mesh, dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
   en.chargeVel = dir.multiplyScalar(en.speed * 4); en.mode = 'charge'; en.chargeTime = 0.6;
@@ -218,6 +243,17 @@ function updateBossShots(dt) {
   for (let i = E.bossShots.length - 1; i >= 0; i--) {
     const s = E.bossShots[i];
     s.life -= dt;
+    // Ink cloud: expand and fade, damaging once if it reaches the player
+    if (s.cloud) {
+      s.t += dt / s.dur;
+      const t = Math.min(1, s.t);
+      const r = 0.5 + t * s.maxR;
+      s.mesh.scale.setScalar(r / 0.5);
+      s.mesh.material.opacity = 0.85 * (1 - t * 0.7);
+      if (!s.hitDone && t > 0.1 && t < 0.6 && E.player.position.distanceTo(new THREE.Vector3(s.target.x, 0.8, s.target.z)) < r) { hurtPlayer(s.dmg); s.hitDone = true; }
+      if (t >= 1 || s.life <= 0) { E.scene.remove(s.mesh); E.bossShots.splice(i, 1); }
+      continue;
+    }
     // Lobbed shot: arc up and crash down on the target spot
     if (s.arc) {
       s.t += dt / s.dur;

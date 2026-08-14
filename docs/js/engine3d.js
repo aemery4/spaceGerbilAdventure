@@ -137,6 +137,7 @@ function buildWorld(n, cfg) {
   buildExit(cfg, scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = [];
   if (typeof hideBossBar === 'function') hideBossBar();
+  const _ink = document.getElementById('inkOverlay'); if (_ink) { _ink.style.transition = 'none'; _ink.style.opacity = '0'; }
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
   if (cfg.home && typeof buildHomeStructures === 'function') buildHomeStructures(scene);
   if (data.SEAHORSES && typeof buildSeahorses === 'function') buildSeahorses(data, cfg, scene);
