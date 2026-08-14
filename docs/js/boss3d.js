@@ -68,7 +68,7 @@ function bossReset(en, t) { en.mode = 'idle'; en.atkTimer = t + Math.random(); }
 // ── Attack pools (repeats = higher weight) ──────────────────────
 const BOSS_ATTACKS = {
   miniBoss: [atkJump, atkJump, atkCharge, atkSlam, atkBananas, atkSummon],
-  yeti: [atkSnow, atkSnow, atkIceBurst, atkFrostStomp, atkCharge],
+  yeti: [atkSnow, atkSnow, atkBigSnow, atkIceBurst, atkFrostStomp, atkCharge],
   octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkTentacleSlam, atkLunge]
 };
 
@@ -89,6 +89,14 @@ function atkSummon(en) { bossSummon(en, 2); bossReset(en, 2.2); }
 
 // Yeti
 function atkSnow(en, p) { bossSnow(en, p, 4); bossReset(en, 1.4); }
+function atkBigSnow(en, p) {
+  const m = en.mesh; if (typeof SFX !== 'undefined') SFX.slam();
+  spawnParticles(m.position.clone().add(new THREE.Vector3(0, 0.7, 0)), new THREE.Color(0xffffff), 16);
+  const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+  spawnBossShot(m.position, dir.multiplyScalar(4.5), 0xffffff, 22, 0.3, 0.65); // slow, big, hits hard
+  showToast('⛄ Giant Snowball!', 'The Yeti hurls a massive snowball!');
+  bossReset(en, 2.0);
+}
 function atkIceBurst(en) { bossRadial(en, 12, 0x9fe0ff); bossReset(en, 1.5); }
 function atkFrostStomp(en) {
   bossSlam(en, 4.2, 18);
@@ -180,11 +188,12 @@ function bossSummon(en, count) {
 }
 
 function spawnBossShot(pos, vel, color, dmg, emis, radius) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius || 0.22, 10, 8),
+  const r = radius || 0.22;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10),
     new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: emis == null ? 1 : emis, roughness: 0.6 }));
-  mesh.position.copy(pos); mesh.position.y = 0.8; mesh.castShadow = true;
+  mesh.position.copy(pos); mesh.position.y = Math.max(0.8, r + 0.2); mesh.castShadow = true;
   E.scene.add(mesh);
-  E.bossShots.push({ mesh, vel, dmg, life: 3 });
+  E.bossShots.push({ mesh, vel, dmg, life: 3, hitR: r + 0.4 });
 }
 
 function updateBossShots(dt) {
@@ -195,7 +204,7 @@ function updateBossShots(dt) {
     s.mesh.position.x += s.vel.x * dt; s.mesh.position.z += s.vel.z * dt;
     s.mesh.rotation.y += dt * 6;
     let dead = s.life <= 0 || isSolid(s.mesh.position.x, s.mesh.position.z);
-    if (!dead && E.player.position.distanceTo(s.mesh.position) < 0.6) { hurtPlayer(s.dmg); dead = true; }
+    if (!dead && E.player.position.distanceTo(s.mesh.position) < (s.hitR || 0.6)) { hurtPlayer(s.dmg); dead = true; }
     if (dead) { spawnParticles(s.mesh.position, s.mesh.material.color, 6); E.scene.remove(s.mesh); E.bossShots.splice(i, 1); }
   }
 }
