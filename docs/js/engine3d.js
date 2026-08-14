@@ -260,7 +260,8 @@ function buildEnemies(data, cfg, scene) {
       const hp = e.hp || e.maxhp || 3;
       const boss = (key === 'miniBoss' || key === 'yeti');
       const size = boss ? 0.9 : Math.max(0.28, (e.size || 13) / 30);
-      const defaultColor = key === 'monkeys' ? 0x7a4a24 : 0xdd4444;
+      const SPECIES_COLOR = { monkeys: 0x7a4a24, golems: 0x6f7d6a, lizards: 0x4aa02c, panthers: 0x1c1a24, parrots: 0xe0392f };
+      const defaultColor = SPECIES_COLOR[key] || 0xdd4444;
       const color = e.color ? new THREE.Color(e.color) : new THREE.Color(defaultColor);
       const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, key);
       mesh.position.set(worldX, size, worldZ);
@@ -269,7 +270,7 @@ function buildEnemies(data, cfg, scene) {
         mesh, hp, maxhp: hp, size, boss, species: key,
         speed: (e.speed || 0.6) * 2.2,
         dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
-        wander: Math.random() * 3, dmg: boss ? 18 : 8
+        wander: Math.random() * 3, dmg: boss ? 18 : (key === 'parrots' ? 0 : 8)
       });
     });
   });
@@ -277,6 +278,10 @@ function buildEnemies(data, cfg, scene) {
 
 function makeEnemyMesh(kind, size, color, boss, species) {
   if (species === 'monkeys') return makeMonkeyMesh(size, color);
+  if (species === 'golems') return makeGolemMesh(size, color);
+  if (species === 'lizards') return makeLizardMesh(size, color);
+  if (species === 'panthers') return makePantherMesh(size, color);
+  if (species === 'parrots') return makeParrotMesh(size, color);
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6,
     emissive: color.clone().multiplyScalar(0.25), emissiveIntensity: 0.5 });
@@ -386,6 +391,154 @@ function makeMonkeyMesh(size, color) {
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.body = body;
   g.userData.arms = arms;
+  return g;
+}
+
+// Stone golem — big, slow, rocky and mossy.
+function makeGolemMesh(size, color) {
+  const s = size;
+  const g = new THREE.Group();
+  const rock = new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true,
+    emissive: new THREE.Color(color).multiplyScalar(0.12), emissiveIntensity: 0.3 });
+  const moss = new THREE.MeshStandardMaterial({ color: 0x3f6a2e, roughness: 1, flatShading: true });
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(0.85 * s, 0), rock);
+  body.scale.set(1, 1.05, 0.9); body.position.y = -0.1 * s;
+  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42 * s, 0), rock);
+  head.position.set(0, 0.78 * s, 0.06 * s);
+  const eyes = [-1, 1].map(sx => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.09 * s, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffb020, emissive: 0xff7000, emissiveIntensity: 1.3 }));
+    e.position.set(sx * 0.18 * s, 0.82 * s, 0.34 * s); return e;
+  });
+  const arms = [-1, 1].map(sx => {
+    const a = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42 * s, 0), rock);
+    a.position.set(sx * 0.98 * s, -0.15 * s, 0); return a;
+  });
+  [-1, 1].forEach(sx => {
+    const l = new THREE.Mesh(new THREE.BoxGeometry(0.42 * s, 0.55 * s, 0.55 * s), rock);
+    l.position.set(sx * 0.4 * s, -0.72 * s, 0); g.add(l);
+  });
+  const m1 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32 * s, 0), moss);
+  m1.scale.y = 0.4; m1.position.set(-0.2 * s, 0.55 * s, -0.15 * s);
+  const m2 = new THREE.Mesh(new THREE.IcosahedronGeometry(0.24 * s, 0), moss);
+  m2.scale.y = 0.4; m2.position.set(0.5 * s, 0.22 * s, 0.3 * s);
+  g.add(body, head, ...eyes, ...arms, m1, m2);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.body = body;
+  return g;
+}
+
+// Lizard — low, sprawling, long-tailed reptile.
+function makeLizardMesh(size, color) {
+  const s = size;
+  const g = new THREE.Group();
+  const skin = new THREE.MeshStandardMaterial({ color, roughness: 0.5,
+    emissive: new THREE.Color(color).multiplyScalar(0.15), emissiveIntensity: 0.4 });
+  const belly = new THREE.MeshStandardMaterial({ color: 0xcfe08a, roughness: 0.6 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.55 * s, 14, 12), skin);
+  body.scale.set(1, 0.7, 1.9); body.position.set(0, -0.6 * s, 0);
+  const bel = new THREE.Mesh(new THREE.SphereGeometry(0.4 * s, 12, 8), belly);
+  bel.scale.set(0.85, 0.4, 1.75); bel.position.set(0, -0.82 * s, 0);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 12, 10), skin);
+  head.scale.set(1, 0.8, 1.15); head.position.set(0, -0.5 * s, 1.2 * s);
+  const snout = new THREE.Mesh(new THREE.ConeGeometry(0.26 * s, 0.5 * s, 8), skin);
+  snout.rotation.x = Math.PI / 2; snout.position.set(0, -0.55 * s, 1.7 * s);
+  const eyes = [-1, 1].map(sx => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.1 * s, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0xffdd33, emissive: 0x553300, emissiveIntensity: 0.8 }));
+    e.position.set(sx * 0.27 * s, -0.3 * s, 1.25 * s); return e;
+  });
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.42 * s, 2.3 * s, 8), skin);
+  tail.rotation.x = -Math.PI / 2; tail.position.set(0, -0.62 * s, -2.0 * s);
+  for (let i = 0; i < 4; i++) {
+    const sp = new THREE.Mesh(new THREE.ConeGeometry(0.1 * s, 0.24 * s, 5), belly);
+    sp.position.set(0, -0.28 * s, (0.7 - i * 0.55) * s); g.add(sp);
+  }
+  const legGeo = new THREE.CylinderGeometry(0.1 * s, 0.08 * s, 0.5 * s, 6);
+  legGeo.translate(0, -0.25 * s, 0);
+  [[0.58, 0.7], [-0.58, 0.7], [0.62, -0.55], [-0.62, -0.55]].forEach(([lx, lz]) => {
+    const l = new THREE.Mesh(legGeo, skin);
+    l.position.set(lx * s, -0.6 * s, lz * s); l.rotation.z = lx > 0 ? 0.8 : -0.8; g.add(l);
+  });
+  g.add(body, bel, head, snout, ...eyes, tail);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.body = body;
+  return g;
+}
+
+// Panther — sleek four-legged cat with glowing eyes and a curled tail.
+function makePantherMesh(size, color) {
+  const s = size;
+  const g = new THREE.Group();
+  const furM = new THREE.MeshStandardMaterial({ color, roughness: 0.45, metalness: 0.1,
+    emissive: new THREE.Color(color).multiplyScalar(0.2), emissiveIntensity: 0.4 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 14, 12), furM);
+  body.scale.set(1, 0.95, 1.9); body.position.set(0, -0.35 * s, 0);
+  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.45 * s, 12, 10), furM);
+  chest.position.set(0, -0.3 * s, 0.72 * s);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.38 * s, 14, 12), furM);
+  head.position.set(0, -0.02 * s, 1.18 * s);
+  const ears = [-1, 1].map(sx => {
+    const e = new THREE.Mesh(new THREE.ConeGeometry(0.14 * s, 0.24 * s, 5), furM);
+    e.position.set(sx * 0.2 * s, 0.32 * s, 1.12 * s); return e;
+  });
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.2 * s, 10, 8), furM);
+  muzzle.scale.set(1, 0.8, 1.1); muzzle.position.set(0, -0.14 * s, 1.48 * s);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.06 * s, 6, 6),
+    new THREE.MeshStandardMaterial({ color: 0xff88aa })); nose.position.set(0, -0.1 * s, 1.66 * s);
+  const eyes = [-1, 1].map(sx => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.075 * s, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x9dff5a, emissive: 0x44cc22, emissiveIntensity: 1.4 }));
+    e.position.set(sx * 0.15 * s, 0.05 * s, 1.42 * s); return e;
+  });
+  const legGeo = new THREE.CylinderGeometry(0.11 * s, 0.09 * s, 0.7 * s, 7);
+  legGeo.translate(0, -0.35 * s, 0);
+  [[0.28, 0.8], [-0.28, 0.8], [0.3, -0.72], [-0.3, -0.72]].forEach(([lx, lz]) => {
+    const l = new THREE.Mesh(legGeo, furM); l.position.set(lx * s, -0.35 * s, lz * s); g.add(l);
+  });
+  const tc = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, -0.35 * s, -1.0 * s), new THREE.Vector3(0.12 * s, -0.1 * s, -1.5 * s),
+    new THREE.Vector3(-0.15 * s, 0.32 * s, -1.6 * s), new THREE.Vector3(0.12 * s, 0.62 * s, -1.3 * s)]);
+  const tail = new THREE.Mesh(new THREE.TubeGeometry(tc, 18, 0.08 * s, 6), furM);
+  g.add(body, chest, head, ...ears, muzzle, nose, ...eyes, tail);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.body = body;
+  return g;
+}
+
+// Parrot — colourful bird that flaps and hovers (harmless).
+function makeParrotMesh(size, color) {
+  const s = size;
+  const g = new THREE.Group();
+  const bodyM = new THREE.MeshStandardMaterial({ color, roughness: 0.5,
+    emissive: new THREE.Color(color).multiplyScalar(0.15), emissiveIntensity: 0.5 });
+  const wingM = new THREE.MeshStandardMaterial({ color: 0x2a6cff, roughness: 0.5 });
+  const tailM = new THREE.MeshStandardMaterial({ color: 0xffd21f, roughness: 0.5 });
+  const beakM = new THREE.MeshStandardMaterial({ color: 0xffa020, roughness: 0.4 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 14, 12), bodyM);
+  body.scale.set(1, 1.2, 1.2);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36 * s, 12, 10), bodyM);
+  head.position.set(0, 0.62 * s, 0.16 * s);
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.16 * s, 0.34 * s, 8), beakM);
+  beak.rotation.x = Math.PI * 0.62; beak.position.set(0, 0.55 * s, 0.52 * s);
+  const eyes = [-1, 1].map(sx => {
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.06 * s, 8, 8),
+      new THREE.MeshStandardMaterial({ color: 0x111111 }));
+    e.position.set(sx * 0.16 * s, 0.68 * s, 0.36 * s); return e;
+  });
+  // wings pivot at the shoulder so they can flap
+  const wingGeo = new THREE.SphereGeometry(0.4 * s, 8, 6);
+  wingGeo.scale(0.25, 0.6, 1.0); wingGeo.translate(0, 0, -0.2 * s);
+  const wings = [-1, 1].map(sx => {
+    const w = new THREE.Mesh(wingGeo, wingM);
+    w.position.set(sx * 0.42 * s, 0.05 * s, 0); return w;
+  });
+  const tail = new THREE.Mesh(new THREE.ConeGeometry(0.28 * s, 0.9 * s, 6), tailM);
+  tail.rotation.x = -Math.PI * 0.42; tail.position.set(0, -0.35 * s, -0.55 * s);
+  g.add(body, head, beak, ...eyes, ...wings, tail);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.body = body;
+  g.userData.wings = wings;
   return g;
 }
 
@@ -681,6 +834,12 @@ function updateEnemies(dt) {
       m.userData.arms[0].rotation.x = sw;
       m.userData.arms[1].rotation.x = -sw;
     }
+    if (m.userData.wings) { // parrots flap
+      const f = Math.sin(E.time * 16 + en.wander) * 0.7 + 0.35;
+      m.userData.wings[0].rotation.z = f;
+      m.userData.wings[1].rotation.z = -f;
+    }
+    if (en.species === 'parrots') m.position.y += 1.3 + Math.sin(E.time * 3 + en.wander) * 0.25;
     if (en.flash) { en.flash -= dt; if (en.flash <= 0) m.userData.body.material.emissiveIntensity = 0.5; }
     if (d < en.size + 0.5) hurtPlayer(en.dmg * dt * 3 + (E.hurtCd > 0 ? 0 : en.dmg * 0.2));
   });
