@@ -62,21 +62,49 @@ function updateBoss(en, dt, d, p) {
   if (en.atkTimer <= 0) { en.mode = 'telegraph'; en.tele = 0.6; if (typeof SFX !== 'undefined') SFX.boss(); }
 }
 
-function startBossAttack(en, p) {
-  const m = en.mesh, sp = en.species, roll = Math.random();
-  if (sp === 'miniBoss') {
-    // The Jungle King's signature move: leap onto the player
-    if (roll < 0.62) { startBossJump(en, p); }
-    else if (roll < 0.85) { const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize(); en.chargeVel = dir.multiplyScalar(en.speed * 3.2); en.mode = 'charge'; en.chargeTime = 0.75; if (typeof SFX !== 'undefined') SFX.charge(); }
-    else { bossSlam(en, 3.2, 20); en.mode = 'idle'; en.atkTimer = 1.8 + Math.random(); }
-  } else if (sp === 'yeti') {
-    // The Yeti mainly hurls snowballs
-    if (roll < 0.78) { bossSnow(en, p, 4); en.mode = 'idle'; en.atkTimer = 1.5 + Math.random(); }
-    else { const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize(); en.chargeVel = dir.multiplyScalar(en.speed * 3); en.mode = 'charge'; en.chargeTime = 0.7; if (typeof SFX !== 'undefined') SFX.charge(); }
-  } else { // octopus
-    if (roll < 0.55) { bossRadial(en, 10, 0x8a3ab0); en.mode = 'idle'; en.atkTimer = 1.5 + Math.random(); }
-    else { bossSlam(en, 3.6, 15); en.mode = 'idle'; en.atkTimer = 1.6 + Math.random(); }
-  }
+function bossPick(a) { return a[Math.floor(Math.random() * a.length)]; }
+function bossReset(en, t) { en.mode = 'idle'; en.atkTimer = t + Math.random(); }
+
+// ── Attack pools (repeats = higher weight) ──────────────────────
+const BOSS_ATTACKS = {
+  miniBoss: [atkJump, atkJump, atkCharge, atkSlam, atkBananas, atkSummon],
+  yeti: [atkSnow, atkSnow, atkIceBurst, atkFrostStomp, atkCharge],
+  octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkTentacleSlam, atkLunge]
+};
+
+function startBossAttack(en, p) { bossPick(BOSS_ATTACKS[en.species] || [atkSlam])(en, p); }
+
+// ── Shared attack primitives ────────────────────────────────────
+function atkCharge(en, p) {
+  const m = en.mesh, dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+  en.chargeVel = dir.multiplyScalar(en.speed * 3.1); en.mode = 'charge'; en.chargeTime = 0.72;
+  if (typeof SFX !== 'undefined') SFX.charge();
+}
+function atkSlam(en) { bossSlam(en, 3.2, 20); bossReset(en, 1.6); }
+
+// Jungle King
+function atkJump(en, p) { startBossJump(en, p); } // atkTimer set on landing
+function atkBananas(en, p) { bossSpread(en, p, 5, 0xffdd33, 6.5, 0.7); bossReset(en, 1.5); }
+function atkSummon(en) { bossSummon(en, 2); bossReset(en, 2.2); }
+
+// Yeti
+function atkSnow(en, p) { bossSnow(en, p, 4); bossReset(en, 1.4); }
+function atkIceBurst(en) { bossRadial(en, 12, 0x9fe0ff); bossReset(en, 1.5); }
+function atkFrostStomp(en) {
+  bossSlam(en, 4.2, 18);
+  for (let i = 0; i < 20; i++) { const a = i / 20 * Math.PI * 2; spawnParticles(en.mesh.position.clone().add(new THREE.Vector3(Math.cos(a) * 2, 0.2, Math.sin(a) * 2)), new THREE.Color(0xffffff), 3); }
+  bossReset(en, 1.7);
+}
+
+// Octopus
+function atkInkRadial(en) { bossRadial(en, 10, 0x8a3ab0); bossReset(en, 1.4); }
+function atkInkSpiral(en) { bossSpiral(en, 14, 0x9a4ac0); bossReset(en, 1.5); }
+function atkInkAimed(en, p) { bossSpread(en, p, 3, 0x8a3ab0, 6, 1); bossReset(en, 1.3); }
+function atkTentacleSlam(en) { bossSlam(en, 3.7, 16); bossReset(en, 1.5); }
+function atkLunge(en, p) {
+  const m = en.mesh, dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+  en.chargeVel = dir.multiplyScalar(en.speed * 4); en.mode = 'charge'; en.chargeTime = 0.6;
+  if (typeof SFX !== 'undefined') SFX.charge();
 }
 
 // Jungle King leap: hop into the air and crash down where the player was
@@ -114,6 +142,41 @@ function bossThrow(en, p, n, color) {
 function bossRadial(en, n, color) {
   const m = en.mesh; if (typeof SFX !== 'undefined') SFX.shoot();
   for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; spawnBossShot(m.position, new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(5), color, 10); }
+}
+// Aimed spread of projectiles toward the player
+function bossSpread(en, p, n, color, speed, emis) {
+  const m = en.mesh; if (typeof SFX !== 'undefined') SFX.shoot();
+  const base = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+  for (let i = 0; i < n; i++) {
+    const ang = (i - (n - 1) / 2) * 0.2;
+    const dir = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
+    spawnBossShot(m.position, dir.multiplyScalar(speed || 6), color, 10, emis == null ? 1 : emis, 0.2);
+  }
+}
+// Rotating pinwheel of projectiles
+function bossSpiral(en, n, color) {
+  const m = en.mesh; if (typeof SFX !== 'undefined') SFX.shoot();
+  const off = (E.time % 1) * Math.PI * 2;
+  for (let i = 0; i < n; i++) {
+    const a = i / n * Math.PI * 2 + off, spd = 4 + (i % 3) * 0.6;
+    spawnBossShot(m.position, new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(spd), color, 9, 1, 0.2);
+  }
+}
+// Jungle King summons a couple of monkey minions (capped)
+function bossSummon(en, count) {
+  if (typeof makeMonkeyMesh !== 'function') return;
+  if ((E.enemies || []).filter(e => e.species === 'monkeys').length >= 11) { if (typeof SFX !== 'undefined') SFX.boss(); return; }
+  for (let i = 0; i < count; i++) {
+    const ang = Math.random() * Math.PI * 2, r = 1.6;
+    const x = en.mesh.position.x + Math.cos(ang) * r, z = en.mesh.position.z + Math.sin(ang) * r;
+    if (isSolid(x, z)) continue;
+    const size = 0.45;
+    const mesh = makeMonkeyMesh(size, new THREE.Color(0x7a4a24));
+    mesh.position.set(x, size, z); E.scene.add(mesh);
+    E.enemies.push({ mesh, hp: 3, maxhp: 3, size, boss: false, species: 'monkeys', neutral: false, angered: false, speed: 0.9 * 2.2, dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(), wander: Math.random() * 2, dmg: 8 });
+    spawnParticles(mesh.position, new THREE.Color(0x88ff44), 10);
+  }
+  showToast('🦍 Reinforcements!', 'The Jungle King calls in monkeys!');
 }
 
 function spawnBossShot(pos, vel, color, dmg, emis, radius) {
