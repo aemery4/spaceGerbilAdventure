@@ -158,6 +158,7 @@ function buildWorld(n, cfg) {
   buildTiles(map, cfg, scene);
   buildResources(data, cfg, scene);
   buildEnemies(data, cfg, scene);
+  sprinkleExtras(cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
@@ -294,32 +295,80 @@ function buildEnemies(data, cfg, scene) {
     arr.forEach(e => {
       if (!e || typeof e.x !== 'number') return;
       const variant = e.type || key;              // aquatic enemies carry their own type
-      const worldX = e.x / T + off, worldZ = e.y / T + off;
-      const hp = e.hp || e.maxhp || e.maxHp || 3;
-      const boss = (key === 'miniBoss' || key === 'yeti' || variant === 'octopus');
-      const size = boss ? (key === 'yeti' ? 1.05 : variant === 'octopus' ? 0.85 : 0.95)
-                        : Math.max(0.28, (e.size || 13) / 30);
-      const SPECIES_COLOR = {
-        monkeys: 0x7a4a24, golems: 0x6f7d6a, lizards: 0x4aa02c, panthers: 0x1c1a24, parrots: 0xe0392f,
-        miniBoss: 0x8a5a2a, tigers: 0xceb888, mammoths: 0x6b4a2f, yeti: 0xeaf2ff,
-        squid: 0xb257c8, piranha: 0x9aa2a8, octopus: 0xd0405a
-      };
-      const defaultColor = SPECIES_COLOR[variant] || 0xdd4444;
-      const color = e.color ? new THREE.Color(e.color) : new THREE.Color(defaultColor);
-      const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, variant);
-      mesh.position.set(worldX, size, worldZ);
-      scene.add(mesh);
-      const rec = {
-        mesh, hp, maxhp: hp, size, boss, species: variant,
-        neutral: variant === 'mammoths', angered: false, // mammoths only fight back if attacked
-        speed: (e.speed || 0.6) * 2.2,
-        dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
-        wander: Math.random() * 3, dmg: boss ? 18 : (variant === 'parrots' ? 0 : variant === 'mammoths' ? 6 : 8)
-      };
-      if (boss) { rec.mode = 'idle'; rec.atkTimer = 2.5 + Math.random() * 1.5; rec.baseEmissive = mesh.userData.body.material.emissiveIntensity; }
-      E.enemies.push(rec);
+      createEnemy(cfg, variant, e.x / T + off, e.y / T + off, e, key);
     });
   });
+}
+
+const ENEMY_COLORS = {
+  monkeys: 0x7a4a24, golems: 0x6f7d6a, lizards: 0x4aa02c, panthers: 0x1c1a24, parrots: 0xe0392f,
+  miniBoss: 0x8a5a2a, tigers: 0xceb888, mammoths: 0x6b4a2f, yeti: 0xeaf2ff,
+  squid: 0xb257c8, piranha: 0x9aa2a8, octopus: 0xd0405a
+};
+
+function createEnemy(cfg, variant, worldX, worldZ, e, key) {
+  e = e || {}; key = key || variant;
+  const hp = e.hp || e.maxhp || e.maxHp || 3;
+  const boss = (key === 'miniBoss' || key === 'yeti' || variant === 'octopus');
+  const size = boss ? (key === 'yeti' ? 1.05 : variant === 'octopus' ? 0.85 : 0.95)
+                    : Math.max(0.28, (e.size || 13) / 30);
+  const color = e.color ? new THREE.Color(e.color) : new THREE.Color(ENEMY_COLORS[variant] || 0xdd4444);
+  const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, variant);
+  mesh.position.set(worldX, size, worldZ);
+  E.scene.add(mesh);
+  const rec = {
+    mesh, hp, maxhp: hp, size, boss, species: variant,
+    neutral: variant === 'mammoths', angered: false,
+    speed: (e.speed || 0.6) * 2.2,
+    dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+    wander: Math.random() * 3, dmg: boss ? 18 : (variant === 'parrots' ? 0 : variant === 'mammoths' ? 6 : 8)
+  };
+  if (boss) { rec.mode = 'idle'; rec.atkTimer = 2.5 + Math.random() * 1.5; rec.baseEmissive = mesh.userData.body.material.emissiveIntensity; }
+  E.enemies.push(rec);
+  return rec;
+}
+
+// Scatter extra resources + wandering enemies across the enlarged map so the
+// bigger arenas don't feel empty.
+function sprinkleExtras(cfg, scene) {
+  const off = E.worldOff || 0;
+  if (off <= 0) return; // home base isn't enlarged
+  const open = [];
+  for (let z = 2; z < E.rows - 2; z++) for (let x = 2; x < E.cols - 2; x++) {
+    const v = E.map[z][x];
+    if (cfg.solid.includes(v) || cfg.damage.includes(v) || v === 7) continue;
+    // keep a little breathing room around the player spawn
+    if (Math.abs(x - (cfg.spawn.tx + off)) < 3 && Math.abs(z - (cfg.spawn.tz + off)) < 3) continue;
+    open.push([x, z]);
+  }
+  if (!open.length) return;
+  const pick = () => open[Math.floor(Math.random() * open.length)];
+
+  // Resources
+  const rTypes = cfg.underwater ? ['crystal', 'plant', 'rock', 'fuel', 'fuel']
+    : cfg.village && cfg.name.indexOf('Jungle') >= 0 ? ['plant', 'rock', 'crystal', 'banana', 'fuel', 'fuel']
+      : ['rock', 'plant', 'crystal', 'fuel', 'fuel'];
+  const nRes = Math.round((E.cols * E.rows) / 95);
+  for (let i = 0; i < nRes; i++) {
+    const [x, z] = pick();
+    const type = rTypes[Math.floor(Math.random() * rTypes.length)];
+    const hp = type === 'rock' ? 3 : (type === 'fuel' || type === 'banana') ? 1 : 2;
+    const mesh = makeResourceMesh(type); mesh.position.set(x + 0.5, 0.45, z + 0.5); scene.add(mesh);
+    E.resources.push({ type, hp, maxhp: hp, mesh, spin: Math.random() * 6 });
+  }
+
+  // Enemies (non-boss). Aquatic uses squid/piranha; jungle/tundra use their beasts.
+  let pool = (cfg.enemyKeys || []).filter(k => k !== 'miniBoss' && k !== 'yeti');
+  if (cfg.underwater) pool = ['squid', 'piranha'];
+  pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
+  if (pool.length) {
+    const nEn = Math.round((E.cols * E.rows) / 260);
+    for (let i = 0; i < nEn; i++) {
+      const [x, z] = pick();
+      const variant = pool[Math.floor(Math.random() * pool.length)];
+      createEnemy(cfg, variant, x + 0.5, z + 0.5, { speed: 0.6 + Math.random() * 0.5, size: 12 + Math.random() * 4 }, variant);
+    }
+  }
 }
 
 function makeEnemyMesh(kind, size, color, boss, species) {
