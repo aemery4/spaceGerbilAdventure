@@ -68,7 +68,7 @@ function launchPlanet3D(n) {
     2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Visit the Treetop Village (the wooden platform — a safe zone) and press Space by a merchant 🔶 to trade. Reach the rocket to escape.',
     3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth. Warm up at the camp (the platform — a safe zone) and press Space by a trader 🔶. Reach the rocket to escape.',
     4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel, dodge the deep things, reach the rocket.',
-    5: 'Home Base. Wander your planet in 3D. Press Menu to head back out.'
+    5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Walk up to a building and press Space to use it.'
   };
   showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
 }
@@ -135,8 +135,10 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
-  E.merchants = []; E.campfire = null;
+  E.merchants = []; E.campfire = null; E.homeMeshes = [];
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
+  if (cfg.home && typeof buildHomeStructures === 'function') buildHomeStructures(scene);
+  if (typeof updateBuildButton === 'function') updateBuildButton();
 
   updateHUD();
 }
@@ -900,7 +902,12 @@ function onPointerDown(ev) {
   E.raycaster.setFromCamera(E.pointer, E.camera);
   const hit = new THREE.Vector3();
   E.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit);
-  if (hit) doAttack(hit);
+  if (!hit) return;
+  // In home build mode, a ground click opens the build menu for that tile
+  if (E.cfg && E.cfg.home && typeof homeBuildMode !== 'undefined' && homeBuildMode) {
+    homeBuildClick(hit); return;
+  }
+  doAttack(hit);
 }
 
 function doAttack(worldPoint) {
@@ -915,6 +922,11 @@ function doAttack(worldPoint) {
   if (typeof merchantNear === 'function') {
     const mn = merchantNear(worldPoint);
     if (mn) { openP2Shop(mn.data); return; }
+  }
+  // Use a home-base building if we're standing by one
+  if (E.cfg.home && typeof homeBuildingNear === 'function') {
+    const hb = homeBuildingNear(worldPoint);
+    if (hb) { useHomeBuilding(hb); return; }
   }
 
   // Resources first
@@ -1040,6 +1052,7 @@ function animate() {
     updateParticles(dt);
     updateExit(dt);
     if (typeof updateVillage === 'function') updateVillage(dt);
+    if (typeof updateHome === 'function') updateHome(dt);
     if (E.hurtCd > 0) E.hurtCd -= dt;
   }
   updateCamera(dt);
