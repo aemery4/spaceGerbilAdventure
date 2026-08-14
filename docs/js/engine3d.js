@@ -829,11 +829,12 @@ function makeOctopusMesh(size, color) {
 // ── Player (the astronaut) ─────────────────────────────────────
 function buildPlayer(cfg, scene) {
   const g = new THREE.Group();
-  const suit = new THREE.MeshStandardMaterial({ color: 0xeef2f7, roughness: 0.7 });
+  const sc = (typeof SKIN_SUITS !== 'undefined' && SKIN_SUITS[save.skin]) || { suit: '#eef2f7', accent: '#2f7ad8', visor: '#12202f' };
+  const suit = new THREE.MeshStandardMaterial({ color: new THREE.Color(sc.suit), roughness: 0.7 });
   const grey = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.6, metalness: 0.2 });
-  const dark = new THREE.MeshStandardMaterial({ color: 0x1a2230, roughness: 0.3, metalness: 0.4 });
-  const accentColor = (save.skin && SKIN_TINT[save.skin]) || 0x2f7ad8;
-  const accent = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, emissive: new THREE.Color(accentColor).multiplyScalar(0.15), emissiveIntensity: 0.4 });
+  const dark = new THREE.MeshStandardMaterial({ color: new THREE.Color(sc.visor), roughness: 0.3, metalness: 0.4 });
+  const accentColor = new THREE.Color(sc.accent);
+  const accent = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, emissive: accentColor.clone().multiplyScalar(0.15), emissiveIntensity: 0.4 });
 
   // Torso
   const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.62, 14), suit);
@@ -889,7 +890,23 @@ function buildPlayer(cfg, scene) {
   E.camera.position.set(g.position.x, 9, g.position.z + 9);
   E.camera.lookAt(g.position);
 }
-const SKIN_TINT = { default: 0x2f7ad8, gold: 0xffcc33, ninja: 0x333340, robot: 0x99a3ad, ghost: 0xcfd8ff, lava: 0xff5a2a };
+// Each wardrobe skin (unchanged in skins.js) maps to a spacesuit palette
+// for the 3D astronaut: { suit, accent, visor }.
+const SKIN_SUITS = {
+  astronaut:   { suit: '#eef2f7', accent: '#2f7ad8', visor: '#12202f' },
+  penguin:     { suit: '#20242e', accent: '#f2f4f8', visor: '#0a0e14' },
+  lion:        { suit: '#f0c85a', accent: '#ffe066', visor: '#3a2a08' },
+  tiger:       { suit: '#e8892a', accent: '#ffc266', visor: '#331a00' },
+  robot:       { suit: '#aab4c2', accent: '#7fd0ff', visor: '#0a1622' },
+  fox:         { suit: '#c96a35', accent: '#ffb060', visor: '#2a1408' },
+  dragon:      { suit: '#7a1030', accent: '#ff5522', visor: '#1a0008' },
+  monkey_skin: { suit: '#4a6a2a', accent: '#a8d860', visor: '#10200a' },
+  alien_skin:  { suit: '#2aa050', accent: '#7dff5a', visor: '#001a08' },
+  frog:        { suit: '#3fbf50', accent: '#d6ff40', visor: '#082010' },
+  star_child:  { suit: '#3a2a66', accent: '#b388ff', visor: '#0a0620' },
+  skeleton:    { suit: '#e8e4d8', accent: '#3a3a3a', visor: '#111111' },
+  wizard:      { suit: '#5a2a9a', accent: '#c060ff', visor: '#1a0630' }
+};
 
 // ── Exit rocket / portal ───────────────────────────────────────
 function buildExit(cfg, scene) {
