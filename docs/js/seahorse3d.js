@@ -7,8 +7,9 @@
 function buildSeahorses(data, cfg, scene) {
   E.seahorses = [];
   const T = cfg.tile;
+  const off = E.worldOff || 0;
   (data.SEAHORSES || []).forEach(s => {
-    const wx = s.x / T, wz = s.y / T;
+    const wx = s.x / T + off, wz = s.y / T + off;
     const mesh = makeSeahorseMesh(s.color);
     mesh.position.set(wx, 0.7, wz);
     scene.add(mesh);

@@ -51,7 +51,8 @@ function buildVillage(data, cfg, scene) {
 
   // Huts scattered across the village platform (tile value 7), skipping
   // tiles a merchant stands on so nobody is buried inside a wall.
-  const merchantTiles = new Set(merchants.map(m => Math.floor(m.x / T) + ',' + Math.floor(m.y / T)));
+  const voff = E.worldOff || 0;
+  const merchantTiles = new Set(merchants.map(m => (Math.floor(m.x / T) + voff) + ',' + (Math.floor(m.y / T) + voff)));
   const hutSpots = [];
   for (let z = 1; z < E.rows - 1; z++) {
     for (let x = 1; x < E.cols - 1; x++) {
@@ -73,8 +74,9 @@ function buildVillage(data, cfg, scene) {
   const anyTile = (val) => { for (let z = 0; z < E.rows; z++) for (let x = 0; x < E.cols; x++) if (E.map[z][x] === val) return [x, z]; return null; };
 
   // Merchant NPCs
+  const off = E.worldOff || 0;
   merchants.forEach(m => {
-    const wx = m.x / T, wz = m.y / T;
+    const wx = m.x / T + off, wz = m.y / T + off;
     const npc = makeMerchantMesh(m.color || '#caa');
     npc.position.set(wx, platY, wz);
     scene.add(npc);

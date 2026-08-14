@@ -97,11 +97,32 @@ function stopEngine() {
   E.exit = null; E.exitActive = false; E.player = null;
 }
 
+// Pad a tile map with M tiles of open floor on every side (plus a new outer
+// wall), dropping the original border. Returns { map, off } where off is the
+// tile offset to add to feature coordinates.
+function growMap(map, M) {
+  if (!M || M <= 0) return { map, off: 0 };
+  const rows = map.length, cols = map[0].length;
+  const IW = cols - 2, IH = rows - 2;
+  const nCols = cols + 2 * M, nRows = rows + 2 * M;
+  const nm = [];
+  for (let y = 0; y < nRows; y++) { nm[y] = []; for (let x = 0; x < nCols; x++) nm[y][x] = 0; }
+  for (let x = 0; x < nCols; x++) { nm[0][x] = 1; nm[nRows - 1][x] = 1; }
+  for (let y = 0; y < nRows; y++) { nm[y][0] = 1; nm[y][nCols - 1] = 1; }
+  for (let iy = 0; iy < IH; iy++) for (let ix = 0; ix < IW; ix++) nm[1 + M + iy][1 + M + ix] = map[1 + iy][1 + ix];
+  return { map: nm, off: M };
+}
+
 // ── World construction ─────────────────────────────────────────
 function buildWorld(n, cfg) {
   const data = cfg.build(cfg.tile, cfg.cols, cfg.rows);
-  const map = data.map;
-  E.map = map; E.rows = map.length; E.cols = map[0].length;
+  // Enlarge the playable area by padding with open floor + a new outer wall.
+  // Home base is left unpadded so its saved building coordinates stay valid.
+  const grow = cfg.home ? 0 : (cfg.grow != null ? cfg.grow : 8);
+  const grown = growMap(data.map, grow);
+  E.map = grown.map; E.worldOff = grown.off;
+  E.rows = E.map.length; E.cols = E.map[0].length;
+  const map = E.map;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(cfg.sky);
@@ -230,9 +251,13 @@ function makeDeco(spec, mat, x, z, wallGeo) {
 // ── Resources ──────────────────────────────────────────────────
 function buildResources(data, cfg, scene) {
   E.resources = [];
+  const off = E.worldOff || 0;
+  const px = !!cfg.underwater; // Planet 4 stores resource coords in pixels, not tiles
   (data.resources || []).forEach(r => {
+    const rx = (px ? r.x / cfg.tile : r.x) + off;
+    const rz = (px ? r.y / cfg.tile : r.y) + off;
     const mesh = makeResourceMesh(r.type);
-    mesh.position.set(r.x + 0.5, 0.45, r.y + 0.5);
+    mesh.position.set(rx + 0.5, 0.45, rz + 0.5);
     scene.add(mesh);
     E.resources.push({ type: r.type, hp: r.hp, maxhp: r.maxhp || r.hp, mesh, spin: Math.random() * 6 });
   });
@@ -265,10 +290,11 @@ function buildEnemies(data, cfg, scene) {
     let arr = data[key];
     if (!arr) return;
     if (!Array.isArray(arr)) arr = [arr]; // miniBoss is a single object
+    const off = E.worldOff || 0;
     arr.forEach(e => {
       if (!e || typeof e.x !== 'number') return;
       const variant = e.type || key;              // aquatic enemies carry their own type
-      const worldX = e.x / T, worldZ = e.y / T;
+      const worldX = e.x / T + off, worldZ = e.y / T + off;
       const hp = e.hp || e.maxhp || e.maxHp || 3;
       const boss = (key === 'miniBoss' || key === 'yeti' || variant === 'octopus');
       const size = boss ? (key === 'yeti' ? 1.05 : variant === 'octopus' ? 0.85 : 0.95)
@@ -892,8 +918,8 @@ function buildPlayer(cfg, scene) {
   g.userData.legs = legs;
   g.userData.antTip = antTip;
 
-  const spawn = cfg.spawn;
-  g.position.set(spawn.tx + 0.5, 0, spawn.tz + 0.5);
+  const spawn = cfg.spawn, off = E.worldOff || 0;
+  g.position.set(spawn.tx + off + 0.5, 0, spawn.tz + off + 0.5);
   scene.add(g);
   E.player = g;
   E.faceAngle = 0;
