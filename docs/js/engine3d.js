@@ -870,17 +870,21 @@ function buildPlayer(cfg, scene) {
     glove.position.set(0, -0.44, 0); a.add(glove);
     return a;
   });
-  // Legs + boots
-  [-1, 1].forEach(sx => {
-    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.42, 8), suit);
-    leg.position.set(sx * 0.13, 0.24, 0); leg.castShadow = true;
+  // Legs + boots (pivot at the hip so they can swing when walking)
+  const legGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.42, 8);
+  legGeo.translate(0, -0.21, 0);
+  const legs = [-1, 1].map(sx => {
+    const leg = new THREE.Mesh(legGeo, suit);
+    leg.position.set(sx * 0.13, 0.46, 0); leg.castShadow = true;
     const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.24), grey);
-    boot.position.set(sx * 0.13, 0.06, 0.04);
-    g.add(leg, boot);
+    boot.position.set(0, -0.42, 0.06); leg.add(boot);
+    g.add(leg); return leg;
   });
 
   g.add(torso, shoulders, chest, pack, helmet, visor, visorGlow, ring, antenna, antTip, ...arms);
   g.userData.arms = arms;
+  g.userData.legs = legs;
+  g.userData.antTip = antTip;
 
   const spawn = cfg.spawn;
   g.position.set(spawn.tx + 0.5, 0, spawn.tz + 0.5);
@@ -1012,6 +1016,7 @@ function doAttack(worldPoint) {
 function hitResource(i) {
   const r = E.resources[i];
   r.hp--;
+  E.punch = 0.18;
   if (typeof SFX !== 'undefined') SFX.gather();
   spawnParticles(r.mesh.position, r.mesh.material.color, 8);
   r.mesh.scale.multiplyScalar(0.8);
@@ -1034,6 +1039,7 @@ function hitEnemy(i) {
   const en = E.enemies[i];
   if (en.neutral && !en.angered) { en.angered = true; showToast('🦣 Enraged!', 'The mammoth turns on you!'); }
   en.hp -= weaponDamage();
+  E.punch = 0.2;
   if (typeof SFX !== 'undefined') SFX.hit();
   spawnParticles(en.mesh.position, new THREE.Color(0xff5555), 10);
   en.mesh.userData.body.material.emissiveIntensity = 1.5;
@@ -1169,11 +1175,30 @@ function updatePlayer(dt) {
     if (!isSolid(nx + Math.sign(mx) * rad, p.z)) p.x = nx;
     if (!isSolid(p.x, nz + Math.sign(mz) * rad)) p.z = nz;
     E.faceAngle = Math.atan2(mx, mz);
-    // little hop bob
-    E.player.position.y = Math.abs(Math.sin(E.time * 12)) * 0.08;
-  } else {
-    E.player.position.y *= 0.8;
   }
+  // ── Astronaut animation: walk cycle when moving, idle bob otherwise ──
+  const ud = E.player.userData;
+  const moving = !!(mx || mz);
+  if (moving) {
+    E.walkPhase = (E.walkPhase || 0) + dt * speed * 2.4;
+    const sw = Math.sin(E.walkPhase) * 0.55;
+    if (ud.arms) { ud.arms[0].rotation.x = sw; ud.arms[1].rotation.x = -sw; }
+    if (ud.legs) { ud.legs[0].rotation.x = -sw * 0.85; ud.legs[1].rotation.x = sw * 0.85; }
+    E.player.position.y = Math.abs(Math.sin(E.walkPhase)) * 0.07;
+    E.player.rotation.z = Math.sin(E.walkPhase) * 0.03; // subtle body sway
+  } else {
+    if (ud.arms) { ud.arms[0].rotation.x *= 0.8; ud.arms[1].rotation.x *= 0.8; }
+    if (ud.legs) { ud.legs[0].rotation.x *= 0.8; ud.legs[1].rotation.x *= 0.8; }
+    E.player.position.y = Math.sin(E.time * 2) * 0.02; // gentle idle breathing
+    E.player.rotation.z *= 0.8;
+  }
+  // Punch when attacking/gathering (overrides the walk pose briefly)
+  if (E.punch > 0) {
+    E.punch -= dt;
+    if (ud.arms) { ud.arms[1].rotation.x = -1.5; ud.arms[0].rotation.x = 0.3; }
+  }
+  // Antenna blink
+  if (ud.antTip) ud.antTip.material.emissiveIntensity = 0.6 + Math.abs(Math.sin(E.time * 4)) * 0.9;
   E.player.rotation.y = E.faceAngle;
 
   // damage floor tiles
@@ -1214,6 +1239,7 @@ function updateEnemies(dt) {
       if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     }
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
+    if (!en.boss) m.rotation.z = Math.sin(E.time * 9 + en.wander) * 0.07; // waddle
     if (!en.skipYBob) m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
     if (m.userData.arms) { // monkeys swing their arms as they move
       const sw = Math.sin(E.time * 7 + en.wander) * (d < 6 ? 0.7 : 0.35);
