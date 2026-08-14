@@ -260,12 +260,13 @@ function buildEnemies(data, cfg, scene) {
       const hp = e.hp || e.maxhp || 3;
       const boss = (key === 'miniBoss' || key === 'yeti');
       const size = boss ? 0.9 : Math.max(0.28, (e.size || 13) / 30);
-      const color = e.color ? new THREE.Color(e.color) : new THREE.Color(0xdd4444);
-      const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss);
+      const defaultColor = key === 'monkeys' ? 0x7a4a24 : 0xdd4444;
+      const color = e.color ? new THREE.Color(e.color) : new THREE.Color(defaultColor);
+      const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, key);
       mesh.position.set(worldX, size, worldZ);
       scene.add(mesh);
       E.enemies.push({
-        mesh, hp, maxhp: hp, size, boss,
+        mesh, hp, maxhp: hp, size, boss, species: key,
         speed: (e.speed || 0.6) * 2.2,
         dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
         wander: Math.random() * 3, dmg: boss ? 18 : 8
@@ -274,7 +275,8 @@ function buildEnemies(data, cfg, scene) {
   });
 }
 
-function makeEnemyMesh(kind, size, color, boss) {
+function makeEnemyMesh(kind, size, color, boss, species) {
+  if (species === 'monkeys') return makeMonkeyMesh(size, color);
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6,
     emissive: color.clone().multiplyScalar(0.25), emissiveIntensity: 0.5 });
@@ -300,6 +302,90 @@ function makeEnemyMesh(kind, size, color, boss) {
   body.castShadow = true;
   g.add(body);
   g.userData.body = body;
+  return g;
+}
+
+// A proper low-poly monkey (jungle enemy). Built centred so its feet
+// land on the ground when the engine sets position.y = size.
+function makeMonkeyMesh(size, color) {
+  const s = size;
+  const g = new THREE.Group();
+  const fur = new THREE.MeshStandardMaterial({ color, roughness: 0.85,
+    emissive: color.clone().multiplyScalar(0.18), emissiveIntensity: 0.4 });
+  const face = new THREE.MeshStandardMaterial({ color: 0xe0bd93, roughness: 0.8 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x140d05 });
+
+  // Body + belly
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.72 * s, 14, 12), fur);
+  body.scale.set(1, 1.08, 0.95);
+  const belly = new THREE.Mesh(new THREE.SphereGeometry(0.5 * s, 12, 10), face);
+  belly.scale.set(1, 1.1, 0.6); belly.position.set(0, -0.05 * s, 0.42 * s);
+
+  // Head
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.55 * s, 16, 14), fur);
+  head.position.set(0, 1.0 * s, 0.06 * s);
+  const faceP = new THREE.Mesh(new THREE.SphereGeometry(0.42 * s, 14, 12), face);
+  faceP.scale.set(1, 0.95, 0.5); faceP.position.set(0, 0.94 * s, 0.44 * s);
+  const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.2 * s, 10, 9), face);
+  muzzle.scale.set(1.1, 0.8, 1); muzzle.position.set(0, 0.8 * s, 0.6 * s);
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.055 * s, 6, 6), dark);
+  nose.position.set(0, 0.84 * s, 0.72 * s);
+
+  // Ears (outer fur + inner face)
+  const ears = [];
+  [-1, 1].forEach(sx => {
+    const ear = new THREE.Mesh(new THREE.SphereGeometry(0.26 * s, 10, 10), fur);
+    ear.scale.set(1, 1, 0.35); ear.position.set(sx * 0.55 * s, 1.05 * s, 0.02 * s);
+    const inner = new THREE.Mesh(new THREE.SphereGeometry(0.14 * s, 8, 8), face);
+    inner.scale.set(1, 1, 0.3); inner.position.set(sx * 0.55 * s, 1.05 * s, 0.1 * s);
+    ears.push(ear, inner);
+  });
+
+  // Eyes
+  const eyes = [-1, 1].map(sx => {
+    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.085 * s, 8, 8), dark);
+    eye.position.set(sx * 0.17 * s, 1.04 * s, 0.48 * s);
+    return eye;
+  });
+
+  // Arms — pivot at the shoulder so they can swing
+  const armGeo = new THREE.CylinderGeometry(0.12 * s, 0.1 * s, 0.8 * s, 7);
+  armGeo.translate(0, -0.4 * s, 0);
+  const handGeo = new THREE.SphereGeometry(0.15 * s, 8, 8);
+  const arms = [-1, 1].map(sx => {
+    const arm = new THREE.Mesh(armGeo, fur);
+    arm.position.set(sx * 0.66 * s, 0.4 * s, 0.05 * s);
+    arm.rotation.z = sx * 0.32;
+    const hand = new THREE.Mesh(handGeo, face);
+    hand.position.set(0, -0.82 * s, 0.05 * s);
+    arm.add(hand);
+    return arm;
+  });
+
+  // Legs + feet
+  const legGeo = new THREE.CylinderGeometry(0.15 * s, 0.13 * s, 0.66 * s, 7);
+  legGeo.translate(0, -0.33 * s, 0);
+  [-1, 1].forEach(sx => {
+    const leg = new THREE.Mesh(legGeo, fur);
+    leg.position.set(sx * 0.28 * s, -0.34 * s, 0.02 * s);
+    const foot = new THREE.Mesh(new THREE.SphereGeometry(0.16 * s, 8, 8), face);
+    foot.scale.set(1, 0.6, 1.35); foot.position.set(0, -0.68 * s, 0.14 * s);
+    leg.add(foot); g.add(leg);
+  });
+
+  // Curled tail
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, -0.15 * s, -0.6 * s),
+    new THREE.Vector3(-0.12 * s, 0.05 * s, -1.0 * s),
+    new THREE.Vector3(0.1 * s, 0.45 * s, -1.05 * s),
+    new THREE.Vector3(0.28 * s, 0.72 * s, -0.78 * s)
+  ]);
+  const tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 20, 0.075 * s, 6), fur);
+
+  g.add(body, belly, head, faceP, muzzle, nose, ...ears, ...eyes, ...arms, tail);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.body = body;
+  g.userData.arms = arms;
   return g;
 }
 
@@ -590,6 +676,11 @@ function updateEnemies(dt) {
     if (!isSolid(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
     m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
+    if (m.userData.arms) { // monkeys swing their arms as they move
+      const sw = Math.sin(E.time * 7 + en.wander) * (d < 6 ? 0.7 : 0.35);
+      m.userData.arms[0].rotation.x = sw;
+      m.userData.arms[1].rotation.x = -sw;
+    }
     if (en.flash) { en.flash -= dt; if (en.flash <= 0) m.userData.body.material.emissiveIntensity = 0.5; }
     if (d < en.size + 0.5) hurtPlayer(en.dmg * dt * 3 + (E.hurtCd > 0 ? 0 : en.dmg * 0.2));
   });
