@@ -5,14 +5,24 @@
 // ════════════════════════════════════════
 
 let arcadeTimers = [];
-function arcadeClearTimers() { arcadeTimers.forEach(t => { clearInterval(t); clearTimeout(t); }); arcadeTimers = []; }
+let arcadeRAF = null;
+let arcadeKeyHandler = null;
+function arcadeClearTimers() {
+  arcadeTimers.forEach(t => { clearInterval(t); clearTimeout(t); });
+  arcadeTimers = [];
+  if (arcadeRAF) { cancelAnimationFrame(arcadeRAF); arcadeRAF = null; }
+  if (arcadeKeyHandler) { window.removeEventListener('keydown', arcadeKeyHandler); arcadeKeyHandler = null; }
+}
 
 const ARCADE_GAMES = [
   { id: 'rps', name: 'Cosmic RPS', emoji: '✊', desc: 'Beat the house — win 25 🪙' },
   { id: 'reflex', name: 'Warp Reflex', emoji: '🎯', desc: 'Stop the meter in the zone — up to 50 🪙' },
   { id: 'memory', name: 'Star Memory', emoji: '🧠', desc: 'Repeat the sequence — 10 🪙 a round' },
   { id: 'slots', name: 'Galaxy Slots', emoji: '🎰', desc: '10 🪙 a spin — match to win big' },
-  { id: 'highlow', name: 'Higher / Lower', emoji: '🔢', desc: 'Guess the next number — 15 🪙 a streak' }
+  { id: 'highlow', name: 'Higher / Lower', emoji: '🔢', desc: 'Guess the next number — 15 🪙 a streak' },
+  { id: 'whack', name: 'Star Whack', emoji: '🔨', desc: 'Bonk the aliens — 2 🪙 each' },
+  { id: 'maze', name: 'Maze Runner', emoji: '🌀', desc: 'Reach the exit — 40 🪙' },
+  { id: 'flappy', name: 'Rocket Dash', emoji: '🚀', desc: 'Dodge the gates — 5 🪙 a gate' }
 ];
 
 function openArcade() {
@@ -59,7 +69,8 @@ function openArcadeGame(id) {
   document.getElementById('arcadeBackBtn').style.visibility = 'visible';
   const body = document.getElementById('arcadeBody');
   body.innerHTML = '';
-  ({ rps: gameRPS, reflex: gameReflex, memory: gameMemory, slots: gameSlots, highlow: gameHighLow }[id])(body);
+  ({ rps: gameRPS, reflex: gameReflex, memory: gameMemory, slots: gameSlots, highlow: gameHighLow,
+     whack: gameWhack, maze: gameMaze, flappy: gameFlappy }[id])(body);
 }
 
 function agAgain(el, fn) {
@@ -195,6 +206,126 @@ function gameHighLow(el) {
   }
   el.querySelector('#hlHi').onclick = () => guess(true);
   el.querySelector('#hlLo').onclick = () => guess(false);
+}
+
+// ── 6. Star Whack (whack-a-mole) ────────────────────────────────
+function gameWhack(el) {
+  el.innerHTML = `<div class="ag-title">🔨 Star Whack</div><div class="ag-msg" id="wkMsg">Bonk the aliens before they duck!</div>
+    <div class="wk-grid" id="wkGrid"></div><div class="ag-sub" id="wkScore">Score: 0</div>`;
+  let score = 0, time = 20;
+  const grid = el.querySelector('#wkGrid'); const holes = [];
+  for (let i = 0; i < 9; i++) {
+    const h = document.createElement('div'); h.className = 'wk-hole';
+    const m = document.createElement('div'); m.className = 'wk-mole'; m.textContent = '👾';
+    h.appendChild(m); grid.appendChild(h);
+    const H = { m, up: false }; holes.push(H);
+    m.onclick = () => { if (H.up) { H.up = false; m.classList.remove('wk-up'); score++; el.querySelector('#wkScore').textContent = 'Score: ' + score; } };
+  }
+  const pop = setInterval(() => {
+    const H = holes[Math.floor(Math.random() * 9)];
+    if (H.up) return;
+    H.up = true; H.m.classList.add('wk-up');
+    const t = setTimeout(() => { H.up = false; H.m.classList.remove('wk-up'); }, 700 + Math.random() * 500);
+    arcadeTimers.push(t);
+  }, 620); arcadeTimers.push(pop);
+  const tick = setInterval(() => {
+    time--;
+    if (time <= 0) {
+      clearInterval(pop); clearInterval(tick);
+      const reward = score * 2; if (reward) arcadeAward(reward);
+      el.querySelector('#wkMsg').textContent = `Time! You bonked ${score} — +${reward} 🪙`;
+      agAgain(el, gameWhack);
+    } else el.querySelector('#wkMsg').textContent = 'Bonk the aliens! ' + time + 's';
+  }, 1000); arcadeTimers.push(tick);
+}
+
+// ── 7. Maze Runner ──────────────────────────────────────────────
+function genMaze(W, H) {
+  const g = []; for (let y = 0; y < H; y++) { g[y] = []; for (let x = 0; x < W; x++) g[y][x] = 1; }
+  (function carve(x, y) {
+    g[y][x] = 0;
+    const dirs = [[0, -2], [0, 2], [-2, 0], [2, 0]].sort(() => Math.random() - 0.5);
+    for (const [dx, dy] of dirs) {
+      const nx = x + dx, ny = y + dy;
+      if (nx > 0 && ny > 0 && nx < W - 1 && ny < H - 1 && g[ny][nx] === 1) { g[y + dy / 2][x + dx / 2] = 0; carve(nx, ny); }
+    }
+  })(1, 1);
+  return g;
+}
+function gameMaze(el) {
+  const W = 11, H = 9, g = genMaze(W, H);
+  el.innerHTML = `<div class="ag-title">🌀 Maze Runner</div><div class="ag-msg" id="mzMsg">Reach the ⭐ exit! WASD / arrows or the pad.</div>
+    <div class="mz-grid" id="mzGrid"></div>
+    <div class="mz-dpad"><span></span><button class="ag-btn dp" data-d="u">▲</button><span></span>
+      <button class="ag-btn dp" data-d="l">◀</button><button class="ag-btn dp" data-d="dn">▼</button><button class="ag-btn dp" data-d="r">▶</button></div>`;
+  const grid = el.querySelector('#mzGrid'); grid.style.gridTemplateColumns = `repeat(${W},1fr)`;
+  const cells = [];
+  for (let y = 0; y < H; y++) { cells[y] = []; for (let x = 0; x < W; x++) { const c = document.createElement('div'); c.className = 'mz-cell' + (g[y][x] ? ' mz-wall' : ''); grid.appendChild(c); cells[y][x] = c; } }
+  let pr = 1, pc = 1; const er = H - 2, ec = W - 2;
+  cells[er][ec].classList.add('mz-exit');
+  const draw = () => { cells.forEach(row => row.forEach(c => c.classList.remove('mz-player'))); cells[pr][pc].classList.add('mz-player'); };
+  draw();
+  function move(dr, dc) {
+    const nr = pr + dr, nc = pc + dc;
+    if (nr < 0 || nc < 0 || nr >= H || nc >= W || g[nr][nc]) return;
+    pr = nr; pc = nc; draw();
+    if (pr === er && pc === ec) {
+      if (arcadeKeyHandler) { window.removeEventListener('keydown', arcadeKeyHandler); arcadeKeyHandler = null; }
+      arcadeAward(40);
+      el.querySelector('#mzMsg').textContent = 'You escaped! +40 🪙';
+      agAgain(el, gameMaze);
+    }
+  }
+  el.querySelectorAll('.dp').forEach(b => b.onclick = () => {
+    const d = b.dataset.d; move(d === 'u' ? -1 : d === 'dn' ? 1 : 0, d === 'l' ? -1 : d === 'r' ? 1 : 0);
+  });
+  arcadeKeyHandler = (e) => {
+    const k = e.key.toLowerCase();
+    if (k === 'w' || k === 'arrowup') move(-1, 0);
+    else if (k === 's' || k === 'arrowdown') move(1, 0);
+    else if (k === 'a' || k === 'arrowleft') move(0, -1);
+    else if (k === 'd' || k === 'arrowright') move(0, 1);
+    else return;
+    e.preventDefault();
+  };
+  window.addEventListener('keydown', arcadeKeyHandler);
+}
+
+// ── 8. Rocket Dash (side-scroller) ──────────────────────────────
+function gameFlappy(el) {
+  el.innerHTML = `<div class="ag-title">🚀 Rocket Dash</div><div class="ag-msg" id="fdMsg">Click or press Space to boost. Dodge the gates!</div>
+    <canvas id="fdCanvas" width="440" height="300" style="background:#08081c;border:1px solid #55f;border-radius:8px;max-width:100%;cursor:pointer;"></canvas>
+    <div class="ag-sub" id="fdScore">Score: 0</div>`;
+  const cv = el.querySelector('#fdCanvas'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, PX = 62, R = 13;
+  let y = H / 2, vy = 0, score = 0, dead = false, t = 0, gates = [];
+  const flap = () => { if (dead) { gameFlappy(el); return; } vy = -4.4; };
+  cv.onclick = flap;
+  arcadeKeyHandler = (e) => { if (e.key === ' ') { e.preventDefault(); flap(); } };
+  window.addEventListener('keydown', arcadeKeyHandler);
+  function loop() {
+    t++; vy += 0.3; y += vy;
+    if (t % 92 === 0) { const gap = 92, gy = 34 + Math.random() * (H - 68 - gap); gates.push({ x: W, gy, gap, passed: false }); }
+    gates.forEach(g => g.x -= 2.5);
+    gates = gates.filter(g => g.x > -40);
+    gates.forEach(g => {
+      if (!g.passed && g.x + 30 < PX) { g.passed = true; score++; el.querySelector('#fdScore').textContent = 'Score: ' + score; }
+      if (PX + R > g.x && PX - R < g.x + 30 && (y - R < g.gy || y + R > g.gy + g.gap)) dead = true;
+    });
+    if (y > H - R || y < R) dead = true;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#2a8a4a';
+    gates.forEach(g => { ctx.fillRect(g.x, 0, 30, g.gy); ctx.fillRect(g.x, g.gy + g.gap, 30, H - g.gy - g.gap); });
+    ctx.font = '26px serif'; ctx.textAlign = 'center'; ctx.fillText('🚀', PX, y + 9);
+    if (dead) {
+      if (arcadeKeyHandler) { window.removeEventListener('keydown', arcadeKeyHandler); arcadeKeyHandler = null; }
+      const reward = score * 5; if (reward) arcadeAward(reward);
+      el.querySelector('#fdMsg').textContent = `Crashed! Score ${score} — +${reward} 🪙. Click to retry.`;
+      return;
+    }
+    arcadeRAF = requestAnimationFrame(loop);
+  }
+  arcadeRAF = requestAnimationFrame(loop);
 }
 
 // Esc leaves the arcade

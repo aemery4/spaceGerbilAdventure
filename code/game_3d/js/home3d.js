@@ -22,6 +22,112 @@ function buildHomeStructures(scene) {
     placeBuildingMesh(scene, b.type, info.w, info.h, b.gridX, b.gridY);
   });
   applyHomeFarmsOnVisit();
+  spawnHomeAliens(scene);
+}
+
+// ── Alien visitors ──────────────────────────────────────────────
+function spawnHomeAliens(scene) {
+  E.homeAliens = [];
+  if (typeof P5_ALIEN_POOL === 'undefined') return;
+  const hasLanding = (save.homePlanet.buildings || []).some(b => b.type === 'landing');
+  const count = hasLanding ? 3 : Math.min(1 + Math.floor((save.homePlanet.buildings || []).length / 2), 3);
+  const pool = [...P5_ALIEN_POOL];
+  for (let i = 0; i < count && pool.length; i++) {
+    const tpl = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
+    let gx, gy, tries = 0;
+    do {
+      gx = 2 + Math.floor(Math.random() * (E.cols - 4));
+      gy = 2 + Math.floor(Math.random() * (E.rows - 4));
+      tries++;
+    } while (E.map[gy][gx] !== 0 && E.map[gy][gx] !== 2 && tries < 60);
+    const mesh = makeAlienMesh(tpl.color);
+    mesh.position.set(gx + 0.5, 0.05, gy + 0.5);
+    scene.add(mesh);
+    E.homeAliens.push({
+      data: tpl, mesh, x: gx + 0.5, z: gy + 0.5,
+      dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+      wander: Math.random() * 3, bob: Math.random() * 6, marker: mesh.userData.marker
+    });
+  }
+}
+
+function makeAlienMesh(colorHex) {
+  const g = new THREE.Group();
+  const col = new THREE.Color(colorHex);
+  const skin = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5, emissive: col.clone().multiplyScalar(0.25), emissiveIntensity: 0.5 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 12), skin);
+  body.scale.set(1, 1.25, 1); body.position.y = 0.42;
+  const eyeW = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+  eyeW.position.set(0, 0.58, 0.22);
+  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+  pupil.position.set(0, 0.58, 0.36);
+  const antennae = [-1, 1].map(sx => {
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 5), skin);
+    a.position.set(sx * 0.13, 0.86, 0); a.rotation.z = sx * 0.32;
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1 }));
+    tip.position.set(sx * 0.18, 1.0, 0); g.add(tip); return a;
+  });
+  const marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x88ccff, emissiveIntensity: 1 }));
+  marker.position.y = 1.3;
+  g.add(body, eyeW, pupil, ...antennae, marker);
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  g.userData.marker = marker;
+  return g;
+}
+
+function updateHomeAliens(dt) {
+  if (!E.homeAliens) return;
+  const solid = (x, z) => {
+    const tx = Math.floor(x), tz = Math.floor(z);
+    if (tx < 1 || tz < 1 || tx >= E.cols - 1 || tz >= E.rows - 1) return true;
+    return E.cfg.solid.includes(E.map[tz][tx]);
+  };
+  E.homeAliens.forEach(a => {
+    a.bob += dt; a.wander -= dt;
+    if (a.wander <= 0) { a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(); a.wander = 1.5 + Math.random() * 2.5; }
+    const nx = a.x + a.dir.x * 0.7 * dt, nz = a.z + a.dir.z * 0.7 * dt;
+    if (!solid(nx, a.z)) a.x = nx; else a.dir.x *= -1;
+    if (!solid(a.x, nz)) a.z = nz; else a.dir.z *= -1;
+    a.mesh.position.x = a.x; a.mesh.position.z = a.z;
+    a.mesh.position.y = 0.05 + Math.abs(Math.sin(a.bob * 3)) * 0.06;
+    a.mesh.rotation.y = Math.atan2(a.dir.x, a.dir.z);
+    if (a.marker) { a.marker.rotation.y += dt * 2; a.marker.position.y = 1.3 + Math.sin(a.bob * 2) * 0.1; }
+  });
+}
+
+function homeAlienNear(worldPoint) {
+  if (!E.homeAliens) return null;
+  const p = E.player.position;
+  for (const a of E.homeAliens) {
+    const here = new THREE.Vector3(a.x, 0.5, a.z);
+    if (p.distanceTo(here) < 2.0 && (!worldPoint || worldPoint.distanceTo(here) < 1.4)) return a;
+  }
+  return null;
+}
+
+function useHomeAlien(a) {
+  const d = a.data;
+  const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', coins: '🪙' };
+  if (d.minigame) {
+    showMsg(`${d.emoji} ${d.name}`, d.dialog + '\n\nCome play at the arcade?',
+      () => { if (typeof openArcade === 'function') { openArcade(); openArcadeGame('rps'); } }, 'Play RPS');
+    return;
+  }
+  if (d.trade) {
+    const t = d.trade;
+    const has = (save.resources[t.give] || 0) >= t.giveAmt;
+    showMsg(`${d.emoji} ${d.name}`, d.dialog + `\n\nTrade: ${t.giveAmt} ${icons[t.give]} → ${t.rewardAmt} ${icons[t.reward]}`,
+      has ? () => {
+        save.resources[t.give] -= t.giveAmt;
+        if (t.reward === 'coins') save.spaceCoins = (save.spaceCoins || 0) + t.rewardAmt;
+        else save.resources[t.reward] = (save.resources[t.reward] || 0) + t.rewardAmt;
+        persist(); updateHUD();
+        showToast('✅ Trade Complete!', `You received ${t.rewardAmt} ${icons[t.reward]}!`);
+      } : null,
+      has ? 'Trade!' : 'Not enough...');
+    return;
+  }
+  showMsg(`${d.emoji} ${d.name}`, d.dialog);
 }
 
 function placeBuildingMesh(scene, type, w, h, gx, gy) {
@@ -197,6 +303,7 @@ function updateHome(dt) {
     updateHUD();
   }
   if (E.homeMeshes) E.homeMeshes.forEach(b => { if (b.mesh.userData.spin) b.mesh.userData.spin.rotation.y += dt; });
+  updateHomeAliens(dt);
 }
 
 // ── Building meshes (footprint w × h tiles, centred at origin) ──

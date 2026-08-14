@@ -928,6 +928,11 @@ function doAttack(worldPoint) {
     const hb = homeBuildingNear(worldPoint);
     if (hb) { useHomeBuilding(hb); return; }
   }
+  // Greet a home-base alien visitor
+  if (E.cfg.home && typeof homeAlienNear === 'function') {
+    const al = homeAlienNear(worldPoint);
+    if (al) { useHomeAlien(al); return; }
+  }
 
   // Resources first
   for (let i = E.resources.length - 1; i >= 0; i--) {

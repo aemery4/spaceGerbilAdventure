@@ -134,6 +134,18 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .sl-reels span { font-size:52px; width:70px; height:70px; line-height:70px; background:#120a26;
   border:2px solid #55f; border-radius:10px; }
 .hl-num { font-size:56px; font-weight:bold; color:#8ef; margin:10px 0; text-shadow:0 0 20px rgba(80,200,255,0.6); }
+.wk-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; width:264px; margin:14px auto; }
+.wk-hole { height:74px; background:#160e2c; border:2px solid #443a66; border-radius:50%; position:relative; overflow:hidden; }
+.wk-mole { position:absolute; left:0; right:0; bottom:-70px; font-size:44px; transition:bottom .1s; cursor:pointer; user-select:none; }
+.wk-mole.wk-up { bottom:6px; }
+.mz-grid { display:grid; gap:2px; width:322px; max-width:90%; margin:14px auto; }
+.mz-cell { width:100%; aspect-ratio:1; background:#0b1024; border-radius:2px; }
+.mz-wall { background:#5566a8; }
+.mz-exit { background:#ffd54a; box-shadow:0 0 8px #ffd54a; }
+.mz-player { background:#4cf; box-shadow:0 0 10px #4cf; }
+.mz-dpad { display:grid; grid-template-columns:repeat(3,44px); gap:5px; justify-content:center; margin-top:10px; }
+.mz-dpad .dp { padding:6px 0; margin:0; font-size:15px; }
+.mz-dpad span { }
 #arcadeFooter { margin-top:16px; display:flex; gap:12px; justify-content:center; }
 #arcadeBackBtn, #arcadeCloseBtn { padding:8px 20px; background:rgba(30,20,60,0.9);
   border:1px solid rgba(120,160,255,0.5); color:#bcf; cursor:pointer; font-family:inherit; font-size:12px; border-radius:8px; }
@@ -218,28 +230,28 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=10"></script>
+<script src="js/three.min.js?v=11"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=10"></script>
-<script src="js/save.js?v=10"></script>
-<script src="js/hud.js?v=10"></script>
-<script src="js/craft.js?v=10"></script>
+<script src="js/globals.js?v=11"></script>
+<script src="js/save.js?v=11"></script>
+<script src="js/hud.js?v=11"></script>
+<script src="js/craft.js?v=11"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=10"></script>
-<script src="js/p2-data.js?v=10"></script>
-<script src="js/p3-data.js?v=10"></script>
-<script src="js/p4-data.js?v=10"></script>
-<script src="js/p5-data.js?v=10"></script>
+<script src="js/p1-data.js?v=11"></script>
+<script src="js/p2-data.js?v=11"></script>
+<script src="js/p3-data.js?v=11"></script>
+<script src="js/p4-data.js?v=11"></script>
+<script src="js/p5-data.js?v=11"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/planets3d.js?v=10"></script>
-<script src="js/engine3d.js?v=10"></script>
-<script src="js/village3d.js?v=10"></script>
-<script src="js/home3d.js?v=10"></script>
-<script src="js/arcade3d.js?v=10"></script>
-<script src="js/menu3d.js?v=10"></script>
-<script src="js/skins.js?v=10"></script>
+<script src="js/planets3d.js?v=11"></script>
+<script src="js/engine3d.js?v=11"></script>
+<script src="js/village3d.js?v=11"></script>
+<script src="js/home3d.js?v=11"></script>
+<script src="js/arcade3d.js?v=11"></script>
+<script src="js/menu3d.js?v=11"></script>
+<script src="js/skins.js?v=11"></script>
 </body>
 </html>
