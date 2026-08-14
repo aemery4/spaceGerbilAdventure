@@ -71,8 +71,9 @@ function launchPlanet3D(n) {
     5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Walk up to a building and press Space to use it.'
   };
   const showIntro = () => showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
-  // Entering Area 51 gets its own cutscene
+  // Entering Area 51 gets its own cutscene; Planet 2 gets the gerbil fly-away
   if (n === 1 && typeof playEnterArea51Cutscene === 'function') { gamePaused = true; playEnterArea51Cutscene(showIntro); }
+  else if (n === 2 && typeof playEnterPlanet2Cutscene === 'function') { gamePaused = true; playEnterPlanet2Cutscene(showIntro); }
   else showIntro();
 }
 // Named shims so existing flow (startPlanet) keeps working
@@ -825,32 +826,60 @@ function makeOctopusMesh(size, color) {
   return g;
 }
 
-// ── Player (the gerbil) ────────────────────────────────────────
+// ── Player (the astronaut) ─────────────────────────────────────
 function buildPlayer(cfg, scene) {
   const g = new THREE.Group();
-  const fur = new THREE.MeshStandardMaterial({ color: 0xb98a5e, roughness: 0.8 });
-  const belly = new THREE.MeshStandardMaterial({ color: 0xe8d3b0, roughness: 0.8 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.34, 16, 14), fur);
-  body.scale.set(1, 0.9, 1.25); body.position.y = 0.34; body.castShadow = true;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 14), fur);
-  head.position.set(0, 0.5, 0.34); head.castShadow = true;
-  const snout = new THREE.Mesh(new THREE.SphereGeometry(0.12, 10, 8), belly);
-  snout.position.set(0, 0.45, 0.58);
-  const earGeo = new THREE.SphereGeometry(0.11, 8, 8);
-  const earL = new THREE.Mesh(earGeo, fur); earL.position.set(0.16, 0.68, 0.3); earL.scale.z = 0.5;
-  const earR = earL.clone(); earR.position.x = -0.16;
-  const eyeGeo = new THREE.SphereGeometry(0.045, 8, 8);
-  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
-  const eyeL = new THREE.Mesh(eyeGeo, eyeMat); eyeL.position.set(0.1, 0.54, 0.55);
-  const eyeR = eyeL.clone(); eyeR.position.x = -0.1;
-  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.5, 6), fur);
-  tail.position.set(0, 0.34, -0.42); tail.rotation.x = Math.PI / 2.4;
-  g.add(body, head, snout, earL, earR, eyeL, eyeR, tail);
+  const suit = new THREE.MeshStandardMaterial({ color: 0xeef2f7, roughness: 0.7 });
+  const grey = new THREE.MeshStandardMaterial({ color: 0x9aa4b2, roughness: 0.6, metalness: 0.2 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a2230, roughness: 0.3, metalness: 0.4 });
+  const accentColor = (save.skin && SKIN_TINT[save.skin]) || 0x2f7ad8;
+  const accent = new THREE.MeshStandardMaterial({ color: accentColor, roughness: 0.5, emissive: new THREE.Color(accentColor).multiplyScalar(0.15), emissiveIntensity: 0.4 });
 
-  // Skin tint (reuses save.skin if the wardrobe set an accent colour)
-  if (save.skin && SKIN_TINT[save.skin]) {
-    fur.color = new THREE.Color(SKIN_TINT[save.skin]);
-  }
+  // Torso
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.28, 0.62, 14), suit);
+  torso.position.y = 0.66; torso.castShadow = true;
+  const shoulders = new THREE.Mesh(new THREE.SphereGeometry(0.28, 14, 10), suit);
+  shoulders.scale.set(1, 0.5, 0.9); shoulders.position.y = 0.9;
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.06), accent); // control panel
+  chest.position.set(0, 0.72, 0.26);
+  // Backpack
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.42, 0.22), grey);
+  pack.position.set(0, 0.7, -0.28); pack.castShadow = true;
+  // Helmet
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 14), suit);
+  helmet.position.set(0, 1.12, 0); helmet.castShadow = true;
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.22, 16, 12, Math.PI * 0.25, Math.PI * 0.5, Math.PI * 0.32, Math.PI * 0.36), dark);
+  visor.position.set(0, 1.12, 0.06);
+  const visorGlow = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), new THREE.MeshStandardMaterial({ color: 0x7fd0ff, emissive: 0x3aa0e0, emissiveIntensity: 0.6, transparent: true, opacity: 0.5 }));
+  visorGlow.position.set(0.07, 1.16, 0.2);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.03, 8, 20), accent);
+  ring.rotation.x = Math.PI / 2; ring.position.y = 0.92; // neck ring
+  const antenna = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.18, 5), grey);
+  antenna.position.set(0.18, 1.3, -0.05);
+  const antTip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), new THREE.MeshStandardMaterial({ color: 0xff5050, emissive: 0xcc2020, emissiveIntensity: 1 }));
+  antTip.position.set(0.18, 1.4, -0.05);
+
+  // Arms (pivot at shoulder for a walking swing)
+  const armGeo = new THREE.CylinderGeometry(0.082, 0.075, 0.44, 8);
+  armGeo.translate(0, -0.22, 0);
+  const arms = [-1, 1].map(sx => {
+    const a = new THREE.Mesh(armGeo, suit);
+    a.position.set(sx * 0.3, 0.86, 0); a.rotation.z = sx * 0.08; a.castShadow = true;
+    const glove = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 8), grey);
+    glove.position.set(0, -0.44, 0); a.add(glove);
+    return a;
+  });
+  // Legs + boots
+  [-1, 1].forEach(sx => {
+    const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.42, 8), suit);
+    leg.position.set(sx * 0.13, 0.24, 0); leg.castShadow = true;
+    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.12, 0.24), grey);
+    boot.position.set(sx * 0.13, 0.06, 0.04);
+    g.add(leg, boot);
+  });
+
+  g.add(torso, shoulders, chest, pack, helmet, visor, visorGlow, ring, antenna, antTip, ...arms);
+  g.userData.arms = arms;
 
   const spawn = cfg.spawn;
   g.position.set(spawn.tx + 0.5, 0, spawn.tz + 0.5);
@@ -860,7 +889,7 @@ function buildPlayer(cfg, scene) {
   E.camera.position.set(g.position.x, 9, g.position.z + 9);
   E.camera.lookAt(g.position);
 }
-const SKIN_TINT = { default: 0xb98a5e, gold: 0xffcc33, ninja: 0x333340, robot: 0x99a3ad, ghost: 0xcfd8ff, lava: 0xff5a2a };
+const SKIN_TINT = { default: 0x2f7ad8, gold: 0xffcc33, ninja: 0x333340, robot: 0x99a3ad, ghost: 0xcfd8ff, lava: 0xff5a2a };
 
 // ── Exit rocket / portal ───────────────────────────────────────
 function buildExit(cfg, scene) {

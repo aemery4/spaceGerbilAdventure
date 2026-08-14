@@ -25,7 +25,7 @@ function showCutscene(opts, cb) {
   if (typeof SFX !== 'undefined') { SFX.resume(); SFX.powerup(); }
   document.getElementById('csTitle').textContent = opts.title || '';
   document.getElementById('csLines').innerHTML = (opts.lines || []).map(l => `<div>${l}</div>`).join('');
-  document.getElementById('csRocket').textContent = opts.icon || '🚀';
+  document.getElementById('csRocket').textContent = (opts.icon !== undefined) ? opts.icon : '🚀';
   o.style.display = 'flex';
 
   const scene = opts.scene || 'warp';
@@ -43,6 +43,7 @@ function showCutscene(opts, cb) {
   function loop() {
     f++;
     if (scene === 'area51') { drawArea51(ctx, W, H, f, night); }
+    else if (scene === 'flyaway') { drawFlyaway(ctx, W, H, f); }
     else {
       ctx.fillStyle = 'rgba(4,4,14,0.35)'; ctx.fillRect(0, 0, W, H);
       stars.forEach(s => {
@@ -96,14 +97,46 @@ function drawArea51(ctx, W, H, f, stars) {
   ctx.fillText('RESTRICTED', W * 0.5, gy - 19);
 }
 
+// The stowaway gerbil drinks a strange potion and flies away (Planet 2)
+function drawFlyaway(ctx, W, H, f) {
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, '#04140a'); g.addColorStop(0.7, '#06210e'); g.addColorStop(1, '#0a3016');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // stars
+  for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = (i * 53) % (H * 0.4); ctx.globalAlpha = 0.25 + 0.3 * Math.abs(Math.sin(f * 0.04 + i)); ctx.fillStyle = '#bfffd0'; ctx.fillRect(x, y, 2, 2); }
+  ctx.globalAlpha = 1;
+  const gy = H * 0.7;
+  // jungle tree silhouettes
+  ctx.fillStyle = '#04160a';
+  for (let i = 0; i < 6; i++) { const tx = W * (0.05 + i * 0.18); ctx.beginPath(); ctx.moveTo(tx - 42, gy); ctx.lineTo(tx, gy - 170); ctx.lineTo(tx + 42, gy); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#08260f'; ctx.fillRect(0, gy, W, H - gy);
+
+  const cx = W / 2;
+  let gx = cx, gyPos = gy - 34, gscale = 1, potionVisible = true, potionScale = 1, alpha = 1, caption = '';
+  if (f < 120) { gx = -40 + (f / 120) * (cx - 40); caption = 'Meanwhile… the stowaway gerbil finds a strange potion!'; }
+  else if (f < 250) { gx = cx - 40; const p = (f - 120) / 130; potionScale = 1 - p * 0.9; potionVisible = p < 1; gyPos = gy - 34 + Math.sin(f * 0.4) * 3; caption = f < 185 ? 'It takes a curious sip…' : 'Glug… glug… glug…'; }
+  else if (f < 360) { gx = cx - 40; potionVisible = false; const p = (f - 250) / 110; gscale = 1 + p * 0.35; gyPos = (gy - 34) - p * 55; caption = 'Something magical happens — it starts to FLOAT!'; }
+  else { gx = cx - 40; potionVisible = false; const p = (f - 360) / 130; gscale = 1.35; gyPos = (gy - 89) - p * (H * 0.95); alpha = Math.max(0, 1 - p * 0.5); caption = 'It sprouts wings and flies away! Farewell, little friend! ✨'; }
+
+  if (potionVisible) { ctx.save(); ctx.translate(cx + 6, gy - 50); ctx.scale(potionScale, potionScale); ctx.font = '34px serif'; ctx.textAlign = 'center'; ctx.fillText('🧪', 0, 0); ctx.restore(); }
+  if (f >= 250) { for (let i = 0; i < 12; i++) { const a = f * 0.12 + i; ctx.globalAlpha = 0.4 + 0.5 * Math.abs(Math.sin(a)); ctx.fillStyle = '#bfffd0'; ctx.beginPath(); ctx.arc(gx + 20 + Math.cos(a) * 34, gyPos + Math.sin(a) * 34, 2.6, 0, 6.3); ctx.fill(); } ctx.globalAlpha = 1; }
+  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(gx + 20, gyPos); ctx.scale(gscale, gscale); ctx.font = '46px serif'; ctx.textAlign = 'center';
+  if (f >= 360) ctx.fillText('🐦', 0, 4); else ctx.fillText('🐹', 0, 4);
+  ctx.restore();
+
+  ctx.globalAlpha = 1; ctx.fillStyle = '#dffbe6'; ctx.font = '15px Courier New'; ctx.textAlign = 'center';
+  ctx.fillText(caption, W / 2, H - 44);
+}
+
 // ── The cutscenes ───────────────────────────────────────────────
 function playIntroCutscene(cb) {
   showCutscene({
-    title: '🐹 SPACE GERBIL ADVENTURE',
-    icon: '🚀',
-    lines: ['Our tiny hero blasts off from home...', 'Five strange worlds await across the galaxy.',
-      'Gather fuel, brave the beasts, and become a legend!'],
-    dur: 5200
+    title: '🚀 SPACE GERBIL ADVENTURE',
+    icon: '🧑‍🚀',
+    lines: ['You are a lone space explorer, blasting off across the galaxy…',
+      'But a curious little gerbil has just snuck aboard your ship! 🐹',
+      'Five strange worlds await. Gather fuel and become a legend!'],
+    dur: 5400
   }, cb);
 }
 
@@ -115,6 +148,10 @@ function playTransitionCutscene(fromN, toN, cb) {
     lines: [`${a[0]} ${a[1]}   →   ${b[0]} ${b[1]}`, 'Warp drive engaged…'],
     dur: 3800
   }, cb);
+}
+
+function playEnterPlanet2Cutscene(cb) {
+  showCutscene({ title: '', lines: [], icon: '', scene: 'flyaway', dur: 8000 }, cb);
 }
 
 function playEnterArea51Cutscene(cb) {
