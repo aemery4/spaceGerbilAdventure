@@ -13,6 +13,24 @@ function bossBlocked(x, z) { return isSolid(x, z); }
 function updateBoss(en, dt, d, p) {
   const m = en.mesh;
   en.atkTimer = (en.atkTimer == null ? 2 : en.atkTimer) - dt;
+  if (en.mode !== 'jump') en.skipYBob = false;
+
+  if (en.mode === 'jump') {
+    en.skipYBob = true; // we control Y during the leap
+    en.jumpT += dt;
+    const t = Math.min(1, en.jumpT / en.jumpDur);
+    m.position.x = en.jumpStart.x + (en.jumpTarget.x - en.jumpStart.x) * t;
+    m.position.z = en.jumpStart.z + (en.jumpTarget.z - en.jumpStart.z) * t;
+    m.position.y = en.size + Math.sin(t * Math.PI) * 3.2; // arc up and down
+    en.dir.set(en.jumpTarget.x - en.jumpStart.x, 0, en.jumpTarget.z - en.jumpStart.z).normalize();
+    if (t >= 1) {
+      m.position.y = en.size; en.skipYBob = false;
+      spawnParticles(m.position, new THREE.Color(0xffffff), 22);
+      bossSlam(en, 3.0, 22); // landing shockwave
+      en.mode = 'idle'; en.atkTimer = 1.6 + Math.random();
+    }
+    return;
+  }
 
   if (en.mode === 'charge') {
     en.chargeTime -= dt;
@@ -47,14 +65,38 @@ function updateBoss(en, dt, d, p) {
 function startBossAttack(en, p) {
   const m = en.mesh, sp = en.species, roll = Math.random();
   if (sp === 'miniBoss') {
-    if (roll < 0.6) { const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize(); en.chargeVel = dir.multiplyScalar(en.speed * 3.2); en.mode = 'charge'; en.chargeTime = 0.75; if (typeof SFX !== 'undefined') SFX.charge(); }
+    // The Jungle King's signature move: leap onto the player
+    if (roll < 0.62) { startBossJump(en, p); }
+    else if (roll < 0.85) { const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize(); en.chargeVel = dir.multiplyScalar(en.speed * 3.2); en.mode = 'charge'; en.chargeTime = 0.75; if (typeof SFX !== 'undefined') SFX.charge(); }
     else { bossSlam(en, 3.2, 20); en.mode = 'idle'; en.atkTimer = 1.8 + Math.random(); }
   } else if (sp === 'yeti') {
-    if (roll < 0.6) { bossThrow(en, p, 3, 0xdfeeff); en.mode = 'idle'; en.atkTimer = 1.6 + Math.random(); }
+    // The Yeti mainly hurls snowballs
+    if (roll < 0.78) { bossSnow(en, p, 4); en.mode = 'idle'; en.atkTimer = 1.5 + Math.random(); }
     else { const dir = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize(); en.chargeVel = dir.multiplyScalar(en.speed * 3); en.mode = 'charge'; en.chargeTime = 0.7; if (typeof SFX !== 'undefined') SFX.charge(); }
   } else { // octopus
     if (roll < 0.55) { bossRadial(en, 10, 0x8a3ab0); en.mode = 'idle'; en.atkTimer = 1.5 + Math.random(); }
     else { bossSlam(en, 3.6, 15); en.mode = 'idle'; en.atkTimer = 1.6 + Math.random(); }
+  }
+}
+
+// Jungle King leap: hop into the air and crash down where the player was
+function startBossJump(en, p) {
+  const m = en.mesh;
+  en.mode = 'jump'; en.jumpT = 0; en.jumpDur = 0.78;
+  en.jumpStart = new THREE.Vector3(m.position.x, en.size, m.position.z);
+  en.jumpTarget = new THREE.Vector3(p.x, en.size, p.z);
+  if (typeof SFX !== 'undefined') SFX.charge();
+}
+
+// Yeti snowball volley
+function bossSnow(en, p, n) {
+  const m = en.mesh; if (typeof SFX !== 'undefined') SFX.shoot();
+  spawnParticles(m.position.clone().add(new THREE.Vector3(0, 0.6, 0)), new THREE.Color(0xffffff), 10);
+  const base = new THREE.Vector3(p.x - m.position.x, 0, p.z - m.position.z).normalize();
+  for (let i = 0; i < n; i++) {
+    const ang = (i - (n - 1) / 2) * 0.22;
+    const dir = base.clone().applyAxisAngle(new THREE.Vector3(0, 1, 0), ang);
+    spawnBossShot(m.position, dir.multiplyScalar(6), 0xffffff, 10, 0.35, 0.28);
   }
 }
 
@@ -74,8 +116,9 @@ function bossRadial(en, n, color) {
   for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2; spawnBossShot(m.position, new THREE.Vector3(Math.cos(a), 0, Math.sin(a)).multiplyScalar(5), color, 10); }
 }
 
-function spawnBossShot(pos, vel, color, dmg) {
-  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1 }));
+function spawnBossShot(pos, vel, color, dmg, emis, radius) {
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(radius || 0.22, 10, 8),
+    new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: emis == null ? 1 : emis, roughness: 0.6 }));
   mesh.position.copy(pos); mesh.position.y = 0.8; mesh.castShadow = true;
   E.scene.add(mesh);
   E.bossShots.push({ mesh, vel, dmg, life: 3 });

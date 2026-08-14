@@ -1156,7 +1156,7 @@ function updateEnemies(dt) {
       if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     }
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
-    m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
+    if (!en.skipYBob) m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
     if (m.userData.arms) { // monkeys swing their arms as they move
       const sw = Math.sin(E.time * 7 + en.wander) * (d < 6 ? 0.7 : 0.35);
       m.userData.arms[0].rotation.x = sw;
