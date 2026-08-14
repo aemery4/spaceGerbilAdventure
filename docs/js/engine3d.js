@@ -276,6 +276,7 @@ function buildEnemies(data, cfg, scene) {
       scene.add(mesh);
       E.enemies.push({
         mesh, hp, maxhp: hp, size, boss, species: variant,
+        neutral: variant === 'mammoths', angered: false, // mammoths only fight back if attacked
         speed: (e.speed || 0.6) * 2.2,
         dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
         wander: Math.random() * 3, dmg: boss ? 18 : (variant === 'parrots' ? 0 : variant === 'mammoths' ? 6 : 8)
@@ -946,6 +947,7 @@ function weaponDamage() {
 
 function hitEnemy(i) {
   const en = E.enemies[i];
+  if (en.neutral && !en.angered) { en.angered = true; showToast('🦣 Enraged!', 'The mammoth turns on you!'); }
   en.hp -= weaponDamage();
   spawnParticles(en.mesh.position, new THREE.Color(0xff5555), 10);
   en.mesh.userData.body.material.emissiveIntensity = 1.5;
@@ -1088,7 +1090,8 @@ function updateEnemies(dt) {
     const m = en.mesh;
     en.wander -= dt;
     const d = p.distanceTo(m.position);
-    if (d < 6) { // chase
+    const hostile = !en.neutral || en.angered; // neutral mammoths ignore you until attacked
+    if (hostile && d < 6) { // chase
       en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
     } else if (en.wander <= 0) {
       en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
@@ -1121,7 +1124,7 @@ function updateEnemies(dt) {
     const FLOAT = { parrots: 1.3, squid: 0.75, piranha: 0.6, octopus: 0.25 };
     if (FLOAT[en.species] !== undefined) m.position.y += FLOAT[en.species] + Math.sin(E.time * 3 + en.wander) * 0.2;
     if (en.flash) { en.flash -= dt; if (en.flash <= 0) m.userData.body.material.emissiveIntensity = 0.5; }
-    if (d < en.size + 0.5) hurtPlayer(en.dmg * dt * 3 + (E.hurtCd > 0 ? 0 : en.dmg * 0.2));
+    if (hostile && d < en.size + 0.5) hurtPlayer(en.dmg * dt * 3 + (E.hurtCd > 0 ? 0 : en.dmg * 0.2));
   });
 }
 
