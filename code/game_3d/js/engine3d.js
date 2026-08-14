@@ -67,7 +67,7 @@ function launchPlanet3D(n) {
     1: 'Area 51! Gather 10 ⚡ fuel, then reach the glowing saucer to leave.',
     2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Visit the Treetop Village (the wooden platform — a safe zone) and press Space by a merchant 🔶 to trade. Reach the rocket to escape.',
     3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth. Warm up at the camp (the platform — a safe zone) and press Space by a trader 🔶. Reach the rocket to escape.',
-    4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel, dodge the deep things, reach the rocket.',
+    4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel and dodge the deep things. Friendly seahorses 🐴 (with a 🔶 marker) will share tips — swim up and press Space. Reach the rocket to escape.',
     5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Walk up to a building and press Space to use it.'
   };
   showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
@@ -135,9 +135,10 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
-  E.merchants = []; E.campfire = null; E.homeMeshes = [];
+  E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = [];
   if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
   if (cfg.home && typeof buildHomeStructures === 'function') buildHomeStructures(scene);
+  if (data.SEAHORSES && typeof buildSeahorses === 'function') buildSeahorses(data, cfg, scene);
   if (typeof updateBuildButton === 'function') updateBuildButton();
 
   updateHUD();
@@ -933,6 +934,11 @@ function doAttack(worldPoint) {
     const al = homeAlienNear(worldPoint);
     if (al) { useHomeAlien(al); return; }
   }
+  // Talk to a seahorse guide (Planet 4)
+  if (typeof seahorseNear === 'function') {
+    const sh = seahorseNear(worldPoint);
+    if (sh) { useSeahorse(sh); return; }
+  }
 
   // Resources first
   for (let i = E.resources.length - 1; i >= 0; i--) {
@@ -1058,6 +1064,7 @@ function animate() {
     updateExit(dt);
     if (typeof updateVillage === 'function') updateVillage(dt);
     if (typeof updateHome === 'function') updateHome(dt);
+    if (typeof updateSeahorses === 'function') updateSeahorses(dt);
     if (E.hurtCd > 0) E.hurtCd -= dt;
   }
   updateCamera(dt);
