@@ -80,6 +80,26 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .skin-cost { font-size:8px; color:#888; margin-top:4px; } .skin-cost .has { color:#5d9; } .skin-cost .lacks { color:#f55; }
 #skinCloseBtn { display:block; margin:0 auto; padding:9px 28px; background:rgba(40,10,70,0.9); border:1px solid rgba(160,80,255,0.5); color:#c8a0ff; cursor:pointer; font-family:inherit; font-size:11px; border-radius:8px; }
 #gearPanel h2 { text-align:center; }
+/* ===== VILLAGE SHOP ===== */
+#villageShop { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:linear-gradient(145deg, rgba(20,12,5,0.98), rgba(30,18,8,0.98));
+  border:1px solid rgba(180,130,50,0.6); border-radius:16px;
+  padding:22px 26px; display:none; z-index:65; min-width:440px; max-width:560px;
+  box-shadow:0 0 60px rgba(180,120,30,0.2), 0 20px 60px rgba(0,0,0,0.8); }
+#shopMerchantName { font-size:16px; color:#ffd080; text-align:center; margin-bottom:4px; font-weight:bold; }
+#shopMerchantDialog { font-size:11px; color:#a88; text-align:center; margin-bottom:14px; font-style:italic; line-height:1.5; }
+#shopGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.shop-item { background:rgba(30,18,5,0.9); border:1px solid rgba(140,90,30,0.5); border-radius:10px; padding:11px 13px; cursor:pointer; transition:all 0.18s; }
+.shop-item:hover:not(.shop-disabled):not(.shop-owned) { border-color:rgba(220,160,60,0.8); background:rgba(50,30,8,0.9); box-shadow:0 0 18px rgba(200,140,40,0.3); }
+.shop-item.shop-disabled { opacity:0.35; cursor:default; }
+.shop-item.shop-owned { border-color:rgba(60,200,80,0.5); background:rgba(8,28,12,0.9); cursor:default; }
+.shop-item-name { font-size:12px; font-weight:bold; color:#ffd; margin-bottom:4px; }
+.shop-item-desc { font-size:10px; color:#887; margin-bottom:6px; line-height:1.4; }
+.shop-cost { font-size:10px; display:flex; gap:5px; flex-wrap:wrap; }
+.shop-cost .has { color:#5d9; background:rgba(0,0,0,0.4); padding:1px 6px; border-radius:4px; }
+.shop-cost .lacks { color:#f55; background:rgba(0,0,0,0.4); padding:1px 6px; border-radius:4px; }
+#shopCloseBtn { display:block; margin:0 auto; padding:8px 24px; background:rgba(30,16,4,0.9); border:1px solid rgba(140,90,30,0.5); color:#c8a; cursor:pointer; font-family:inherit; font-size:12px; border-radius:6px; }
+#shopCloseBtn:hover { background:rgba(60,35,10,0.9); }
 </style>
 </head>
 <body>
@@ -136,6 +156,12 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
   <div id="gearArmor"><h3 style="color:#8af;font-size:12px;margin-bottom:6px;">🛡️ Armor &amp; Tools</h3><div id="gearArmorGrid" class="cgrid"></div></div>
   <button onclick="toggleGear()" style="margin-top:10px;width:100%;padding:7px;background:#331800;border:1px solid #f80;color:#fa0;cursor:pointer;font-family:inherit;font-size:13px;border-radius:4px;">Close [G]</button>
 </div>
+<div id="villageShop">
+  <div id="shopMerchantName"></div>
+  <div id="shopMerchantDialog"></div>
+  <div id="shopGrid"></div>
+  <button id="shopCloseBtn" onclick="closeShop()">Leave Shop [Esc]</button>
+</div>
 <div id="skinMenu">
   <div id="skinMenuTitle">🎭 SKIN WARDROBE</div>
   <div id="skinMenuSub">SELECT YOUR LOOK — Some earned, some bought, some secret</div>
@@ -144,25 +170,26 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=4"></script>
+<script src="js/three.min.js?v=5"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=4"></script>
-<script src="js/save.js?v=4"></script>
-<script src="js/hud.js?v=4"></script>
-<script src="js/craft.js?v=4"></script>
+<script src="js/globals.js?v=5"></script>
+<script src="js/save.js?v=5"></script>
+<script src="js/hud.js?v=5"></script>
+<script src="js/craft.js?v=5"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=4"></script>
-<script src="js/p2-data.js?v=4"></script>
-<script src="js/p3-data.js?v=4"></script>
-<script src="js/p4-data.js?v=4"></script>
-<script src="js/p5-data.js?v=4"></script>
+<script src="js/p1-data.js?v=5"></script>
+<script src="js/p2-data.js?v=5"></script>
+<script src="js/p3-data.js?v=5"></script>
+<script src="js/p4-data.js?v=5"></script>
+<script src="js/p5-data.js?v=5"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/planets3d.js?v=4"></script>
-<script src="js/engine3d.js?v=4"></script>
-<script src="js/menu3d.js?v=4"></script>
-<script src="js/skins.js?v=4"></script>
+<script src="js/planets3d.js?v=5"></script>
+<script src="js/engine3d.js?v=5"></script>
+<script src="js/village3d.js?v=5"></script>
+<script src="js/menu3d.js?v=5"></script>
+<script src="js/skins.js?v=5"></script>
 </body>
 </html>

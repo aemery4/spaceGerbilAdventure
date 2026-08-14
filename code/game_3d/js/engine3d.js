@@ -65,7 +65,7 @@ function launchPlanet3D(n) {
   animate();
   const intro = {
     1: 'Area 51! Gather 10 ⚡ fuel, then reach the glowing saucer to leave.',
-    2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Reach the rocket to escape.',
+    2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Visit the Treetop Village (the wooden platform — a safe zone) and press Space by a merchant 🔶 to trade. Reach the rocket to escape.',
     3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth — reach the rocket.',
     4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel, dodge the deep things, reach the rocket.',
     5: 'Home Base. Wander your planet in 3D. Press Menu to head back out.'
@@ -135,6 +135,8 @@ function buildWorld(n, cfg) {
   buildEnemies(data, cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
+  E.merchants = [];
+  if (cfg.village && typeof buildVillage === 'function') buildVillage(data, cfg, scene);
 
   updateHUD();
 }
@@ -900,6 +902,12 @@ function doAttack(worldPoint) {
     ? worldPoint.distanceTo(obj.mesh.position) < 1.0 && p.distanceTo(obj.mesh.position) < reach + 0.6
     : p.distanceTo(obj.mesh.position) < reach;
 
+  // Talk to a village merchant if we're standing by one
+  if (typeof merchantNear === 'function') {
+    const mn = merchantNear(worldPoint);
+    if (mn) { openP2Shop(mn.data); return; }
+  }
+
   // Resources first
   for (let i = E.resources.length - 1; i >= 0; i--) {
     const r = E.resources[i];
@@ -1021,6 +1029,7 @@ function animate() {
     updateResources(dt);
     updateParticles(dt);
     updateExit(dt);
+    if (typeof updateVillage === 'function') updateVillage(dt);
     if (E.hurtCd > 0) E.hurtCd -= dt;
   }
   updateCamera(dt);
@@ -1087,8 +1096,10 @@ function updateEnemies(dt) {
     }
     const nx = m.position.x + en.dir.x * en.speed * dt;
     const nz = m.position.z + en.dir.z * en.speed * dt;
-    if (!isSolid(nx, m.position.z)) m.position.x = nx; else en.dir.x *= -1;
-    if (!isSolid(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
+    // Village (tile 7) is a safe zone — enemies can't step onto it.
+    const blocked = (x, z) => isSolid(x, z) || (E.cfg.village && tileAt(x, z) === 7);
+    if (!blocked(nx, m.position.z)) m.position.x = nx; else en.dir.x *= -1;
+    if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
     m.position.y = en.size + Math.abs(Math.sin(E.time * 6 + en.wander)) * 0.12;
     if (m.userData.arms) { // monkeys swing their arms as they move

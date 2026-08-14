@@ -43,7 +43,7 @@ const PLANETS_3D = {
       7: { kind: 'floor', color: 0x5a4a30, h: 0.05 }
     },
     ambient: 0x25502a, sun: 0xd8ffb0, sunPos: [6, 14, 4],
-    enemyKind: 'beast'
+    enemyKind: 'beast', village: true
   },
   3: {
     name: 'Tundra Frigia', emoji: '❄️', tile: 26, cols: 48, rows: 28,
