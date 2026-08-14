@@ -146,6 +146,16 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .mz-dpad { display:grid; grid-template-columns:repeat(3,44px); gap:5px; justify-content:center; margin-top:10px; }
 .mz-dpad .dp { padding:6px 0; margin:0; font-size:15px; }
 .mz-dpad span { }
+/* ===== CUTSCENE ===== */
+#cutscene { display:none; position:fixed; inset:0; z-index:120; background:#04040e; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; }
+#csCanvas { position:absolute; inset:0; width:100%; height:100%; }
+#csRocket { position:relative; z-index:2; font-size:66px; animation:csfloat 2.2s ease-in-out infinite; filter:drop-shadow(0 0 18px rgba(120,160,255,0.7)); }
+#csTitle { position:relative; z-index:2; color:#fff; font-size:26px; font-weight:bold; letter-spacing:2px; text-shadow:0 0 18px #88f; margin-top:14px; text-align:center; padding:0 16px; animation:csFade 0.8s ease; }
+#csLines { position:relative; z-index:2; color:#bfe0ff; font-size:15px; text-align:center; margin-top:14px; line-height:1.9; padding:0 20px; max-width:640px; animation:csFade 1.4s ease; }
+#csSkip { position:absolute; bottom:22px; right:22px; z-index:3; padding:8px 18px; background:rgba(20,20,50,0.8); border:1px solid #55f; color:#bcf; cursor:pointer; font-family:inherit; font-size:13px; border-radius:8px; }
+#csSkip:hover { background:rgba(40,40,90,0.9); }
+@keyframes csfloat { 0%,100% { transform:translateY(0) rotate(-8deg); } 50% { transform:translateY(-16px) rotate(8deg); } }
+@keyframes csFade { from { opacity:0; } to { opacity:1; } }
 #arcadeFooter { margin-top:16px; display:flex; gap:12px; justify-content:center; }
 #arcadeBackBtn, #arcadeCloseBtn { padding:8px 20px; background:rgba(30,20,60,0.9);
   border:1px solid rgba(120,160,255,0.5); color:#bcf; cursor:pointer; font-family:inherit; font-size:12px; border-radius:8px; }
@@ -238,32 +248,42 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
   <button id="skinCloseBtn" onclick="closeSkinMenu()">✕ CLOSE</button>
 </div>
 
+<!-- Cutscene overlay -->
+<div id="cutscene">
+  <canvas id="csCanvas"></canvas>
+  <div id="csRocket">🚀</div>
+  <div id="csTitle"></div>
+  <div id="csLines"></div>
+  <button id="csSkip">Skip ▶</button>
+</div>
+
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=18"></script>
+<script src="js/three.min.js?v=19"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=18"></script>
-<script src="js/save.js?v=18"></script>
-<script src="js/hud.js?v=18"></script>
-<script src="js/craft.js?v=18"></script>
+<script src="js/globals.js?v=19"></script>
+<script src="js/save.js?v=19"></script>
+<script src="js/hud.js?v=19"></script>
+<script src="js/craft.js?v=19"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=18"></script>
-<script src="js/p2-data.js?v=18"></script>
-<script src="js/p3-data.js?v=18"></script>
-<script src="js/p4-data.js?v=18"></script>
-<script src="js/p5-data.js?v=18"></script>
+<script src="js/p1-data.js?v=19"></script>
+<script src="js/p2-data.js?v=19"></script>
+<script src="js/p3-data.js?v=19"></script>
+<script src="js/p4-data.js?v=19"></script>
+<script src="js/p5-data.js?v=19"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/sfx3d.js?v=18"></script>
-<script src="js/planets3d.js?v=18"></script>
-<script src="js/engine3d.js?v=18"></script>
-<script src="js/boss3d.js?v=18"></script>
-<script src="js/village3d.js?v=18"></script>
-<script src="js/home3d.js?v=18"></script>
-<script src="js/arcade3d.js?v=18"></script>
-<script src="js/seahorse3d.js?v=18"></script>
-<script src="js/menu3d.js?v=18"></script>
-<script src="js/skins.js?v=18"></script>
+<script src="js/sfx3d.js?v=19"></script>
+<script src="js/cutscene3d.js?v=19"></script>
+<script src="js/planets3d.js?v=19"></script>
+<script src="js/engine3d.js?v=19"></script>
+<script src="js/boss3d.js?v=19"></script>
+<script src="js/village3d.js?v=19"></script>
+<script src="js/home3d.js?v=19"></script>
+<script src="js/arcade3d.js?v=19"></script>
+<script src="js/seahorse3d.js?v=19"></script>
+<script src="js/menu3d.js?v=19"></script>
+<script src="js/skins.js?v=19"></script>
 </body>
 </html>

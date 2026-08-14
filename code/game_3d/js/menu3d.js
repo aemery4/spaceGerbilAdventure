@@ -53,7 +53,8 @@ function goMenu() { stopEngine(); gamePaused = false; showMenu(); }
 function startNewGame() {
   save = JSON.parse(JSON.stringify(DEF));
   persist();
-  startPlanet(1);
+  if (typeof playIntroCutscene === 'function') playIntroCutscene(() => startPlanet(1));
+  else startPlanet(1);
 }
 function startFreePlay() {
   save.freePlay = true;

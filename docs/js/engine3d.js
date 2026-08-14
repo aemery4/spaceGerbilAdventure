@@ -1038,7 +1038,15 @@ function planetCleared() {
   const hasNext = next <= 4;
   showMsg('🎉 Planet Cleared!', E.cfg.name + ' complete! +50 🪙\n\n' +
     (hasNext ? 'Onward to the next world…' : 'You have cleared every planet. Legendary gerbil!'),
-    () => { hasNext ? startPlanet(next) : goMenu(); },
+    () => {
+      if (hasNext) {
+        if (typeof playTransitionCutscene === 'function') playTransitionCutscene(n, next, () => startPlanet(next));
+        else startPlanet(next);
+      } else {
+        if (typeof playEndingCutscene === 'function') playEndingCutscene(() => goMenu());
+        else goMenu();
+      }
+    },
     hasNext ? 'Next Planet' : 'Return to Menu');
 }
 
