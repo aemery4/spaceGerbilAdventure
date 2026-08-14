@@ -100,6 +100,44 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .shop-cost .lacks { color:#f55; background:rgba(0,0,0,0.4); padding:1px 6px; border-radius:4px; }
 #shopCloseBtn { display:block; margin:0 auto; padding:8px 24px; background:rgba(30,16,4,0.9); border:1px solid rgba(140,90,30,0.5); color:#c8a; cursor:pointer; font-family:inherit; font-size:12px; border-radius:6px; }
 #shopCloseBtn:hover { background:rgba(60,35,10,0.9); }
+/* ===== SPACE ARCADE ===== */
+#arcadePanel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:linear-gradient(150deg, rgba(10,6,26,0.99), rgba(20,8,40,0.99));
+  border:1px solid rgba(120,200,255,0.5); border-radius:16px; padding:20px 24px;
+  display:none; z-index:75; width:560px; max-width:96vw; max-height:86vh; overflow-y:auto;
+  box-shadow:0 0 70px rgba(80,180,255,0.25), 0 20px 60px rgba(0,0,0,0.85); text-align:center; }
+#arcadeTitle { font-size:22px; font-weight:bold; letter-spacing:3px; color:#7ef;
+  text-shadow:0 0 16px rgba(80,200,255,0.7); margin-bottom:2px; }
+#arcadeCoins { color:#ffd54a; font-size:13px; margin-bottom:14px; }
+.arcade-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.arcade-card { background:rgba(30,20,60,0.85); border:1px solid rgba(120,120,255,0.4);
+  border-radius:12px; padding:16px 10px; cursor:pointer; transition:all .15s; }
+.arcade-card:hover { border-color:#8cf; transform:translateY(-3px); box-shadow:0 6px 22px rgba(80,160,255,0.35); }
+.ac-emoji { font-size:40px; } .ac-name { font-size:13px; font-weight:bold; color:#def; margin:5px 0 3px; }
+.ac-desc { font-size:10px; color:#9ab; line-height:1.4; }
+.ag-title { font-size:16px; color:#bdf; margin-bottom:10px; }
+.ag-msg { font-size:13px; color:#dde; min-height:20px; margin-bottom:14px; white-space:pre-line; }
+.ag-sub { font-size:12px; color:#9cf; margin-top:8px; }
+.ag-row { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.ag-btn { padding:10px 18px; margin:5px; background:#243; border:1px solid #6cf; color:#dff;
+  cursor:pointer; font-family:inherit; font-size:14px; border-radius:8px; transition:background .15s; }
+.ag-btn:hover:not(:disabled) { background:#365; } .ag-btn:disabled { opacity:0.4; cursor:default; }
+.rx-bar { position:relative; height:26px; margin:16px auto; width:88%; background:#1a1030;
+  border:1px solid #55f; border-radius:6px; overflow:hidden; }
+.rx-zone { position:absolute; left:40%; width:20%; top:0; bottom:0; background:rgba(60,220,90,0.35); }
+.rx-bull { position:absolute; left:47%; width:6%; top:0; bottom:0; background:rgba(255,220,60,0.6); }
+.rx-marker { position:absolute; left:0; width:4px; top:-3px; bottom:-3px; background:#fff; box-shadow:0 0 8px #fff; }
+.mem-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; width:220px; margin:14px auto; }
+.mem-pad { height:80px; border-radius:12px; cursor:pointer; opacity:0.55; transition:opacity .08s, transform .08s; }
+.mem-pad.mem-on { opacity:1; transform:scale(1.06); box-shadow:0 0 24px currentColor; }
+.sl-reels { display:flex; gap:12px; justify-content:center; margin:16px 0; }
+.sl-reels span { font-size:52px; width:70px; height:70px; line-height:70px; background:#120a26;
+  border:2px solid #55f; border-radius:10px; }
+.hl-num { font-size:56px; font-weight:bold; color:#8ef; margin:10px 0; text-shadow:0 0 20px rgba(80,200,255,0.6); }
+#arcadeFooter { margin-top:16px; display:flex; gap:12px; justify-content:center; }
+#arcadeBackBtn, #arcadeCloseBtn { padding:8px 20px; background:rgba(30,20,60,0.9);
+  border:1px solid rgba(120,160,255,0.5); color:#bcf; cursor:pointer; font-family:inherit; font-size:12px; border-radius:8px; }
+#arcadeBackBtn:hover, #arcadeCloseBtn:hover { background:rgba(60,40,110,0.9); }
 </style>
 </head>
 <body>
@@ -157,6 +195,15 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
   <div id="gearArmor"><h3 style="color:#8af;font-size:12px;margin-bottom:6px;">🛡️ Armor &amp; Tools</h3><div id="gearArmorGrid" class="cgrid"></div></div>
   <button onclick="toggleGear()" style="margin-top:10px;width:100%;padding:7px;background:#331800;border:1px solid #f80;color:#fa0;cursor:pointer;font-family:inherit;font-size:13px;border-radius:4px;">Close [G]</button>
 </div>
+<div id="arcadePanel">
+  <div id="arcadeTitle">🕹️ SPACE ARCADE</div>
+  <div id="arcadeCoins"></div>
+  <div id="arcadeBody"></div>
+  <div id="arcadeFooter">
+    <button id="arcadeBackBtn">◀ Lobby</button>
+    <button id="arcadeCloseBtn">✕ Leave Arcade</button>
+  </div>
+</div>
 <div id="villageShop">
   <div id="shopMerchantName"></div>
   <div id="shopMerchantDialog"></div>
@@ -171,27 +218,28 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=9"></script>
+<script src="js/three.min.js?v=10"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=9"></script>
-<script src="js/save.js?v=9"></script>
-<script src="js/hud.js?v=9"></script>
-<script src="js/craft.js?v=9"></script>
+<script src="js/globals.js?v=10"></script>
+<script src="js/save.js?v=10"></script>
+<script src="js/hud.js?v=10"></script>
+<script src="js/craft.js?v=10"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=9"></script>
-<script src="js/p2-data.js?v=9"></script>
-<script src="js/p3-data.js?v=9"></script>
-<script src="js/p4-data.js?v=9"></script>
-<script src="js/p5-data.js?v=9"></script>
+<script src="js/p1-data.js?v=10"></script>
+<script src="js/p2-data.js?v=10"></script>
+<script src="js/p3-data.js?v=10"></script>
+<script src="js/p4-data.js?v=10"></script>
+<script src="js/p5-data.js?v=10"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/planets3d.js?v=9"></script>
-<script src="js/engine3d.js?v=9"></script>
-<script src="js/village3d.js?v=9"></script>
-<script src="js/home3d.js?v=9"></script>
-<script src="js/menu3d.js?v=9"></script>
-<script src="js/skins.js?v=9"></script>
+<script src="js/planets3d.js?v=10"></script>
+<script src="js/engine3d.js?v=10"></script>
+<script src="js/village3d.js?v=10"></script>
+<script src="js/home3d.js?v=10"></script>
+<script src="js/arcade3d.js?v=10"></script>
+<script src="js/menu3d.js?v=10"></script>
+<script src="js/skins.js?v=10"></script>
 </body>
 </html>

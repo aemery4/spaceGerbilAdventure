@@ -124,7 +124,7 @@ function homeBuildingNear(worldPoint) {
 function useHomeBuilding(b) {
   switch (b.type) {
     case 'shop': openP5Shop(); break;
-    case 'arcade': playHomeArcade(); break;
+    case 'arcade': (typeof openArcade === 'function') ? openArcade() : playHomeArcade(); break;
     case 'hut':
       save.hp = Math.min(save.maxHp, save.hp + 20); updateHUD(); persist();
       showToast('🏠 Space Hut', 'You rest at home. +20 HP!'); break;
