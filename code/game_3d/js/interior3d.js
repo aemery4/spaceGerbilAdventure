@@ -53,6 +53,37 @@ function makeGridTexture(bg, line, n) {
   const tex = new THREE.CanvasTexture(c); tex.wrapS = tex.wrapT = THREE.RepeatWrapping; return tex;
 }
 
+// A cabinet screen showing the game's emoji + name so each is distinct
+function makeScreenTexture(emoji, name, neon) {
+  const w = 200, h = 160, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#08060f'; g.fillRect(0, 0, w, h);
+  g.strokeStyle = 'rgba(255,255,255,0.06)'; g.lineWidth = 1;
+  for (let y = 0; y < h; y += 5) { g.beginPath(); g.moveTo(0, y); g.lineTo(w, y); g.stroke(); }
+  const col = '#' + (neon >>> 0).toString(16).padStart(6, '0');
+  g.strokeStyle = col; g.lineWidth = 6; g.strokeRect(4, 4, w - 8, h - 8);
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '78px serif'; g.fillText(emoji, w / 2, h * 0.4);
+  g.fillStyle = col; g.font = 'bold 22px "Courier New",monospace';
+  g.fillText((name || '').toUpperCase().slice(0, 13), w / 2, h * 0.82);
+  const tex = new THREE.CanvasTexture(c); return tex;
+}
+// A glowing neon sign (text only, transparent background)
+function makeSignTexture(text, hex) {
+  const w = 512, h = 128, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const g = c.getContext('2d'); g.clearRect(0, 0, w, h);
+  const col = '#' + (hex >>> 0).toString(16).padStart(6, '0');
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = 'bold 64px "Courier New",monospace';
+  g.shadowColor = col; g.shadowBlur = 26; g.fillStyle = col;
+  g.fillText(text, w / 2, h / 2); g.fillText(text, w / 2, h / 2);
+  const tex = new THREE.CanvasTexture(c); return tex;
+}
+function makeSign(text, hex, w, h) {
+  const m = new THREE.MeshBasicMaterial({ map: makeSignTexture(text, hex), transparent: true, side: THREE.DoubleSide });
+  return new THREE.Mesh(new THREE.PlaneGeometry(w, h), m);
+}
+
 function buildInterior(kind, def) {
   const COLS = 15, ROWS = 12;
   const map = [];
@@ -201,6 +232,33 @@ function populateTrophyInterior(scene, COLS, ROWS, def) {
     }
     prev = x + 0.5;
   }
+  // HALL OF CHAMPIONS title under the emblem
+  const title = makeSign('HALL OF CHAMPIONS', 0xffd54a, 4.6, 0.7); title.position.set(COLS / 2, 1.7, 0.5); scene.add(title);
+  // hanging banners on the side walls
+  const bannerMat = new THREE.MeshStandardMaterial({ color: 0x7a1424, roughness: 0.95, side: THREE.DoubleSide });
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0xffd54a, metalness: 0.5, roughness: 0.4 });
+  [3.2, ROWS - 3.6].forEach(z => [0.6, COLS - 0.6].forEach(x => {
+    const b = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 1.7), bannerMat);
+    b.position.set(x, 1.4, z); b.rotation.y = x < COLS / 2 ? Math.PI / 2 : -Math.PI / 2; scene.add(b);
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.13), trimMat);
+    star.position.set(x + (x < COLS / 2 ? 0.03 : -0.03), 1.55, z); scene.add(star);
+  }));
+  // stone urns flanking the carpet entrance
+  [[COLS / 2 - 1.9, ROWS - 2.6], [COLS / 2 + 1.9, ROWS - 2.6]].forEach(([x, z]) => {
+    const urn = new THREE.Group();
+    const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.34, 14, 10), new THREE.MeshStandardMaterial({ color: 0xdad2ba, roughness: 0.9 }));
+    bowl.scale.set(1, 1.2, 1); bowl.position.y = 0.5; bowl.castShadow = true;
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.24, 0.3, 12), new THREE.MeshStandardMaterial({ color: 0xc9c0a6, roughness: 0.9 })); foot.position.y = 0.15;
+    // little laurel sprigs
+    const leaves = new THREE.Mesh(new THREE.SphereGeometry(0.32, 10, 8), new THREE.MeshStandardMaterial({ color: 0x2f7a3a, roughness: 0.9 })); leaves.scale.set(1, 0.7, 1); leaves.position.y = 0.95;
+    urn.add(foot, bowl, leaves); urn.position.set(x, 0, z); scene.add(urn);
+  });
+  // visitor benches along the side aisles
+  [[2.2, ROWS / 2 + 0.5], [COLS - 2.2, ROWS / 2 + 0.5]].forEach(([x, z]) => {
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.12, 1.6), new THREE.MeshStandardMaterial({ color: 0x6a4a2a, roughness: 0.8 }));
+    seat.position.set(x, 0.42, z); seat.castShadow = true; scene.add(seat);
+    [-0.65, 0.65].forEach(dz => { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.42, 0.1), new THREE.MeshStandardMaterial({ color: 0x4a3018 })); leg.position.set(x, 0.21, z + dz); scene.add(leg); });
+  });
 }
 
 // One museum exhibit: pedestal + (boss statue | shrouded case) + glass
@@ -258,7 +316,7 @@ function populateArcadeInterior(scene, COLS, ROWS, def) {
   games.forEach((game, i) => {
     const s = spots[i] || { x: 2 + i, z: 2, rot: 0 };
     const col = neonCols[i % neonCols.length];
-    const cab = makeArcadeCabinet(game.emoji, col);
+    const cab = makeArcadeCabinet(game, col);
     cab.position.set(s.x, 0, s.z); cab.rotation.y = s.rot; scene.add(cab);
     E.interiorProps.push({
       mesh: cab, x: s.x, z: s.z, spin: cab.userData.screen,
@@ -288,18 +346,62 @@ function populateArcadeInterior(scene, COLS, ROWS, def) {
   prize.position.set(COLS / 2, 1.05, ROWS / 2 + 0.5); scene.add(prize);
   const podLight = new THREE.PointLight(0xffcf66, 0.7, 5, 2); podLight.position.set(COLS / 2, 1.6, ROWS / 2 + 0.5); scene.add(podLight);
   E.interiorProps.push({ mesh: prize, x: COLS / 2, z: ROWS / 2 + 0.5, spin: prize, action: () => showToast('🏆 Prize Podium', 'Rack up Space Coins at the cabinets — big spenders get bragging rights!') });
+
+  // big glowing ARCADE sign high on the back wall
+  const sign = makeSign('★ ARCADE ★', 0x22ffdd, 5.2, 1.3); sign.position.set(COLS / 2, 2.55, 0.5); scene.add(sign);
+  // claw / prize machine in the open floor (front-left)
+  const claw = makeClawMachine(); claw.position.set(2.6, 0, ROWS - 3.4); claw.rotation.y = 0.3; scene.add(claw);
+  E.interiorProps.push({ mesh: claw, x: 2.6, z: ROWS - 3.4, spin: claw.userData.prizeSpin, action: () => showToast('🕹️ Claw Machine', 'Purely decorative… for now. Try the cabinets for real coins!') });
+  // snack + token counter (front-right) with stools
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.7), new THREE.MeshStandardMaterial({ color: 0x2c2450, roughness: 0.6 }));
+  counter.position.set(COLS - 2.6, 0.45, ROWS - 3.2); counter.rotation.y = -0.3; counter.castShadow = true; scene.add(counter);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(2.5, 0.08, 0.8), new THREE.MeshStandardMaterial({ color: 0x22ffdd, emissive: 0x11bbaa, emissiveIntensity: 0.6 }));
+  top.position.set(COLS - 2.6, 0.92, ROWS - 3.2); top.rotation.y = -0.3; scene.add(top);
+  const snackSign = makeSign('SNACKS', 0xffe066, 1.6, 0.5); snackSign.position.set(COLS - 2.6, 1.7, ROWS - 3.5); snackSign.rotation.y = -0.3; scene.add(snackSign);
+  for (let i = -1; i <= 1; i++) {
+    const stool = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.14, 0.5, 12), new THREE.MeshStandardMaterial({ color: 0xff4fa3, roughness: 0.5 }));
+    stool.position.set(COLS - 2.6 + i * 0.7 * Math.cos(0.3), 0.25, ROWS - 2.4 - i * 0.7 * Math.sin(0.3)); scene.add(stool);
+  }
+  // a couple of glowing floor cushions near the entrance
+  [[COLS / 2 - 2.2, ROWS - 2], [COLS / 2 + 2.2, ROWS - 2]].forEach(([x, z], i) => {
+    const cush = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 8), new THREE.MeshStandardMaterial({ color: i ? 0x7c5cff : 0x5affa0, roughness: 0.6 }));
+    cush.scale.set(1, 0.55, 1); cush.position.set(x, 0.22, z); cush.castShadow = true; scene.add(cush);
+  });
 }
 
-function makeArcadeCabinet(emoji, neon) {
+// A retro claw / prize machine (decorative)
+function makeClawMachine() {
+  const g = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.7, 0.9), new THREE.MeshStandardMaterial({ color: 0x2c2450, roughness: 0.6 })); base.position.y = 0.35; base.castShadow = true;
+  const glass = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.9, 0.86), new THREE.MeshStandardMaterial({ color: 0x9fe8ff, transparent: true, opacity: 0.22, roughness: 0.1 })); glass.position.y = 1.2;
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.22, 0.96), new THREE.MeshStandardMaterial({ color: 0xff4fa3, emissive: 0xcc2f80, emissiveIntensity: 0.6 })); roof.position.y = 1.78;
+  // a few colourful prize balls inside
+  const prizeGrp = new THREE.Group();
+  [0xff5a5a, 0xffe066, 0x5aff8a, 0x5ab0ff].forEach((c, i) => {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.13, 10, 8), new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.3 }));
+    b.position.set(Math.cos(i * 1.7) * 0.22, 0.95 + (i % 2) * 0.16, Math.sin(i * 1.7) * 0.22); prizeGrp.add(b);
+  });
+  g.add(base, glass, roof, prizeGrp);
+  g.userData.prizeSpin = prizeGrp;
+  return g;
+}
+
+function makeArcadeCabinet(game, neon) {
   neon = neon || 0x22ffdd;
+  const emoji = (game && game.emoji) || '🎮', name = (game && game.name) || 'GAME';
   const g = new THREE.Group();
   const body = new THREE.MeshStandardMaterial({ color: 0x201b36, roughness: 0.55, metalness: 0.2 });
   const cab = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.5, 0.7), body); cab.position.y = 0.75; cab.castShadow = true;
   const hood = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.22, 0.5), body); hood.position.set(0, 1.52, 0.12);
-  // glowing marquee across the top
+  // glowing marquee with the game name across the top
   const marquee = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.2, 0.06), new THREE.MeshStandardMaterial({ color: neon, emissive: neon, emissiveIntensity: 1.0 }));
   marquee.position.set(0, 1.34, 0.37);
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.5), new THREE.MeshStandardMaterial({ color: neon, emissive: neon, emissiveIntensity: 1.2 }));
+  const marqLabel = makeSign(name.toUpperCase().slice(0, 12), 0x0a0a12, 0.78, 0.19);
+  marqLabel.position.set(0, 1.34, 0.41);
+  g.add(marqLabel);
+  // the screen shows the game's emoji + name so cabinets are distinguishable
+  const screenTex = makeScreenTexture(emoji, name, neon);
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.5), new THREE.MeshStandardMaterial({ map: screenTex, emissive: 0xffffff, emissiveMap: screenTex, emissiveIntensity: 0.9 }));
   screen.position.set(0, 1.0, 0.36);
   // side neon trim lines
   [-0.44, 0.44].forEach(sx => {
