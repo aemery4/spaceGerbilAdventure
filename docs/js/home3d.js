@@ -328,7 +328,13 @@ function openManageBuilding(b) {
     homeMoveTarget = b; closeShop();
     showToast('↔️ Moving ' + (info.name || 'building'), 'Click a grass tile to set it down. (Press B to cancel.)');
   });
-  item('🗑️ Remove', `Tear it down — refund ${refund} 🪙`, () => { closeShop(); removeBuilding(b, refund); });
+  item('🗑️ Remove', `Tear it down — refund ${refund} 🪙`, () => {
+    closeShop();
+    showMsg('🗑️ Remove ' + (info.name || 'building') + '?',
+      'This tears it down for good. You\'ll get ' + refund + ' 🪙 back.',
+      () => removeBuilding(b, refund),
+      'Tear it down', 'Keep it');
+  });
   item('❌ Cancel', 'Leave it where it is', () => closeShop());
   document.getElementById('villageShop').style.display = 'block';
 }
