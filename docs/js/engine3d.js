@@ -73,7 +73,8 @@ function launchPlanet3D(n) {
   };
   const showIntro = () => showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
   // Entering Area 51 gets its own cutscene; Planet 2 gets the gerbil fly-away
-  if (n === 1 && typeof playEnterArea51Cutscene === 'function') { gamePaused = true; playEnterArea51Cutscene(showIntro); }
+  if (E.suppressIntro) { /* re-entering (e.g. leaving a building interior) — no intro */ }
+  else if (n === 1 && typeof playEnterArea51Cutscene === 'function') { gamePaused = true; playEnterArea51Cutscene(showIntro); }
   else if (n === 2 && typeof playEnterPlanet2Cutscene === 'function') { gamePaused = true; playEnterPlanet2Cutscene(showIntro); }
   else showIntro();
 }
@@ -96,6 +97,7 @@ function stopEngine() {
   E.scene = null;
   E.resources = []; E.enemies = []; E.particles = []; E.projectiles = [];
   E.exit = null; E.exitActive = false; E.player = null;
+  E.interior = null; E.doorTiles = null; E.interiorProps = null; E.interiorExitMat = null;
 }
 
 // Pad a tile map with M tiles of open floor on every side (plus a new outer
@@ -1075,6 +1077,8 @@ function onPointerDown(ev) {
 
 function doAttack(worldPoint) {
   if (!E.player || gamePaused) return;
+  // Inside a building interior, Space/tap uses the nearest exhibit/cabinet
+  if (E.interior) { if (typeof interiorInteract === 'function') interiorInteract(worldPoint); return; }
   const p = E.player.position;
   const reach = save.items.includes('scanner') ? 2.6 : 1.7;
   const near = (obj) => worldPoint
@@ -1279,6 +1283,7 @@ function animate() {
     updateExit(dt);
     if (typeof updateVillage === 'function') updateVillage(dt);
     if (typeof updateHome === 'function') updateHome(dt);
+    if (typeof updateInterior === 'function') updateInterior(dt);
     if (typeof updateSeahorses === 'function') updateSeahorses(dt);
     if (typeof updateBossShots === 'function') updateBossShots(dt);
     if (typeof updateBossBar === 'function') updateBossBar();

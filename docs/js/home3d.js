@@ -337,13 +337,20 @@ function homeBuildingNear(worldPoint) {
 function useHomeBuilding(b) {
   switch (b.type) {
     case 'shop': openP5Shop(); break;
-    case 'arcade': (typeof openArcade === 'function') ? openArcade() : playHomeArcade(); break;
+    case 'arcade':
+      if (typeof enterInterior === 'function') enterInterior('arcade');
+      else if (typeof openArcade === 'function') openArcade();
+      else playHomeArcade();
+      break;
     case 'hut':
       showToast('🏠 Space Hut', 'Home to a friendly alien visitor. Knock and say hi!'); break;
     case 'farm': showToast('🌾 Star Farm', 'Harvested on arrival. Come back after your next mission!'); break;
     case 'landing': showToast('🛬 Landing Pad', 'More visitors will arrive thanks to the landing pad!'); break;
     case 'fountain': showToast('⛲ Fountain', 'The water sparkles peacefully.'); break;
-    case 'trophy': openTrophyHall(); break;
+    case 'trophy':
+      if (typeof enterInterior === 'function') enterInterior('trophy');
+      else openTrophyHall();
+      break;
     case 'observatory': openObservatory(); break;
   }
 }
