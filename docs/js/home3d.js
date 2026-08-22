@@ -56,7 +56,7 @@ function spawnHomeAliens(scene) {
   for (let i = 0; i < count && pool.length; i++) {
     const tpl = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
     const spot = (i < huts.length) ? openTileNear(huts[i].x, huts[i].z) : randomOpenTile();
-    const mesh = makeAlienMesh(tpl.color);
+    const mesh = makeAlienMesh(tpl.color, tpl.shape || pickAlienShape(tpl.name));
     mesh.position.set(spot.x, 0.05, spot.z);
     scene.add(mesh);
     E.homeAliens.push({
@@ -72,7 +72,7 @@ function addResidentAlien(cx, cz) {
   if (typeof P5_ALIEN_POOL === 'undefined' || !E.homeAliens) return;
   const tpl = P5_ALIEN_POOL[Math.floor(Math.random() * P5_ALIEN_POOL.length)];
   const spot = openTileNear(cx, cz);
-  const mesh = makeAlienMesh(tpl.color);
+  const mesh = makeAlienMesh(tpl.color, tpl.shape || pickAlienShape(tpl.name));
   mesh.position.set(spot.x, 0.05, spot.z); E.scene.add(mesh);
   E.homeAliens.push({
     data: tpl, mesh, x: spot.x, z: spot.z, homeX: spot.x, homeZ: spot.z, resident: true,
@@ -82,25 +82,66 @@ function addResidentAlien(cx, cz) {
   showToast('👽 New Resident!', 'An alien moved into your Space Hut!');
 }
 
-function makeAlienMesh(colorHex) {
+// Pick a body shape deterministically from a name (so it stays consistent)
+const ALIEN_SHAPES = ['blob', 'tall', 'trio', 'bot', 'ghost', 'stalk'];
+function pickAlienShape(name) {
+  let h = 0; for (let i = 0; i < (name || '').length; i++) h = (h + name.charCodeAt(i)) % 997;
+  return ALIEN_SHAPES[h % ALIEN_SHAPES.length];
+}
+
+function makeAlienMesh(colorHex, shape) {
   const g = new THREE.Group();
   const col = new THREE.Color(colorHex);
   const skin = new THREE.MeshStandardMaterial({ color: col, roughness: 0.5, emissive: col.clone().multiplyScalar(0.25), emissiveIntensity: 0.5 });
-  const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 12), skin);
-  body.scale.set(1, 1.25, 1); body.position.y = 0.42;
-  const eyeW = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-  eyeW.position.set(0, 0.58, 0.22);
-  const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 8), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-  pupil.position.set(0, 0.58, 0.36);
-  const antennae = [-1, 1].map(sx => {
-    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.3, 5), skin);
-    a.position.set(sx * 0.13, 0.86, 0); a.rotation.z = sx * 0.32;
-    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1 }));
-    tip.position.set(sx * 0.18, 1.0, 0); g.add(tip); return a;
-  });
+  const white = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const black = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const tipMat = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 1 });
+  const eye = (x, y, z, r) => {
+    const w = new THREE.Mesh(new THREE.SphereGeometry(r, 12, 10), white); w.position.set(x, y, z);
+    const p = new THREE.Mesh(new THREE.SphereGeometry(r * 0.45, 8, 8), black); p.position.set(x, y, z + r * 0.7);
+    g.add(w, p);
+  };
+  const antenna = (x, y, tipY) => {
+    const a = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.28, 5), skin); a.position.set(x, y, 0);
+    const t = new THREE.Mesh(new THREE.SphereGeometry(0.055, 8, 8), tipMat); t.position.set(x, tipY, 0);
+    g.add(a, t);
+  };
+  shape = shape || 'blob';
+  let markerY = 1.3;
+
+  if (shape === 'tall') {                       // slender two-eyed being
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.3, 0.9, 14), skin); body.position.y = 0.55;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.27, 16, 12), skin); head.position.y = 1.05;
+    g.add(body, head); eye(-0.1, 1.08, 0.22, 0.08); eye(0.1, 1.08, 0.22, 0.08);
+    antenna(0, 1.4, 1.56); markerY = 1.75;
+  } else if (shape === 'trio') {                // squat three-eyed blob
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.44, 16, 12), skin); body.scale.set(1.3, 0.85, 1); body.position.y = 0.4;
+    g.add(body); eye(-0.22, 0.5, 0.34, 0.1); eye(0, 0.56, 0.4, 0.11); eye(0.22, 0.5, 0.34, 0.1); markerY = 1.05;
+  } else if (shape === 'bot') {                 // boxy robot with a visor
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.4), skin); body.position.y = 0.5;
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.34, 0.34), skin); head.position.y = 0.98;
+    const visor = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.14, 0.05), new THREE.MeshStandardMaterial({ color: 0x0a1622, emissive: 0x33ccff, emissiveIntensity: 0.8 }));
+    visor.position.set(0, 1.0, 0.19); g.add(body, head, visor); antenna(0, 1.28, 1.42); markerY = 1.6;
+  } else if (shape === 'ghost') {               // floaty rounded spook
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), skin); cap.position.y = 0.7; cap.scale.y = 1.15;
+    g.add(cap);
+    for (let i = 0; i < 5; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.24, 6), skin); const a = i / 5 * Math.PI * 2; c.position.set(Math.cos(a) * 0.24, 0.34, Math.sin(a) * 0.24); g.add(c); }
+    eye(-0.12, 0.74, 0.3, 0.075); eye(0.12, 0.74, 0.3, 0.075); markerY = 1.35;
+  } else if (shape === 'stalk') {               // eyes on wobbly stalks
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 12), skin); body.scale.set(1.1, 0.85, 1); body.position.y = 0.38; g.add(body);
+    [-0.15, 0.15].forEach(sx => {
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.035, 0.34, 6), skin); st.position.set(sx, 0.72, 0.08); st.rotation.z = sx * 0.2; g.add(st);
+      eye(sx * 1.25, 0.94, 0.12, 0.1);
+    });
+    markerY = 1.3;
+  } else {                                      // 'blob' — the classic
+    const body = new THREE.Mesh(new THREE.SphereGeometry(0.32, 14, 12), skin); body.scale.set(1, 1.25, 1); body.position.y = 0.42;
+    g.add(body); eye(0, 0.58, 0.24, 0.16); antenna(-0.13, 0.98, 1.04); antenna(0.13, 0.98, 1.04); markerY = 1.3;
+  }
+
   const marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x88ccff, emissiveIntensity: 1 }));
-  marker.position.y = 1.3;
-  g.add(body, eyeW, pupil, ...antennae, marker);
+  marker.position.y = markerY;
+  g.add(marker);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   g.userData.marker = marker;
   return g;
