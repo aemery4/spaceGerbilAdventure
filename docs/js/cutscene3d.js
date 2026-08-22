@@ -101,7 +101,7 @@ function drawArea51(ctx, W, H, f, stars) {
 // Gerbil, then lumbers away — a faithful port of the 2D Planet 2 cutscene.
 let _fly = null;
 function drawFlyaway(ctx, W, H, f) {
-  if (f <= 1 || !_fly) _fly = { phase: 'walkin', gx: -60, gy: H * 0.6, gSize: 10, facing: 1, t: 0 };
+  if (f <= 1 || !_fly) _fly = { phase: 'walkin', gx: W / 2 - 340, gy: H * 0.6, gSize: 10, facing: 1, t: 0 };
   const c = _fly; c.t++;
   const cx = W / 2, potionX = cx, potionY = H * 0.6;
 
