@@ -462,6 +462,61 @@ function openManageBuilding(b) {
   document.getElementById('villageShop').style.display = 'block';
 }
 
+// ── Quest Board — aliens post fetch tasks that pay Space Coins ───
+function generateHomeQuest() {
+  const gives = (typeof P5_QUEST_GIVES !== 'undefined') ? P5_QUEST_GIVES : [{ res: 'rock', label: '🪨', base: 5 }];
+  const g = gives[Math.floor(Math.random() * gives.length)];
+  const amt = 2 + Math.floor(Math.random() * 7); // 2..8
+  let coins = Math.round((amt * g.base) * (0.9 + Math.random() * 0.5) / 5) * 5;
+  coins = Math.max(15, coins);
+  const pool = (typeof P5_ALIEN_POOL !== 'undefined') ? P5_ALIEN_POOL : [{ emoji: '👽', name: 'Visitor' }];
+  const giver = pool[Math.floor(Math.random() * pool.length)];
+  return { give: g.res, label: g.label, amt, rewardAmt: coins, giver: giver.emoji + ' ' + giver.name };
+}
+function ensureHomeQuests() {
+  if (!save.homePlanet.quests) save.homePlanet.quests = [];
+  while (save.homePlanet.quests.length < 3) save.homePlanet.quests.push(generateHomeQuest());
+}
+function openQuestBoard() {
+  gamePaused = true;
+  ensureHomeQuests();
+  document.getElementById('shopMerchantName').textContent = '📋 Quest Board';
+  document.getElementById('shopMerchantDialog').textContent = '"The visitors need supplies — help them out for Space Coins!"';
+  renderQuestBoard();
+  document.getElementById('villageShop').style.display = 'block';
+}
+function renderQuestBoard() {
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', fuel: '⚡' };
+  (save.homePlanet.quests || []).forEach((q, i) => {
+    const have = save.resources[q.give] || 0, can = have >= q.amt;
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (can ? '' : ' shop-disabled');
+    el.innerHTML = `<div class="shop-item-name">${q.giver} wants…</div>
+      <div class="shop-item-desc">Bring ${q.amt} ${icons[q.give] || ''} → ${q.rewardAmt} 🪙<br>
+        <span style="color:${can ? '#5d9' : '#f77'}">You have ${have}/${q.amt}</span></div>
+      <div class="shop-cost">${can ? '<span class="has">✓ Turn in</span>' : '<span class="lacks">Gather more</span>'}</div>`;
+    if (can) el.onclick = () => completeHomeQuest(i);
+    grid.appendChild(el);
+  });
+  const close = document.createElement('div');
+  close.className = 'shop-item';
+  close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Come back with supplies</div>';
+  close.onclick = () => closeShop();
+  grid.appendChild(close);
+}
+function completeHomeQuest(i) {
+  const q = save.homePlanet.quests[i];
+  if (!q || (save.resources[q.give] || 0) < q.amt) return;
+  save.resources[q.give] -= q.amt;
+  save.spaceCoins = (save.spaceCoins || 0) + q.rewardAmt;
+  if (typeof SFX !== 'undefined' && SFX.coin) SFX.coin();
+  save.homePlanet.quests[i] = generateHomeQuest(); // a fresh task takes its place
+  persist(); updateHUD(); renderQuestBoard();
+  showToast('✅ Quest Complete!', 'You earned ' + q.rewardAmt + ' 🪙 from ' + q.giver + '!');
+}
+
 // Rebuild the home base from the (updated) save, keeping the player put
 function refreshHome() {
   const p = E.player ? { x: E.player.position.x, z: E.player.position.z } : null;
@@ -580,6 +635,7 @@ function useHomeBuilding(b) {
       else openTrophyHall();
       break;
     case 'observatory': openObservatory(); break;
+    case 'quest': openQuestBoard(); break;
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);
       if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
@@ -803,6 +859,18 @@ function makeBuildingMesh(type, w, h) {
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2277bb, emissiveIntensity: 0.7 })); lens.position.set(0, 1.5, w * 0.42); lens.rotation.x = -0.9;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, 0.04, 8, 24), new THREE.MeshStandardMaterial({ color: 0x66c2ff, emissive: 0x2277bb, emissiveIntensity: 0.9 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.9;
     g.add(drum, dome, scope, lens, ring); g.userData.spin = dome;
+  } else if (type === 'quest') {
+    const post = (x) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 7), M(0x6b4a2a)); p.position.set(x, 0.55, 0); return p; };
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.68, 0.06), M(0x5a3a1a, 0.7)); frame.position.set(0, 0.95, -0.02);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.58, 0.06), M(0x9a6a38, 0.8)); board.position.set(0, 0.95, 0.02);
+    g.add(post(-0.36), post(0.36), frame, board);
+    const noteCols = [0xfff2a0, 0xbfe0ff, 0xffc0d0];
+    for (let i = 0; i < 3; i++) {
+      const n = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.26, 0.02), M(noteCols[i], 0.6));
+      n.position.set(-0.28 + i * 0.28, 0.96, 0.06); n.rotation.z = (i - 1) * 0.12; g.add(n);
+    }
+    const pin = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), new THREE.MeshStandardMaterial({ color: 0xd83b3b, emissive: 0x882020, emissiveIntensity: 0.5 }));
+    pin.position.set(0, 1.28, 0.06); g.add(pin);
   } else if (type === 'tree') {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 8), M(0x6b4a2a)); trunk.position.y = 0.3;
     const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), M(0x2f8a3a)); f1.position.y = 0.95;

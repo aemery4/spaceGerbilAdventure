@@ -14,6 +14,7 @@ const P5_BUILDINGS = [
   { type: 'fountain',name: 'Fountain',     emoji: '⛲', desc: 'A decorative fountain with sparkles.', cost: 100, w: 1, h: 1 },
   { type: 'trophy',  name: 'Trophy Hall',  emoji: '🏛️', desc: 'A museum of every boss you have defeated.', cost: 250, w: 2, h: 2 },
   { type: 'observatory', name: 'Observatory', emoji: '🔭', desc: 'Launch from home to any unlocked planet.', cost: 350, w: 2, h: 2 },
+  { type: 'quest',   name: 'Quest Board',  emoji: '📋', desc: 'Alien visitors post tasks that pay Space Coins.', cost: 120, w: 1, h: 1 },
   // ── Decorations (cosmetic, 1×1) ──
   { type: 'tree',    name: 'Shade Tree',   emoji: '🌳', desc: 'A big leafy tree.',            cost: 20, w: 1, h: 1, deco: true },
   { type: 'pine',    name: 'Pine Tree',    emoji: '🌲', desc: 'A tall evergreen.',            cost: 20, w: 1, h: 1, deco: true },
@@ -56,6 +57,15 @@ const P5_ALIEN_POOL = [
   { name: 'Suno',   emoji: '☀️', color: '#ffb020', dialog: 'I carry a little sunshine to every cold corner of space.' },
   { name: 'Bit',    emoji: '🎮', color: '#4affea', dialog: 'Beep! I am 8-bit and 100% fun. Challenge me to a game?', minigame: true },
   { name: 'Puff',   emoji: '☁️', color: '#dfeaff', dialog: 'I am a cloud-being from Nimbus-9. So fluffy, so friendly.' },
+];
+
+// Resources the Quest Board can ask you to gather, with a coin-value weight
+const P5_QUEST_GIVES = [
+  { res: 'rock',    label: '🪨', base: 5 },
+  { res: 'plant',   label: '🌿', base: 5 },
+  { res: 'crystal', label: '💎', base: 9 },
+  { res: 'banana',  label: '🍌', base: 6 },
+  { res: 'fuel',    label: '⚡', base: 7 }
 ];
 
 // Home planet shop items (purchased with Space Coins)
