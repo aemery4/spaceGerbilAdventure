@@ -1170,7 +1170,12 @@ function hitEnemy(i) {
     if (typeof SFX !== 'undefined') { en.boss ? SFX.win() : SFX.enemyDie(); }
     if (en.boss) {
       save.spaceCoins = (save.spaceCoins || 0) + 100;
-      showToast('🏆 Boss Defeated!', (BOSS_NAME[en.species] || 'The boss') + ' is vanquished! +100 🪙');
+      // Tally boss defeats per planet (Trophy Hall: 1=bronze, 2=silver, 3+=gold)
+      if (!save.bossWins) save.bossWins = {};
+      save.bossWins[E.planetNo] = (save.bossWins[E.planetNo] || 0) + 1;
+      const wins = save.bossWins[E.planetNo];
+      const rank = wins >= 3 ? ' 🥇 Gold trophy!' : wins === 2 ? ' 🥈 Silver trophy!' : ' 🥉 Bronze trophy!';
+      showToast('🏆 Boss Defeated!', (BOSS_NAME[en.species] || 'The boss') + ' is vanquished! +100 🪙\n' + 'Defeated ' + wins + '× —' + rank);
       if (typeof hideBossBar === 'function') hideBossBar();
     }
     startEnemyDeath(en);
@@ -1225,6 +1230,9 @@ function planetCleared() {
   E.running = false;
   const n = E.planetNo;
   if (!save.planetsCleared.includes(n)) save.planetsCleared.push(n);
+  // Area 51 (planet 1) has no boss — clearing it still earns a bronze trophy
+  if (!save.bossWins) save.bossWins = {};
+  if (n === 1) save.bossWins[1] = Math.max(save.bossWins[1] || 0, 1);
   save.spaceCoins = (save.spaceCoins || 0) + 50;
   if (typeof SFX !== 'undefined') SFX.win();
   persist();

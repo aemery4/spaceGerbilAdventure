@@ -182,13 +182,24 @@ function populateTrophyInterior(scene, COLS, ROWS, def) {
   const n = list.length || 4;
   const spacing = (COLS - 3) / n;
   const warm = new THREE.MeshStandardMaterial({ color: 0xffe9b8 });
+  const TIER_MEDAL = { 1: '🥉', 2: '🥈', 3: '🥇' }, TIER_NAME = { 1: 'Bronze', 2: 'Silver', 3: 'Gold' };
+  const NEXT = { 1: 'Beat it again to reach Silver.', 2: 'Beat it again to reach Gold.', 3: 'Maxed out — Gold rank!' };
   list.forEach((t, i) => {
-    const has = cleared.includes(t.planet);
+    const wins = (save.bossWins && save.bossWins[t.planet]) || (cleared.includes(t.planet) ? 1 : 0);
+    const tier = Math.min(3, wins);
+    const has = tier >= 1;
     const x = 1.5 + spacing * (i + 0.5);
     const z = 2.6;
-    const st = makeInteriorExhibit(t, has);
+    const st = makeInteriorExhibit(t, has, tier);
     st.position.set(x, 0, z);
     scene.add(st);
+    // floating medal above earned trophies
+    if (has) {
+      const medalHex = tier === 3 ? 0xffd54a : tier === 2 ? 0xd8d8e8 : 0xcd7f32;
+      const medal = makeSign(TIER_MEDAL[tier], medalHex, 0.7, 0.7);
+      medal.position.set(x, 2.35, z + 0.2); scene.add(medal);
+      E.interiorProps.push({ mesh: medal, x, z, _decor: true });
+    }
     // a warm display spotlight above each exhibit
     const lamp = new THREE.PointLight(has ? 0xfff0d0 : 0x5a5240, has ? 1.4 : 0.5, 6, 2);
     lamp.position.set(x, 3.0, z + 0.3); scene.add(lamp);
@@ -200,8 +211,10 @@ function populateTrophyInterior(scene, COLS, ROWS, def) {
     pool.rotation.x = -Math.PI / 2; pool.position.set(x, 0.03, z); scene.add(pool);
     E.interiorProps.push({
       mesh: st, x, z, spin: st.userData.spin,
-      action: () => showToast(has ? t.emoji + ' ' + t.name : '🔒 Sealed Case',
-        has ? t.desc : "Defeat this planet's boss to earn this trophy.")
+      action: () => showToast(
+        has ? TIER_MEDAL[tier] + ' ' + t.name + ' — ' + TIER_NAME[tier] : '🔒 Sealed Case',
+        has ? t.desc + '\nBoss defeated ' + wins + ' time' + (wins === 1 ? '' : 's') + '. ' + NEXT[tier]
+            : "Defeat this planet's boss to earn this trophy.")
     });
   });
   // grand marble columns along the two side walls
@@ -261,17 +274,24 @@ function populateTrophyInterior(scene, COLS, ROWS, def) {
   });
 }
 
+// Metal finish for a trophy tier: 1 bronze, 2 silver, 3 gold
+function tierMetal(tier) {
+  if (tier >= 3) return new THREE.MeshStandardMaterial({ color: 0xffd54a, metalness: 0.85, roughness: 0.22, emissive: 0x3a2c00, emissiveIntensity: 0.25 });
+  if (tier === 2) return new THREE.MeshStandardMaterial({ color: 0xd6d9e2, metalness: 0.8, roughness: 0.28, emissive: 0x22242a, emissiveIntensity: 0.2 });
+  return new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.75, roughness: 0.35, emissive: 0x2a1400, emissiveIntensity: 0.2 });
+}
+
 // One museum exhibit: pedestal + (boss statue | shrouded case) + glass
-function makeInteriorExhibit(trophy, earned) {
+function makeInteriorExhibit(trophy, earned, tier) {
   const g = new THREE.Group();
   const marble = new THREE.MeshStandardMaterial({ color: 0xe6e0cf, roughness: 0.85 });
   const dark = new THREE.MeshStandardMaterial({ color: 0x2a2620, roughness: 0.6 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffd54a, roughness: 0.4, metalness: 0.6, emissive: 0x4a3600, emissiveIntensity: 0.35 });
-  // two-tier pedestal with a dark base and gold trim ring
+  const trimMetal = earned ? tierMetal(tier) : new THREE.MeshStandardMaterial({ color: 0xffd54a, roughness: 0.4, metalness: 0.6, emissive: 0x4a3600, emissiveIntensity: 0.35 });
+  // two-tier pedestal with a dark base and tier-coloured trim ring
   const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.22, 16), dark); base.position.y = 0.11; base.receiveShadow = true;
   const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.5, 0.6, 16), marble); ped.position.y = 0.5; ped.castShadow = true;
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 8, 20), gold); ring.rotation.x = Math.PI / 2; ring.position.y = 0.8;
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.16, 0.05), gold); plate.position.set(0, 0.52, 0.5);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 10, 22), trimMetal); ring.rotation.x = Math.PI / 2; ring.position.y = 0.8;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.16, 0.05), trimMetal); plate.position.set(0, 0.52, 0.5);
   g.add(base, ped, ring, plate);
   if (earned) {
     let fig = null;
@@ -282,8 +302,8 @@ function makeInteriorExhibit(trophy, earned) {
       else fig = makeAlienMesh(0x999999);
     } catch (e) { fig = null; }
     if (fig) {
-      const stone = new THREE.MeshStandardMaterial({ color: 0xdcd6c6, roughness: 0.9, metalness: 0.05 });
-      fig.traverse(o => { if (o.isMesh) { o.material = stone; o.castShadow = true; } });
+      const metal = tierMetal(tier);
+      fig.traverse(o => { if (o.isMesh) { o.material = metal; o.castShadow = true; } });
       fig.scale.setScalar(0.62); fig.position.y = 0.82; g.add(fig);
       g.userData.spin = fig;
     }
