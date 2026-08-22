@@ -97,35 +97,100 @@ function drawArea51(ctx, W, H, f, stars) {
   ctx.fillText('RESTRICTED', W * 0.5, gy - 19);
 }
 
-// The stowaway gerbil drinks a strange potion and flies away (Planet 2)
+// The stowaway gerbil drinks a strange potion and GROWS into the Nuclear
+// Gerbil, then lumbers away — a faithful port of the 2D Planet 2 cutscene.
+let _fly = null;
 function drawFlyaway(ctx, W, H, f) {
+  if (f <= 1 || !_fly) _fly = { phase: 'walkin', gx: -60, gy: H * 0.6, gSize: 10, facing: 1, t: 0 };
+  const c = _fly; c.t++;
+  const cx = W / 2, potionX = cx, potionY = H * 0.6;
+
+  // jungle-night backdrop
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#04140a'); g.addColorStop(0.7, '#06210e'); g.addColorStop(1, '#0a3016');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // stars
   for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = (i * 53) % (H * 0.4); ctx.globalAlpha = 0.25 + 0.3 * Math.abs(Math.sin(f * 0.04 + i)); ctx.fillStyle = '#bfffd0'; ctx.fillRect(x, y, 2, 2); }
   ctx.globalAlpha = 1;
-  const gy = H * 0.7;
-  // jungle tree silhouettes
+  const groundY = H * 0.74;
   ctx.fillStyle = '#04160a';
-  for (let i = 0; i < 6; i++) { const tx = W * (0.05 + i * 0.18); ctx.beginPath(); ctx.moveTo(tx - 42, gy); ctx.lineTo(tx, gy - 170); ctx.lineTo(tx + 42, gy); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = '#08260f'; ctx.fillRect(0, gy, W, H - gy);
+  for (let i = 0; i < 6; i++) { const tx = W * (0.05 + i * 0.18); ctx.beginPath(); ctx.moveTo(tx - 42, groundY); ctx.lineTo(tx, groundY - 170); ctx.lineTo(tx + 42, groundY); ctx.closePath(); ctx.fill(); }
+  ctx.fillStyle = '#08260f'; ctx.fillRect(0, groundY, W, H - groundY);
 
-  const cx = W / 2;
-  let gx = cx, gyPos = gy - 34, gscale = 1, potionVisible = true, potionScale = 1, alpha = 1, caption = '';
-  if (f < 120) { gx = -40 + (f / 120) * (cx - 40); caption = 'Meanwhile… the stowaway gerbil finds a strange potion!'; }
-  else if (f < 250) { gx = cx - 40; const p = (f - 120) / 130; potionScale = 1 - p * 0.9; potionVisible = p < 1; gyPos = gy - 34 + Math.sin(f * 0.4) * 3; caption = f < 185 ? 'It takes a curious sip…' : 'Glug… glug… glug…'; }
-  else if (f < 360) { gx = cx - 40; potionVisible = false; const p = (f - 250) / 110; gscale = 1 + p * 0.35; gyPos = (gy - 34) - p * 55; caption = 'Something magical happens — it starts to FLOAT!'; }
-  else { gx = cx - 40; potionVisible = false; const p = (f - 360) / 130; gscale = 1.35; gyPos = (gy - 89) - p * (H * 0.95); alpha = Math.max(0, 1 - p * 0.5); caption = 'It sprouts wings and flies away! Farewell, little friend! ✨'; }
+  // letterbox bars (2D look)
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 0, W, 80);
+  ctx.fillStyle = 'rgba(0,0,0,0.75)';
+  ctx.fillRect(0, H - 80, W, 80);
 
-  if (potionVisible) { ctx.save(); ctx.translate(cx + 6, gy - 50); ctx.scale(potionScale, potionScale); ctx.font = '34px serif'; ctx.textAlign = 'center'; ctx.fillText('🧪', 0, 0); ctx.restore(); }
-  if (f >= 250) { for (let i = 0; i < 12; i++) { const a = f * 0.12 + i; ctx.globalAlpha = 0.4 + 0.5 * Math.abs(Math.sin(a)); ctx.fillStyle = '#bfffd0'; ctx.beginPath(); ctx.arc(gx + 20 + Math.cos(a) * 34, gyPos + Math.sin(a) * 34, 2.6, 0, 6.3); ctx.fill(); } ctx.globalAlpha = 1; }
-  ctx.save(); ctx.globalAlpha = alpha; ctx.translate(gx + 20, gyPos); ctx.scale(gscale, gscale); ctx.font = '46px serif'; ctx.textAlign = 'center';
-  if (f >= 360) ctx.fillText('🐦', 0, 4); else ctx.fillText('🐹', 0, 4);
-  ctx.restore();
+  let caption = '', capColor = '#ddd', capBold = false;
+  if (c.phase === 'walkin') {
+    c.gx += 2.4; c.facing = 1; c.gy = H * 0.6;
+    caption = 'A tiny gerbil emerges from the jungle...';
+    if (c.gx >= potionX - 30) { c.phase = 'drink'; c.t = 0; }
+  }
+  else if (c.phase === 'drink') {
+    if (!c._drink) { c._drink = true; if (typeof SFX !== 'undefined') SFX.powerup(); }
+    c.gy = H * 0.6 + Math.sin(c.t * 0.4) * 3;
+    const p = Math.min(1, c.t / 80);
+    caption = c.t < 40 ? 'It found a mysterious potion!' : 'Glug glug glug...';
+    if (p < 1) { ctx.save(); ctx.translate(potionX + 12, potionY - 34); ctx.scale(1 - p * 0.8, 1 - p * 0.8); ctx.font = '30px serif'; ctx.textAlign = 'center'; ctx.fillText('🧪', 0, 0); ctx.restore(); }
+    if (c.t >= 90) { c.phase = 'grow'; c.t = 0; }
+  }
+  else if (c.phase === 'grow') {
+    const target = Math.min(52, 10 + c.t * 0.7);
+    c.gSize += (target - c.gSize) * 0.15;
+    if (c.t < 40) c.gx += (Math.random() - 0.5) * 4 * 0.3;
+    if (c.t >= 26 && c.t <= 34) { ctx.fillStyle = 'rgba(180,0,255,0.30)'; ctx.fillRect(0, 0, W, H); }
+    caption = c.t < 20 ? '...' : c.t < 45 ? 'Something is happening!!' : "IT'S GROWING!!!";
+    capColor = c.t > 44 ? '#f8f' : '#ddd'; capBold = c.t > 44;
+    if (c.t >= 80) { c.phase = 'walkout'; c.t = 0; c.facing = -1; }
+  }
+  else if (c.phase === 'walkout') {
+    c.gx -= 3; c.facing = -1;
+    caption = 'The Nuclear Gerbil lumbers away into the darkness...';
+    capColor = '#f88'; capBold = true;
+  }
 
-  ctx.globalAlpha = 1; ctx.fillStyle = '#dffbe6'; ctx.font = '15px Courier New'; ctx.textAlign = 'center';
+  drawCutsceneGerbil(ctx, c);
+
+  ctx.fillStyle = capColor; ctx.font = (capBold ? 'bold ' : '') + '15px Courier New'; ctx.textAlign = 'center';
   ctx.fillText(caption, W / 2, H - 44);
+}
+
+// Canvas gerbil, ported from the 2D drawP2Cutscene
+function drawCutsceneGerbil(ctx, c) {
+  const s = c.gSize, glow = (c.phase === 'grow' && c.t > 30);
+  ctx.save();
+  ctx.translate(c.gx, c.gy);
+  if (c.facing === -1) ctx.scale(-1, 1);
+  // body
+  ctx.fillStyle = glow ? '#d4a' : '#c8954a';
+  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.75, 0, 0, Math.PI * 2); ctx.fill();
+  // head
+  ctx.fillStyle = glow ? '#c9a' : '#c8954a';
+  ctx.beginPath(); ctx.arc(s * 0.7, -s * 0.2, s * 0.55, 0, Math.PI * 2); ctx.fill();
+  // ears
+  ctx.fillStyle = '#e8b06a';
+  ctx.beginPath(); ctx.ellipse(s * 0.55, -s * 0.7, s * 0.18, s * 0.28, -0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(s * 0.9, -s * 0.65, s * 0.15, s * 0.25, 0.3, 0, Math.PI * 2); ctx.fill();
+  // eye (red + glowing once transformed)
+  const evil = (c.phase === 'grow' && c.gSize > 30) || c.phase === 'walkout';
+  if (evil) { ctx.shadowColor = '#f00'; ctx.shadowBlur = 8; }
+  ctx.fillStyle = evil ? '#f00' : '#222';
+  ctx.beginPath(); ctx.arc(s * 0.58, -s * 0.28, s * 0.12, 0, Math.PI * 2); ctx.fill();
+  ctx.shadowBlur = 0;
+  // nose
+  ctx.fillStyle = '#d06060';
+  ctx.beginPath(); ctx.arc(s * 1.18, -s * 0.18, s * 0.1, 0, Math.PI * 2); ctx.fill();
+  // tail
+  ctx.strokeStyle = '#a07040'; ctx.lineWidth = Math.max(2, s * 0.12);
+  ctx.beginPath(); ctx.moveTo(-s * 0.8, 0); ctx.quadraticCurveTo(-s * 1.3, -s * 0.6, -s * 1.0, -s * 0.9); ctx.stroke();
+  // legs
+  const swing = Math.sin(c.t * 0.25) * 0.4;
+  ctx.lineWidth = Math.max(1.5, s * 0.1);
+  ctx.beginPath(); ctx.moveTo(-s * 0.2, s * 0.5); ctx.lineTo(-s * 0.2 + Math.sin(swing) * s * 0.4, s * 0.5 + s * 0.5); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(s * 0.2, s * 0.5); ctx.lineTo(s * 0.2 + Math.sin(-swing) * s * 0.4, s * 0.5 + s * 0.5); ctx.stroke();
+  ctx.restore();
 }
 
 // ── The cutscenes ───────────────────────────────────────────────
@@ -151,7 +216,7 @@ function playTransitionCutscene(fromN, toN, cb) {
 }
 
 function playEnterPlanet2Cutscene(cb) {
-  showCutscene({ title: '', lines: [], icon: '', scene: 'flyaway', dur: 8000 }, cb);
+  showCutscene({ title: '', lines: [], icon: '', scene: 'flyaway', dur: 10500 }, cb);
 }
 
 function playEnterArea51Cutscene(cb) {
