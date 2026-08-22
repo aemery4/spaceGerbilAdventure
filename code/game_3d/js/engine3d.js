@@ -132,11 +132,13 @@ function buildWorld(n, cfg) {
   scene.fog = new THREE.Fog(cfg.fog[0], cfg.fog[1], cfg.fog[2]);
   E.scene = scene;
 
-  // Lighting
-  scene.add(new THREE.AmbientLight(cfg.ambient, 1.1));
+  // Lighting (stored on E so the home-base day/night cycle can drive them)
+  const amb = new THREE.AmbientLight(cfg.ambient, 1.1);
+  scene.add(amb); E.ambientLight = amb;
   const sun = new THREE.DirectionalLight(cfg.sun, 1.15);
   sun.position.set(cfg.sunPos[0], cfg.sunPos[1], cfg.sunPos[2]);
   sun.castShadow = true;
+  E.sunLight = sun;
   sun.shadow.mapSize.set(1024, 1024);
   const S = Math.max(E.cols, E.rows);
   Object.assign(sun.shadow.camera, { left: -S, right: S, top: S, bottom: -S, near: 1, far: 80 });

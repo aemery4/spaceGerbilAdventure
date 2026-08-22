@@ -23,6 +23,7 @@ function buildHomeStructures(scene) {
   });
   applyHomeFarmsOnVisit();
   spawnHomeAliens(scene);
+  addHomeSky(scene);
 }
 
 // ── Alien visitors ──────────────────────────────────────────────
@@ -80,6 +81,74 @@ function addResidentAlien(cx, cz) {
     wander: Math.random() * 3, bob: Math.random() * 6, marker: mesh.userData.marker
   });
   showToast('👽 New Resident!', 'An alien moved into your Space Hut!');
+}
+
+// ── Home base day / night cycle ─────────────────────────────────
+const HOME_DAY_LEN = 120; // seconds for a full day→night→day loop
+// keyframes: p (0..1), sky/fog colour, [ambient colour, intensity], [sun colour, intensity]
+const HOME_SKY = [
+  { p: 0.00, sky: 0x0b1030, amb: [0x35406a, 0.5], sun: [0x2a3a66, 0.15] }, // deep night
+  { p: 0.14, sky: 0x2b3b6e, amb: [0x6a5a72, 0.7], sun: [0xffb066, 0.55] }, // dawn
+  { p: 0.28, sky: 0x8fc7ff, amb: [0xafc4e6, 1.0], sun: [0xfff2c8, 1.2] },  // morning
+  { p: 0.50, sky: 0x9fd0ff, amb: [0xbcd2ee, 1.1], sun: [0xfff6e0, 1.3] },  // midday
+  { p: 0.70, sky: 0x6f88c8, amb: [0x9a8a92, 0.9], sun: [0xffd090, 1.0] },  // afternoon
+  { p: 0.82, sky: 0xd9713a, amb: [0x8a6a72, 0.72], sun: [0xff8a4a, 0.7] }, // sunset
+  { p: 0.92, sky: 0x241a44, amb: [0x4a4a72, 0.55], sun: [0x6a5a80, 0.32] },// dusk
+  { p: 1.00, sky: 0x0b1030, amb: [0x35406a, 0.5], sun: [0x2a3a66, 0.15] }  // back to night
+];
+function homeSkySample(p) {
+  const K = HOME_SKY;
+  for (let i = 0; i < K.length - 1; i++) {
+    if (p >= K[i].p && p <= K[i + 1].p) {
+      const f = (p - K[i].p) / (K[i + 1].p - K[i].p || 1);
+      const lerpC = (a, b) => new THREE.Color(a).lerp(new THREE.Color(b), f);
+      return {
+        sky: lerpC(K[i].sky, K[i + 1].sky),
+        ambC: lerpC(K[i].amb[0], K[i + 1].amb[0]),
+        ambI: K[i].amb[1] + (K[i + 1].amb[1] - K[i].amb[1]) * f,
+        sunC: lerpC(K[i].sun[0], K[i + 1].sun[0]),
+        sunI: K[i].sun[1] + (K[i + 1].sun[1] - K[i].sun[1]) * f
+      };
+    }
+  }
+  const L = HOME_SKY[HOME_SKY.length - 1];
+  return { sky: new THREE.Color(L.sky), ambC: new THREE.Color(L.amb[0]), ambI: L.amb[1], sunC: new THREE.Color(L.sun[0]), sunI: L.sun[1] };
+}
+// Starfield + sun/moon disc, rebuilt whenever the home base loads
+function addHomeSky(scene) {
+  const n = 220, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    const r = 45 + Math.random() * 35, a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI * 0.5;
+    pos[i * 3] = E.cols / 2 + Math.cos(a) * Math.sin(e) * r;
+    pos[i * 3 + 1] = Math.cos(e) * r + 12;
+    pos[i * 3 + 2] = E.rows / 2 + Math.sin(a) * Math.sin(e) * r;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const stars = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.7, sizeAttenuation: true, transparent: true, opacity: 0, depthWrite: false, fog: false }));
+  scene.add(stars); E.homeStars = stars;
+  const disc = new THREE.Mesh(new THREE.SphereGeometry(2.4, 18, 14), new THREE.MeshBasicMaterial({ color: 0xfff2b0, fog: false }));
+  scene.add(disc); E.homeSun = disc;
+}
+function updateHomeDayNight(dt) {
+  if (!E.scene) return;
+  const p = (E.time % HOME_DAY_LEN) / HOME_DAY_LEN;
+  const s = homeSkySample(p);
+  if (E.scene.background && E.scene.background.copy) E.scene.background.copy(s.sky);
+  if (E.scene.fog) E.scene.fog.color.copy(s.sky);
+  if (E.ambientLight) { E.ambientLight.color.copy(s.ambC); E.ambientLight.intensity = s.ambI; }
+  if (E.sunLight) {
+    E.sunLight.color.copy(s.sunC); E.sunLight.intensity = s.sunI;
+    const ang = p * Math.PI * 2 - Math.PI / 2; // rise → overhead → set
+    E.sunLight.position.set(E.cols / 2 + Math.cos(ang) * 16, Math.max(3, Math.sin(ang) * 18 + 5), E.rows / 2 + 8);
+  }
+  const night = Math.max(0, Math.min(1, (0.55 - s.sunI) / 0.45)); // 0 by day, 1 deep night
+  if (E.homeStars) { E.homeStars.material.opacity = night * 0.9; E.homeStars.visible = night > 0.03; E.homeStars.rotation.y += dt * 0.008; }
+  if (E.homeSun) {
+    const ang = p * Math.PI * 2 - Math.PI / 2;
+    E.homeSun.position.set(E.cols / 2 + Math.cos(ang) * 26, Math.sin(ang) * 22 + 3, E.rows / 2 - 22);
+    E.homeSun.visible = E.homeSun.position.y > -1;
+    E.homeSun.material.color.set(s.sunI > 0.6 ? 0xfff2b0 : 0xd6e4ff); // sun by day, pale moon by night
+  }
 }
 
 function makeAlienMesh(colorHex) {
@@ -641,6 +710,7 @@ function executeP5ShopEffect(eff) {
 // ── Passive per-frame effects ───────────────────────────────────
 function updateHome(dt) {
   if (!E.cfg || !E.cfg.home) return;
+  updateHomeDayNight(dt);
   if ((save.homePlanet.buildings || []).some(b => b.type === 'hut') && save.hp < save.maxHp) {
     save.hp = Math.min(save.maxHp, save.hp + dt * 2.5);
     updateHUD();
