@@ -12,7 +12,7 @@ function bossBlocked(x, z) {
 }
 
 // Per-boss AI, replaces normal movement for boss enemies
-function updateBoss(en, dt, d, p) {
+function updateBoss(en, dt, d, p, playerSafe) {
   const m = en.mesh;
   en.atkTimer = (en.atkTimer == null ? 2 : en.atkTimer) - dt;
   if (en.mode !== 'jump') en.skipYBob = false;
@@ -55,7 +55,18 @@ function updateBoss(en, dt, d, p) {
     if (en.tele <= 0) { m.scale.setScalar(1); m.userData.body.material.emissiveIntensity = en.baseEmissive; startBossAttack(en, p); }
     return;
   }
-  // idle: drift slowly toward the player, then pick an attack
+  // idle: if the player is safe, lose interest and drift away; else stalk + attack
+  if (playerSafe) {
+    en.dir.set(m.position.x - p.x, 0, m.position.z - p.z);
+    if (en.dir.length() < 0.01) en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5);
+    en.dir.normalize();
+    const s2 = en.speed * 0.4;
+    const ax = m.position.x + en.dir.x * s2 * dt, az = m.position.z + en.dir.z * s2 * dt;
+    if (!bossBlocked(ax, m.position.z)) m.position.x = ax;
+    if (!bossBlocked(m.position.x, az)) m.position.z = az;
+    en.atkTimer = Math.max(en.atkTimer, 0.8); // don't wind up an attack
+    return;
+  }
   en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
   const spd = en.speed * 0.5;
   const nx = m.position.x + en.dir.x * spd * dt, nz = m.position.z + en.dir.z * spd * dt;
