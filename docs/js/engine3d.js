@@ -1343,8 +1343,16 @@ function updateEnemies(dt) {
     if (en.boss && typeof updateBoss === 'function') {
       updateBoss(en, dt, d, p, playerSafe);
     } else {
-      if (playerSafe && d < 9) { // flee every frame — the player is protected, leave the border
-        en.dir.set(m.position.x - p.x, 0, m.position.z - p.z).normalize();
+      // Village (tile 7) is a safe zone — enemies can't step onto it.
+      const blocked = (x, z) => isSolid(x, z) || (E.cfg.village && tileAt(x, z) === 7);
+      if (playerSafe && d < 9) { // flee — steer around obstacles so nobody wedges at the border
+        let ax = m.position.x - p.x, az = m.position.z - p.z; const L = Math.hypot(ax, az) || 1; ax /= L; az /= L;
+        if (blocked(m.position.x + ax * 0.7, m.position.z + az * 0.7)) {
+          const rx = -az, rz = ax; // try sliding perpendicular to the obstacle
+          if (!blocked(m.position.x + rx * 0.7, m.position.z + rz * 0.7)) { ax = rx; az = rz; }
+          else if (!blocked(m.position.x - rx * 0.7, m.position.z - rz * 0.7)) { ax = -rx; az = -rz; }
+        }
+        en.dir.set(ax, 0, az);
       } else if (hostile && d < 6) { // chase
         en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
       } else if (en.wander <= 0) {
@@ -1353,8 +1361,6 @@ function updateEnemies(dt) {
       }
       const nx = m.position.x + en.dir.x * en.speed * dt;
       const nz = m.position.z + en.dir.z * en.speed * dt;
-      // Village (tile 7) is a safe zone — enemies can't step onto it.
-      const blocked = (x, z) => isSolid(x, z) || (E.cfg.village && tileAt(x, z) === 7);
       if (!blocked(nx, m.position.z)) m.position.x = nx; else en.dir.x *= -1;
       if (!blocked(m.position.x, nz)) m.position.z = nz; else en.dir.z *= -1;
     }
