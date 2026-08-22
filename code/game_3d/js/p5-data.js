@@ -12,6 +12,16 @@ const P5_BUILDINGS = [
   { type: 'arcade',  name: 'Arcade',       emoji: '🕹️', desc: 'Play minigames to earn Space Coins!', cost: 250, w: 2, h: 1 },
   { type: 'landing', name: 'Landing Pad',  emoji: '🛬', desc: 'Attracts more alien visitors.', cost: 300, w: 2, h: 2 },
   { type: 'fountain',name: 'Fountain',     emoji: '⛲', desc: 'A decorative fountain with sparkles.', cost: 100, w: 1, h: 1 },
+  { type: 'trophy',  name: 'Trophy Hall',  emoji: '🏛️', desc: 'A museum of every boss you have defeated.', cost: 250, w: 2, h: 2 },
+  { type: 'observatory', name: 'Observatory', emoji: '🔭', desc: 'Launch from home to any unlocked planet.', cost: 350, w: 2, h: 2 },
+];
+
+// Trophy Hall exhibits — one per planet, earned by clearing that planet.
+const P5_TROPHIES = [
+  { planet: 1, emoji: '🛸', name: 'Area 51 Escape', desc: 'Slipped past the guards and out of the secret desert base.' },
+  { planet: 2, emoji: '🦍', name: 'Jungle King',    desc: 'Toppled the mighty ape boss of Zorbax.' },
+  { planet: 3, emoji: '⛄', name: 'Frost Yeti',      desc: 'Bested the shaggy horned terror of the tundra.' },
+  { planet: 4, emoji: '🐙', name: 'Deep Octopus',    desc: 'Vanquished the ink-spewing horror of Neptuna.' },
 ];
 
 // Alien visitor pool — randomly selected each visit

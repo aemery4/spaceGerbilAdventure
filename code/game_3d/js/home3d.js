@@ -308,7 +308,66 @@ function useHomeBuilding(b) {
     case 'farm': showToast('🌾 Star Farm', 'Harvested on arrival. Come back after your next mission!'); break;
     case 'landing': showToast('🛬 Landing Pad', 'More visitors will arrive thanks to the landing pad!'); break;
     case 'fountain': showToast('⛲ Fountain', 'The water sparkles peacefully.'); break;
+    case 'trophy': openTrophyHall(); break;
+    case 'observatory': openObservatory(); break;
   }
+}
+
+// ── Trophy Hall — a gallery of every boss you've defeated ─────────
+function openTrophyHall() {
+  gamePaused = true;
+  const list = (typeof P5_TROPHIES !== 'undefined') ? P5_TROPHIES : [];
+  const cleared = save.planetsCleared || [];
+  const earned = list.filter(t => cleared.includes(t.planet)).length;
+  document.getElementById('shopMerchantName').textContent = '🏛️ Trophy Hall';
+  document.getElementById('shopMerchantDialog').textContent = `"Monuments to every foe you have vanquished — ${earned}/${list.length} on display."`;
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  list.forEach(t => {
+    const has = cleared.includes(t.planet);
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (has ? '' : ' shop-disabled');
+    el.innerHTML = `<div class="shop-item-name">${has ? t.emoji : '🔒'} ${has ? t.name : '???'}</div>
+      <div class="shop-item-desc">${has ? t.desc : "Defeat this planet's boss to earn this trophy."}</div>
+      <div class="shop-cost">${has ? '<span class="has">🏆 Earned</span>' : '<span class="lacks">Locked</span>'}</div>`;
+    grid.appendChild(el);
+  });
+  const close = document.createElement('div');
+  close.className = 'shop-item';
+  close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Back to your base</div>';
+  close.onclick = () => closeShop();
+  grid.appendChild(close);
+  document.getElementById('villageShop').style.display = 'block';
+}
+
+// ── Observatory — fast-travel to any unlocked planet from home ────
+function openObservatory() {
+  gamePaused = true;
+  document.getElementById('shopMerchantName').textContent = '🔭 Observatory';
+  document.getElementById('shopMerchantDialog').textContent = '"Chart a course, explorer — where shall we launch?"';
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  const worlds = [
+    { n: 1, emoji: '🌍', name: 'Earth — Area 51' }, { n: 2, emoji: '🌴', name: 'Jungle Zorbax' },
+    { n: 3, emoji: '❄️', name: 'Tundra Frigia' }, { n: 4, emoji: '🌊', name: 'Aquatic Neptuna' }
+  ];
+  worlds.forEach(p => {
+    const locked = (typeof isLocked === 'function') ? isLocked(p.n) : false;
+    const cleared = (save.planetsCleared || []).includes(p.n);
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (locked ? ' shop-disabled' : '');
+    el.innerHTML = `<div class="shop-item-name">${p.emoji} ${p.name}</div>
+      <div class="shop-item-desc">${locked ? '🔒 Clear the previous world first' : cleared ? '✓ Cleared — revisit anytime' : '▶ Launch mission'}</div>
+      <div class="shop-cost">${locked ? '<span class="lacks">Locked</span>' : '<span class="has">🚀 Launch</span>'}</div>`;
+    if (!locked) el.onclick = () => { closeShop(); startPlanet(p.n); };
+    grid.appendChild(el);
+  });
+  const close = document.createElement('div');
+  close.className = 'shop-item';
+  close.innerHTML = '<div class="shop-item-name">❌ Cancel</div><div class="shop-item-desc">Stay at home base</div>';
+  close.onclick = () => closeShop();
+  grid.appendChild(close);
+  document.getElementById('villageShop').style.display = 'block';
 }
 
 // Simple arcade: one round of rock-paper-scissors against the house
@@ -429,6 +488,33 @@ function makeBuildingMesh(type, w, h) {
       new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2266aa, emissiveIntensity: 0.5, transparent: true, opacity: 0.8 }));
     dome.position.y = 0.1; saucer.add(disc, dome); saucer.position.y = 0.7;
     g.add(pad, ring, saucer); g.userData.spin = saucer;
+  } else if (type === 'trophy') {
+    // A marble museum: stepped base, columns, pediment, gold trophy on top
+    const marble = M(0xe8e6de, 0.6), gold = new THREE.MeshStandardMaterial({ color: 0xffd54a, roughness: 0.35, metalness: 0.6, emissive: 0x5a4300, emissiveIntensity: 0.3 });
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w * 0.92, 0.24, h * 0.92), marble); base.position.y = 0.12;
+    const step = new THREE.Mesh(new THREE.BoxGeometry(w * 0.78, 0.16, h * 0.78), marble); step.position.y = 0.3;
+    g.add(base, step);
+    const colGeo = new THREE.CylinderGeometry(0.1, 0.11, 1.0, 12);
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
+      const c = new THREE.Mesh(colGeo, marble); c.position.set(sx * w * 0.3, 0.9, sz * h * 0.3); g.add(c);
+    });
+    const arch = new THREE.Mesh(new THREE.BoxGeometry(w * 0.82, 0.16, h * 0.82), marble); arch.position.y = 1.46;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.62, 0.5, 4), marble); roof.position.y = 1.78; roof.rotation.y = Math.PI / 4;
+    g.add(arch, roof);
+    // gold trophy cup on the peak
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.06, 0.22, 12), gold); cup.position.y = 2.14;
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.12, 8), gold); stem.position.y = 1.98;
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 10), gold); foot.position.y = 1.9;
+    g.add(cup, stem, foot); g.userData.spin = cup;
+  } else if (type === 'observatory') {
+    // A silver domed observatory with a telescope poking out of the slit
+    const wallMat = M(0xd8dce4, 0.6), domeMat = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.35, metalness: 0.5 });
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.42, w * 0.46, 0.9, 20), wallMat); drum.position.y = 0.45;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(w * 0.44, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat); dome.position.y = 0.9;
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.9, 12), M(0x2a2a3a, 0.4)); scope.position.set(0, 1.2, w * 0.18); scope.rotation.x = -0.9;
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2277bb, emissiveIntensity: 0.7 })); lens.position.set(0, 1.5, w * 0.42); lens.rotation.x = -0.9;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, 0.04, 8, 24), new THREE.MeshStandardMaterial({ color: 0x66c2ff, emissive: 0x2277bb, emissiveIntensity: 0.9 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.9;
+    g.add(drum, dome, scope, lens, ring); g.userData.spin = dome;
   } else { // fountain
     const basin = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.45, w * 0.5, 0.3, 16), M(0xb0b8c0));
     basin.position.y = 0.15;
