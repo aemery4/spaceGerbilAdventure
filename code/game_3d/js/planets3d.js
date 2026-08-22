@@ -87,7 +87,7 @@ const PLANETS_3D = {
     enemyKind: 'fish', underwater: true
   },
   5: {
-    name: 'Home Planet', emoji: '🏠', tile: 40, cols: 20, rows: 13,
+    name: 'Home Planet', emoji: '🏠', tile: 40, cols: 32, rows: 22,
     build: (T, C, R) => buildP5Data(T, C, R),
     enemyKeys: [],
     solid: [1, 5], slow: [], damage: [],

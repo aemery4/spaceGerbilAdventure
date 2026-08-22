@@ -46,22 +46,24 @@ const P5_SHOP_ITEMS = [
 ];
 
 function buildP5Data(TILE, COLS, ROWS) {
-  // 20x13 grid — the whole home base fits on screen
-  const map = [
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-    [1,0,0,0,0,2,0,0,0,0,0,0,0,0,4,4,0,0,0,1],
-    [1,0,0,0,0,2,0,0,0,0,0,0,0,0,4,4,0,0,0,1],
-    [1,0,0,0,0,2,2,2,2,2,2,2,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,1],
-    [1,0,0,0,0,0,0,3,3,0,0,2,0,0,0,0,0,0,0,1],
-    [1,2,2,2,2,2,0,3,3,0,0,2,2,2,2,2,0,0,0,1],
-    [1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,1],
-    [1,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,0,0,0,1],
-    [1,0,0,0,0,2,2,2,2,2,2,2,2,2,2,2,0,0,0,1],
-    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
-    [1,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4,0,1],
-    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  ];
-
+  // Size-driven so the home base can grow. Interior is open grass with a
+  // fenced border; decorative pond/gardens/paths sit in the outer area so
+  // the original (top-left) building region stays buildable grass.
+  COLS = COLS || 32; ROWS = ROWS || 22;
+  const map = [];
+  for (let z = 0; z < ROWS; z++) {
+    const row = [];
+    for (let x = 0; x < COLS; x++) row.push((x === 0 || x === COLS - 1 || z === 0 || z === ROWS - 1) ? 1 : 0);
+    map.push(row);
+  }
+  const set = (x, z, v) => { if (map[z] && map[z][x] === 0) map[z][x] = v; };
+  // ornamental pond in the lower-right of the expanded field
+  for (let dz = 0; dz < 4; dz++) for (let dx = 0; dx < 5; dx++) set(COLS - 9 + dx, ROWS - 7 + dz, 3);
+  // flower gardens tucked into the far corners
+  [[COLS - 4, 2], [COLS - 3, 2], [COLS - 4, 3], [2, ROWS - 4], [3, ROWS - 4], [2, ROWS - 3]].forEach(([x, z]) => set(x, z, 4));
+  // a decorative path loop around the middle of the yard
+  const x0 = 4, x1 = COLS - 5, z0 = 4, z1 = ROWS - 5;
+  for (let x = x0; x <= x1; x++) { set(x, z0, 2); set(x, z1, 2); }
+  for (let z = z0; z <= z1; z++) { set(x0, z, 2); set(x1, z, 2); }
   return { map };
 }
