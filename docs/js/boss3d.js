@@ -7,7 +7,9 @@
 
 const BOSS_NAME = { miniBoss: '🦍 Jungle King', yeti: '⛄ Frost Yeti', octopus: '🐙 Deep Octopus' };
 
-function bossBlocked(x, z) { return isSolid(x, z); }
+function bossBlocked(x, z) {
+  return isSolid(x, z) || (E.cfg && E.cfg.village && typeof tileAt === 'function' && tileAt(x, z) === 7); // village/camp is a safe zone
+}
 
 // Per-boss AI, replaces normal movement for boss enemies
 function updateBoss(en, dt, d, p) {
@@ -160,6 +162,8 @@ function atkLunge(en, p) {
 // Jungle King leap: hop into the air and crash down where the player was
 function startBossJump(en, p) {
   const m = en.mesh;
+  // Don't leap into the safe zone — fall back to idle if the target is protected
+  if (bossBlocked(p.x, p.z)) { en.mode = 'idle'; en.atkTimer = 1 + Math.random(); return; }
   en.mode = 'jump'; en.jumpT = 0; en.jumpDur = 0.78;
   en.jumpStart = new THREE.Vector3(m.position.x, en.size, m.position.z);
   en.jumpTarget = new THREE.Vector3(p.x, en.size, p.z);

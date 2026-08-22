@@ -1219,6 +1219,8 @@ function planetCleared() {
 
 function hurtPlayer(dmg) {
   if (E.hurtCd > 0) return;
+  // Village / camp platform (tile 7) is a total safe zone — no damage there
+  if (E.cfg && E.cfg.village && tileAt(E.player.position.x, E.player.position.z) === 7) return;
   let d = dmg;
   if (save.items.includes('shield')) d *= 0.5;
   save.hp -= d;
