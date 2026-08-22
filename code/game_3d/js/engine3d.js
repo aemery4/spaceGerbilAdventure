@@ -69,7 +69,7 @@ function launchPlanet3D(n) {
     2: 'Jungle Zorbax! Grab 15 ⚡ fuel and watch for beasts. Visit the Treetop Village (the wooden platform — a safe zone) and press Space by a merchant 🔶 to trade. Reach the rocket to escape.',
     3: 'Tundra Frigia! 20 ⚡ fuel needed. The cold is full of teeth. Warm up at the camp (the platform — a safe zone) and press Space by a trader 🔶. Reach the rocket to escape.',
     4: 'Aquatic Neptuna! Dive for 25 ⚡ fuel and dodge the deep things. Friendly seahorses 🐴 (with a 🔶 marker) will share tips — swim up and press Space. Reach the rocket to escape.',
-    5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Walk up to a building and press Space to use it.'
+    5: 'Home Base! Spend 🪙 Space Coins to build your planet. Press 🔨 Build [B], then click a grass tile to place a hut, farm, shop, arcade, landing pad or fountain. Each 🏠 hut becomes a home for an alien visitor 👽 — build more to attract more! Walk up to a building or alien and press Space.'
   };
   const showIntro = () => showMsg(cfg.emoji + ' ' + cfg.name, intro[n] + '\n\nWASD / Arrows: move   •   Space or Click: gather / attack   •   C: craft   G: gear');
   // Entering Area 51 gets its own cutscene; Planet 2 gets the gerbil fly-away

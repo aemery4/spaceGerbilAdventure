@@ -26,29 +26,61 @@ function buildHomeStructures(scene) {
 }
 
 // ── Alien visitors ──────────────────────────────────────────────
+// Find an open (walkable) tile near a target, spiralling outward.
+function openTileNear(cx, cz) {
+  const walkable = (x, z) => x > 0 && z > 0 && x < E.cols - 1 && z < E.rows - 1 && (E.map[z][x] === 0 || E.map[z][x] === 2);
+  for (let r = 1; r < 8; r++)
+    for (let dz = -r; dz <= r; dz++) for (let dx = -r; dx <= r; dx++) {
+      const x = Math.floor(cx) + dx, z = Math.floor(cz) + dz;
+      if (walkable(x, z)) return { x: x + 0.5, z: z + 0.5 };
+    }
+  return { x: cx, z: cz };
+}
+function randomOpenTile() {
+  let gx, gy, t = 0;
+  do { gx = 2 + Math.floor(Math.random() * (E.cols - 4)); gy = 2 + Math.floor(Math.random() * (E.rows - 4)); t++; }
+  while (E.map[gy][gx] !== 0 && E.map[gy][gx] !== 2 && t < 60);
+  return { x: gx + 0.5, z: gy + 0.5 };
+}
+
 function spawnHomeAliens(scene) {
   E.homeAliens = [];
   if (typeof P5_ALIEN_POOL === 'undefined') return;
+  const huts = (E.homeMeshes || []).filter(b => b.type === 'hut');
   const hasLanding = (save.homePlanet.buildings || []).some(b => b.type === 'landing');
-  const count = hasLanding ? 3 : Math.min(1 + Math.floor((save.homePlanet.buildings || []).length / 2), 3);
+  // Each Space Hut houses one alien resident; a Landing Pad brings a couple
+  // of extra wandering visitors. (At least one curious visitor even with no huts.)
+  let count = huts.length + (hasLanding ? 2 : 0);
+  if (count === 0) count = 1;
+  count = Math.min(count, P5_ALIEN_POOL.length);
   const pool = [...P5_ALIEN_POOL];
   for (let i = 0; i < count && pool.length; i++) {
     const tpl = pool.splice(Math.floor(Math.random() * pool.length), 1)[0];
-    let gx, gy, tries = 0;
-    do {
-      gx = 2 + Math.floor(Math.random() * (E.cols - 4));
-      gy = 2 + Math.floor(Math.random() * (E.rows - 4));
-      tries++;
-    } while (E.map[gy][gx] !== 0 && E.map[gy][gx] !== 2 && tries < 60);
+    const spot = (i < huts.length) ? openTileNear(huts[i].x, huts[i].z) : randomOpenTile();
     const mesh = makeAlienMesh(tpl.color);
-    mesh.position.set(gx + 0.5, 0.05, gy + 0.5);
+    mesh.position.set(spot.x, 0.05, spot.z);
     scene.add(mesh);
     E.homeAliens.push({
-      data: tpl, mesh, x: gx + 0.5, z: gy + 0.5,
+      data: tpl, mesh, x: spot.x, z: spot.z, homeX: spot.x, homeZ: spot.z, resident: i < huts.length,
       dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
       wander: Math.random() * 3, bob: Math.random() * 6, marker: mesh.userData.marker
     });
   }
+}
+
+// Move a new alien into a freshly-built hut (called when a hut is placed)
+function addResidentAlien(cx, cz) {
+  if (typeof P5_ALIEN_POOL === 'undefined' || !E.homeAliens) return;
+  const tpl = P5_ALIEN_POOL[Math.floor(Math.random() * P5_ALIEN_POOL.length)];
+  const spot = openTileNear(cx, cz);
+  const mesh = makeAlienMesh(tpl.color);
+  mesh.position.set(spot.x, 0.05, spot.z); E.scene.add(mesh);
+  E.homeAliens.push({
+    data: tpl, mesh, x: spot.x, z: spot.z, homeX: spot.x, homeZ: spot.z, resident: true,
+    dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(),
+    wander: Math.random() * 3, bob: Math.random() * 6, marker: mesh.userData.marker
+  });
+  showToast('👽 New Resident!', 'An alien moved into your Space Hut!');
 }
 
 function makeAlienMesh(colorHex) {
@@ -84,7 +116,13 @@ function updateHomeAliens(dt) {
   };
   E.homeAliens.forEach(a => {
     a.bob += dt; a.wander -= dt;
-    if (a.wander <= 0) { a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(); a.wander = 1.5 + Math.random() * 2.5; }
+    if (a.wander <= 0) {
+      // stay near home (their hut): if they've drifted too far, head back
+      const dhx = (a.homeX || a.x) - a.x, dhz = (a.homeZ || a.z) - a.z;
+      if (Math.hypot(dhx, dhz) > 3.2) a.dir.set(dhx, 0, dhz).normalize();
+      else a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+      a.wander = 1.5 + Math.random() * 2.5;
+    }
     const nx = a.x + a.dir.x * 0.7 * dt, nz = a.z + a.dir.z * 0.7 * dt;
     if (!solid(nx, a.z)) a.x = nx; else a.dir.x *= -1;
     if (!solid(a.x, nz)) a.z = nz; else a.dir.z *= -1;
@@ -205,7 +243,8 @@ function openHomeBuildMenu(gx, gy) {
         if (typeof SFX !== 'undefined') SFX.build();
         persist(); updateHUD();
         closeShop();
-        showToast(b.emoji + ' Built!', b.name + ' placed on your home base.');
+        if (b.type === 'hut') { addResidentAlien(gx + b.w / 2, gy + b.h / 2); }
+        else showToast(b.emoji + ' Built!', b.name + ' placed on your home base.');
       };
     }
     grid.appendChild(el);
