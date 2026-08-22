@@ -205,7 +205,42 @@ function placeBuildingMesh(scene, type, w, h, gx, gy) {
   mesh.position.set(gx + w / 2, 0.06, gy + h / 2);
   scene.add(mesh);
   E.homeMeshes.push({ mesh, type, x: gx + w / 2, z: gy + h / 2 });
+  if (type === 'trophy') addTrophyStatues(scene, gx + w / 2, gy + h / 2);
   return mesh;
+}
+
+// A marble statue of a defeated boss, on a pedestal with a gold plaque.
+function makeTrophyStatue(planet) {
+  const g = new THREE.Group();
+  const marble = new THREE.MeshStandardMaterial({ color: 0xdad6ca, roughness: 0.9, metalness: 0.05 });
+  const gold = new THREE.MeshStandardMaterial({ color: 0xffd54a, roughness: 0.4, metalness: 0.6, emissive: 0x4a3600, emissiveIntensity: 0.3 });
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.5, 12), marble); ped.position.y = 0.25; ped.castShadow = true;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.04), gold); plate.position.set(0, 0.34, 0.32);
+  g.add(ped, plate);
+  let fig = null;
+  try {
+    if (planet === 2 && typeof makeApeBossMesh === 'function') fig = makeApeBossMesh(1, 0x888888);
+    else if (planet === 3 && typeof makeYetiMesh === 'function') fig = makeYetiMesh(1, 0x888888);
+    else if (planet === 4 && typeof makeOctopusMesh === 'function') fig = makeOctopusMesh(1, 0x888888);
+    else fig = makeAlienMesh(0x888888); // Area 51 (planet 1)
+  } catch (e) { fig = null; }
+  if (fig) {
+    fig.traverse(o => { if (o.isMesh) { o.material = marble; o.castShadow = true; } });
+    fig.scale.setScalar(0.42); fig.position.y = 0.5; g.add(fig);
+  }
+  return g;
+}
+
+// Line up a statue for each boss the player has beaten, in front of the hall.
+function addTrophyStatues(scene, cx, cz) {
+  const cleared = (save.planetsCleared || []).filter(n => n >= 1 && n <= 4).sort();
+  if (!cleared.length) return;
+  const spread = 1.15, startX = cx - (cleared.length - 1) * spread / 2;
+  cleared.forEach((p, i) => {
+    const st = makeTrophyStatue(p);
+    st.position.set(startX + i * spread, 0, cz + 1.9);
+    scene.add(st);
+  });
 }
 
 // Farms harvest resources each time you arrive home
@@ -359,7 +394,11 @@ function openObservatory() {
     el.innerHTML = `<div class="shop-item-name">${p.emoji} ${p.name}</div>
       <div class="shop-item-desc">${locked ? '🔒 Clear the previous world first' : cleared ? '✓ Cleared — revisit anytime' : '▶ Launch mission'}</div>
       <div class="shop-cost">${locked ? '<span class="lacks">Locked</span>' : '<span class="has">🚀 Launch</span>'}</div>`;
-    if (!locked) el.onclick = () => { closeShop(); startPlanet(p.n); };
+    if (!locked) el.onclick = () => {
+      closeShop();
+      if (typeof playTransitionCutscene === 'function') playTransitionCutscene(5, p.n, () => startPlanet(p.n));
+      else startPlanet(p.n);
+    };
     grid.appendChild(el);
   });
   const close = document.createElement('div');
