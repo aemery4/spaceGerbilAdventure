@@ -33,6 +33,20 @@ const P5_ALIEN_POOL = [
   { name: 'Grumbo', emoji: '🤖', color: '#aaaaaa', dialog: 'BEEP BOOP. I have traveled 47 galaxies. This base is... adequate.' },
   { name: 'Pip',    emoji: '🐾', color: '#ff8844', dialog: 'I heard there are snacks here! Got any rocks? I eat rocks!', trade: { give: 'rock', giveAmt: 3, reward: 'coins', rewardAmt: 30 } },
   { name: 'Vex',    emoji: '🔮', color: '#cc66ff', dialog: 'I sense great adventure in your future... Want some crystals?', trade: { give: 'plant', giveAmt: 5, reward: 'crystal', rewardAmt: 3 } },
+  { name: 'Quark',  emoji: '🪐', color: '#66ccff', dialog: 'I have visited a hundred ringed worlds — yours is my favourite stop!' },
+  { name: 'Nova',   emoji: '💫', color: '#ff77cc', dialog: "I'm a travelling star-painter! Trade crystals for coins?", trade: { give: 'crystal', giveAmt: 2, reward: 'coins', rewardAmt: 40 } },
+  { name: 'Bloop',  emoji: '🫧', color: '#55e0d0', dialog: 'Blub blub! I drift between galaxies. Got any bananas to spare?', trade: { give: 'banana', giveAmt: 3, reward: 'coins', rewardAmt: 25 } },
+  { name: 'Zog',    emoji: '👁️', color: '#88ff44', dialog: 'I see all with my one big eye. And I see... you need a friend!' },
+  { name: 'Mim',    emoji: '🌙', color: '#c0c0ff', dialog: 'Hehe! Wanna play a quick game? I never lose... probably.', minigame: true },
+  { name: 'Kr-7',   emoji: '🛰️', color: '#9ab0c0', dialog: 'SCANNING... life-form detected: adorable. Reporting to the fleet.' },
+  { name: 'Fizz',   emoji: '🍭', color: '#ff5a8a', dialog: 'I trade sweets for shiny rocks — deal?', trade: { give: 'rock', giveAmt: 4, reward: 'coins', rewardAmt: 35 } },
+  { name: 'Orbo',   emoji: '🌀', color: '#7c5cff', dialog: 'I spin through wormholes for fun. Your base is a cosy landing spot.' },
+  { name: 'Twinkle',emoji: '✨', color: '#ffe066', dialog: 'I sprinkle stardust wherever I go. Swap plants for crystals?', trade: { give: 'plant', giveAmt: 4, reward: 'crystal', rewardAmt: 2 } },
+  { name: 'Gloop',  emoji: '👻', color: '#b0ffe0', dialog: 'Boo! Just kidding — space ghosts are friendly. Love the company!' },
+  { name: 'Rax',    emoji: '🐙', color: '#ff6a3a', dialog: 'Eight arms, eight high-fives! Wanna play?', minigame: true },
+  { name: 'Suno',   emoji: '☀️', color: '#ffb020', dialog: 'I carry a little sunshine to every cold corner of space.' },
+  { name: 'Bit',    emoji: '🎮', color: '#4affea', dialog: 'Beep! I am 8-bit and 100% fun. Challenge me to a game?', minigame: true },
+  { name: 'Puff',   emoji: '☁️', color: '#dfeaff', dialog: 'I am a cloud-being from Nimbus-9. So fluffy, so friendly.' },
 ];
 
 // Home planet shop items (purchased with Space Coins)

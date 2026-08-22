@@ -47,11 +47,10 @@ function spawnHomeAliens(scene) {
   E.homeAliens = [];
   if (typeof P5_ALIEN_POOL === 'undefined') return;
   const huts = (E.homeMeshes || []).filter(b => b.type === 'hut');
-  const hasLanding = (save.homePlanet.buildings || []).some(b => b.type === 'landing');
-  // Each Space Hut houses one alien resident; a Landing Pad brings a couple
-  // of extra wandering visitors. (At least one curious visitor even with no huts.)
-  let count = huts.length + (hasLanding ? 2 : 0);
-  if (count === 0) count = 1;
+  // Each Space Hut houses one alien resident; each Landing Pad brings a few
+  // extra wandering visitors. A couple of curious visitors always drop by.
+  const landings = (save.homePlanet.buildings || []).filter(b => b.type === 'landing').length;
+  let count = huts.length + landings * 3 + 2;
   count = Math.min(count, P5_ALIEN_POOL.length);
   const pool = [...P5_ALIEN_POOL];
   for (let i = 0; i < count && pool.length; i++) {
