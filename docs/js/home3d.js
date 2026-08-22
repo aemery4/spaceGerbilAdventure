@@ -209,14 +209,28 @@ function placeBuildingMesh(scene, type, w, h, gx, gy) {
   return mesh;
 }
 
-// A marble statue of a defeated boss, on a pedestal with a gold plaque.
+// How many times the player has beaten this planet's boss (Trophy tier).
+function trophyTier(planet) {
+  const wins = (save.bossWins && save.bossWins[planet]) || ((save.planetsCleared || []).includes(planet) ? 1 : 0);
+  return Math.min(3, wins);
+}
+// Bronze / silver / gold metal for a tier (1/2/3).
+function trophyTierMetal(tier) {
+  if (tier >= 3) return new THREE.MeshStandardMaterial({ color: 0xffd54a, metalness: 0.85, roughness: 0.22, emissive: 0x3a2c00, emissiveIntensity: 0.25 });
+  if (tier === 2) return new THREE.MeshStandardMaterial({ color: 0xd6d9e2, metalness: 0.8, roughness: 0.28, emissive: 0x22242a, emissiveIntensity: 0.2 });
+  return new THREE.MeshStandardMaterial({ color: 0xcd7f32, metalness: 0.75, roughness: 0.35, emissive: 0x2a1400, emissiveIntensity: 0.2 });
+}
+
+// A statue of a defeated boss cast in its trophy metal (bronze/silver/gold).
 function makeTrophyStatue(planet) {
   const g = new THREE.Group();
-  const marble = new THREE.MeshStandardMaterial({ color: 0xdad6ca, roughness: 0.9, metalness: 0.05 });
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffd54a, roughness: 0.4, metalness: 0.6, emissive: 0x4a3600, emissiveIntensity: 0.3 });
-  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.5, 12), marble); ped.position.y = 0.25; ped.castShadow = true;
-  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.04), gold); plate.position.set(0, 0.34, 0.32);
-  g.add(ped, plate);
+  const tier = trophyTier(planet);
+  const metal = trophyTierMetal(tier);
+  const stone = new THREE.MeshStandardMaterial({ color: 0x3a352c, roughness: 0.9, metalness: 0.1 });
+  const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.34, 0.5, 12), stone); ped.position.y = 0.25; ped.castShadow = true;
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.12, 0.04), metal); plate.position.set(0, 0.34, 0.32);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.025, 8, 18), metal); ring.rotation.x = Math.PI / 2; ring.position.y = 0.5;
+  g.add(ped, plate, ring);
   let fig = null;
   try {
     if (planet === 2 && typeof makeApeBossMesh === 'function') fig = makeApeBossMesh(1, 0x888888);
@@ -225,7 +239,7 @@ function makeTrophyStatue(planet) {
     else fig = makeAlienMesh(0x888888); // Area 51 (planet 1)
   } catch (e) { fig = null; }
   if (fig) {
-    fig.traverse(o => { if (o.isMesh) { o.material = marble; o.castShadow = true; } });
+    fig.traverse(o => { if (o.isMesh) { o.material = metal; o.castShadow = true; } });
     fig.scale.setScalar(0.42); fig.position.y = 0.5; g.add(fig);
   }
   return g;
