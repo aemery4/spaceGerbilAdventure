@@ -274,9 +274,10 @@ function applyHomeFarmsOnVisit() {
 function toggleBuildMode() {
   if (!E.cfg || !E.cfg.home) return;
   homeBuildMode = !homeBuildMode;
+  homeMoveTarget = null; // cancel any in-progress relocation
   updateBuildButton();
   showToast(homeBuildMode ? '🔨 Build Mode ON' : '🚶 Explore Mode',
-    homeBuildMode ? 'Click a grass tile to build there. Toggle off when done.' : 'Walk around your base. Press Space by a building to use it.');
+    homeBuildMode ? 'Click grass to build. Click a building to move or remove it.' : 'Walk around your base. Press Space by a building to use it.');
 }
 
 function updateBuildButton() {
@@ -288,10 +289,93 @@ function updateBuildButton() {
   btn.style.background = homeBuildMode ? 'rgba(200,120,20,0.9)' : '#181830';
 }
 
+let homeMoveTarget = null; // a building currently being relocated
+
+// Which saved building (if any) covers a given tile
+function buildingAtTile(gx, gy) {
+  const list = (save.homePlanet && save.homePlanet.buildings) || [];
+  return list.find(b => {
+    const info = P5_BUILDINGS.find(pb => pb.type === b.type);
+    return info && gx >= b.gridX && gx < b.gridX + info.w && gy >= b.gridY && gy < b.gridY + info.h;
+  }) || null;
+}
+
 // Called from the engine when the player clicks the ground in build mode
 function homeBuildClick(worldPoint) {
   const gx = Math.floor(worldPoint.x), gy = Math.floor(worldPoint.z);
-  openHomeBuildMenu(gx, gy);
+  if (homeMoveTarget) { tryMoveBuilding(gx, gy); return; }   // dropping a relocated building
+  const hit = buildingAtTile(gx, gy);
+  if (hit) { openManageBuilding(hit); return; }              // clicked an existing building
+  openHomeBuildMenu(gx, gy);                                 // empty tile → place new
+}
+
+// Move / Remove menu for an existing building
+function openManageBuilding(b) {
+  gamePaused = true;
+  const info = P5_BUILDINGS.find(pb => pb.type === b.type) || {};
+  const refund = Math.floor((info.cost || 0) * 0.5);
+  document.getElementById('shopMerchantName').textContent = (info.emoji || '🏠') + ' ' + (info.name || 'Building');
+  document.getElementById('shopMerchantDialog').textContent = '"Move it, or tear it down for a partial refund."';
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  const item = (name, desc, cb) => {
+    const el = document.createElement('div');
+    el.className = 'shop-item';
+    el.innerHTML = `<div class="shop-item-name">${name}</div><div class="shop-item-desc">${desc}</div>`;
+    el.onclick = cb; grid.appendChild(el);
+  };
+  item('↔️ Move', 'Then click a grass tile to place it', () => {
+    homeMoveTarget = b; closeShop();
+    showToast('↔️ Moving ' + (info.name || 'building'), 'Click a grass tile to set it down. (Press B to cancel.)');
+  });
+  item('🗑️ Remove', `Tear it down — refund ${refund} 🪙`, () => { closeShop(); removeBuilding(b, refund); });
+  item('❌ Cancel', 'Leave it where it is', () => closeShop());
+  document.getElementById('villageShop').style.display = 'block';
+}
+
+// Rebuild the home base from the (updated) save, keeping the player put
+function refreshHome() {
+  const p = E.player ? { x: E.player.position.x, z: E.player.position.z } : null;
+  const wasBuild = homeBuildMode;
+  E.suppressIntro = true; startPlanet(5); E.suppressIntro = false;
+  if (p && E.player) {
+    E.player.position.set(p.x, 0, p.z);
+    E.camera.position.set(p.x, 9, p.z + 9); E.camera.lookAt(E.player.position);
+  }
+  homeBuildMode = wasBuild; updateBuildButton();
+}
+
+function removeBuilding(b, refund) {
+  const list = save.homePlanet.buildings || [];
+  const idx = list.indexOf(b);
+  if (idx < 0) return;
+  list.splice(idx, 1);
+  save.spaceCoins = (save.spaceCoins || 0) + refund;
+  if (typeof SFX !== 'undefined' && SFX.build) SFX.build();
+  persist();
+  refreshHome();
+  showToast('🗑️ Removed', 'Building torn down. +' + refund + ' 🪙 refunded.');
+}
+
+function tryMoveBuilding(gx, gy) {
+  const b = homeMoveTarget; homeMoveTarget = null;
+  const info = P5_BUILDINGS.find(pb => pb.type === b.type);
+  if (!info) return;
+  // fits if every target tile is open grass — treating the building's own
+  // current footprint as free (so you can nudge it a little)
+  let fits = true;
+  for (let dr = 0; dr < info.h; dr++)
+    for (let dc = 0; dc < info.w; dc++) {
+      const x = gx + dc, z = gy + dr;
+      const ownTile = (x >= b.gridX && x < b.gridX + info.w && z >= b.gridY && z < b.gridY + info.h);
+      if (x < 1 || z < 1 || x >= E.cols - 1 || z >= E.rows - 1 || (!ownTile && E.map[z][x] !== 0)) fits = false;
+    }
+  if (!fits) { showToast('🚫 No room', 'That spot is blocked — pick open grass.'); return; }
+  b.gridX = gx; b.gridY = gy;
+  if (typeof SFX !== 'undefined' && SFX.build) SFX.build();
+  persist();
+  refreshHome();
+  showToast('✅ Moved', (info.name || 'Building') + ' relocated.');
 }
 
 function openHomeBuildMenu(gx, gy) {
