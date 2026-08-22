@@ -304,8 +304,7 @@ function useHomeBuilding(b) {
     case 'shop': openP5Shop(); break;
     case 'arcade': (typeof openArcade === 'function') ? openArcade() : playHomeArcade(); break;
     case 'hut':
-      save.hp = Math.min(save.maxHp, save.hp + 20); updateHUD(); persist();
-      showToast('🏠 Space Hut', 'You rest at home. +20 HP!'); break;
+      showToast('🏠 Space Hut', 'Home to a friendly alien visitor. Knock and say hi!'); break;
     case 'farm': showToast('🌾 Star Farm', 'Harvested on arrival. Come back after your next mission!'); break;
     case 'landing': showToast('🛬 Landing Pad', 'More visitors will arrive thanks to the landing pad!'); break;
     case 'fountain': showToast('⛲ Fountain', 'The water sparkles peacefully.'); break;

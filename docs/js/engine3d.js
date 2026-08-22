@@ -1063,15 +1063,15 @@ function doAttack(worldPoint) {
     const mn = merchantNear(worldPoint);
     if (mn) { openP2Shop(mn.data); return; }
   }
-  // Use a home-base building if we're standing by one
-  if (E.cfg.home && typeof homeBuildingNear === 'function') {
-    const hb = homeBuildingNear(worldPoint);
-    if (hb) { useHomeBuilding(hb); return; }
-  }
-  // Greet a home-base alien visitor
+  // Greet a home-base alien visitor first (they live by their huts)
   if (E.cfg.home && typeof homeAlienNear === 'function') {
     const al = homeAlienNear(worldPoint);
     if (al) { useHomeAlien(al); return; }
+  }
+  // Otherwise use a home-base building if we're standing by one
+  if (E.cfg.home && typeof homeBuildingNear === 'function') {
+    const hb = homeBuildingNear(worldPoint);
+    if (hb) { useHomeBuilding(hb); return; }
   }
   // Talk to a seahorse guide (Planet 4)
   if (typeof seahorseNear === 'function') {
