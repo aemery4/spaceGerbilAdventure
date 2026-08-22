@@ -1,239 +1,427 @@
-// ════════════════════════════════════════
-// js/cutscene3d.js — Cinematic cutscenes
-// A full-screen warp-starfield overlay used for the opening intro,
-// planet-to-planet "blasting off" transitions, and the ending.
-// ════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+// js/cutscene3d.js — Fully 3D cinematic cutscenes (Three.js r128)
+//
+// Every cutscene is a real Three.js scene rendered by a dedicated
+// WebGL renderer that lives on the #csCanvas overlay. Each cutscene
+// is a "director" object with build(scene,camera,opts) and
+// update(t,scene,camera,opts). Title/lines/caption are DOM overlays.
+// ════════════════════════════════════════════════════════════════
 
-let _csRAF = null, _csTimer = null;
+const CS = { renderer: null, scene: null, camera: null, raf: null, timer: null,
+             dir: null, cb: null, t0: 0, last: 0 };
 
 const CS_PLANET = {
   1: ['🌍', 'Earth — Area 51'], 2: ['🌴', 'Jungle Zorbax'],
   3: ['❄️', 'Tundra Frigia'], 4: ['🌊', 'Aquatic Neptuna'], 5: ['🏠', 'Home Base']
 };
+const CS_PLANET_COLOR = { 1: 0x3a7bd0, 2: 0x2f9e44, 3: 0xcfe8ff, 4: 0x1f6fb0, 5: 0x9a7038 };
+
+// ── Renderer / lifecycle ────────────────────────────────────────
+function ensureCsRenderer() {
+  if (CS.renderer) return;
+  const cv = document.getElementById('csCanvas');
+  CS.renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true });
+  CS.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  CS.camera = new THREE.PerspectiveCamera(52, 16 / 9, 0.1, 500);
+}
+
+function setCaption(html, color) {
+  const el = document.getElementById('csCaption');
+  if (!el) return;
+  el.innerHTML = html || '';
+  el.style.color = color || '#eaf2ff';
+}
 
 function endCutscene(cb) {
-  if (_csRAF) { cancelAnimationFrame(_csRAF); _csRAF = null; }
-  if (_csTimer) { clearTimeout(_csTimer); _csTimer = null; }
+  if (CS.raf) { cancelAnimationFrame(CS.raf); CS.raf = null; }
+  if (CS.timer) { clearTimeout(CS.timer); CS.timer = null; }
   const o = document.getElementById('cutscene');
   if (o) o.style.display = 'none';
-  if (cb) cb();
+  if (CS.scene) { disposeScene(CS.scene); CS.scene = null; }
+  CS.dir = null;
+  const usedCb = cb || CS.cb; CS.cb = null;
+  if (usedCb) usedCb();
 }
 
-function showCutscene(opts, cb) {
+function disposeScene(scene) {
+  scene.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+  });
+}
+
+// Generic runner: hand it a director + options.
+function runDirector(dir, opts) {
+  ensureCsRenderer();
   const o = document.getElementById('cutscene');
-  if (!o) { if (cb) cb(); return; }
-  if (typeof SFX !== 'undefined') { SFX.resume(); SFX.powerup(); }
+  o.style.display = 'block';
   document.getElementById('csTitle').textContent = opts.title || '';
   document.getElementById('csLines').innerHTML = (opts.lines || []).map(l => `<div>${l}</div>`).join('');
-  document.getElementById('csRocket').textContent = (opts.icon !== undefined) ? opts.icon : '🚀';
-  o.style.display = 'flex';
+  setCaption('');
+  const W = o.clientWidth || window.innerWidth, H = o.clientHeight || window.innerHeight;
+  CS.renderer.setSize(W, H, false);
+  CS.camera.aspect = W / H; CS.camera.updateProjectionMatrix();
 
-  const scene = opts.scene || 'warp';
-  const cv = document.getElementById('csCanvas'), ctx = cv.getContext('2d');
-  cv.width = cv.clientWidth || window.innerWidth;
-  cv.height = cv.clientHeight || window.innerHeight;
-  const W = cv.width, H = cv.height, cx = W / 2, cy = H / 2;
-  const stars = [];
-  for (let i = 0; i < 180; i++) stars.push({ a: Math.random() * Math.PI * 2, r: Math.random() * W * 0.5, sp: 1 + Math.random() * 3 });
-  const night = [];
-  for (let i = 0; i < 90; i++) night.push({ x: Math.random() * W, y: Math.random() * H * 0.62, r: Math.random() * 1.5 + 0.3, t: Math.random() * 6 });
-  ctx.fillStyle = '#04040e'; ctx.fillRect(0, 0, W, H);
-  let f = 0;
+  CS.scene = new THREE.Scene();
+  CS.dir = dir; CS.cb = opts.cb || null; CS.t0 = 0; CS.last = 0;
+  dir.build(CS.scene, CS.camera, opts);
+  if (typeof SFX !== 'undefined') { SFX.resume && SFX.resume(); SFX.powerup && SFX.powerup(); }
 
-  function loop() {
-    f++;
-    if (scene === 'area51') { drawArea51(ctx, W, H, f, night); }
-    else if (scene === 'flyaway') { drawFlyaway(ctx, W, H, f); }
-    else {
-      ctx.fillStyle = 'rgba(4,4,14,0.35)'; ctx.fillRect(0, 0, W, H);
-      stars.forEach(s => {
-        s.r += s.sp * 3;
-        if (s.r > W * 0.72) { s.r = 0; s.a = Math.random() * Math.PI * 2; }
-        const x = cx + Math.cos(s.a) * s.r, y = cy + Math.sin(s.a) * s.r;
-        const x2 = cx + Math.cos(s.a) * (s.r + s.sp * 6), y2 = cy + Math.sin(s.a) * (s.r + s.sp * 6);
-        ctx.strokeStyle = 'rgba(180,200,255,' + Math.min(1, s.r / W) + ')';
-        ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x2, y2); ctx.stroke();
-      });
+  function frame(now) {
+    if (!CS.t0) { CS.t0 = now; CS.last = now; }
+    const t = (now - CS.t0) / 1000;
+    const dt = Math.min(0.05, (now - CS.last) / 1000); CS.last = now;
+    try { dir.update(t, CS.scene, CS.camera, opts, dt); } catch (e) { /* keep rendering */ }
+    CS.renderer.render(CS.scene, CS.camera);
+    CS.raf = requestAnimationFrame(frame);
+  }
+  CS.raf = requestAnimationFrame(frame);
+  CS.timer = setTimeout(() => endCutscene(), opts.dur || 5000);
+  document.getElementById('csSkip').onclick = () => endCutscene();
+}
+
+// ── Shared lighting ─────────────────────────────────────────────
+function addCsLights(scene, opts) {
+  opts = opts || {};
+  scene.add(new THREE.AmbientLight(0xffffff, opts.ambient != null ? opts.ambient : 0.55));
+  const key = new THREE.DirectionalLight(0xffffff, opts.key != null ? opts.key : 0.9);
+  key.position.set(4, 8, 6); scene.add(key);
+  const rim = new THREE.DirectionalLight(opts.rimColor || 0x88aaff, opts.rim != null ? opts.rim : 0.4);
+  rim.position.set(-6, 3, -4); scene.add(rim);
+}
+
+// ── Prop builders ───────────────────────────────────────────────
+function mat(color, o) { return new THREE.MeshStandardMaterial(Object.assign({ color: color, roughness: 0.7 }, o || {})); }
+
+// Starfield as points; returns { pts, geo } — call csWarp to stream toward camera
+function makeStarfield(count, spread, depth, color, size) {
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i * 3] = (Math.random() - 0.5) * spread;
+    pos[i * 3 + 1] = (Math.random() - 0.5) * spread;
+    pos[i * 3 + 2] = -Math.random() * depth;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const m = new THREE.PointsMaterial({ color: color || 0xbfd0ff, size: size || 0.14, sizeAttenuation: true, transparent: true, opacity: 0.9 });
+  const pts = new THREE.Points(geo, m);
+  pts.userData.depth = depth;
+  return pts;
+}
+function csWarp(pts, speed, dt) {
+  const p = pts.geometry.attributes.position, d = pts.userData.depth;
+  for (let i = 2; i < p.array.length; i += 3) {
+    p.array[i] += speed * dt;
+    if (p.array[i] > 3) { p.array[i] = -d; }
+  }
+  p.needsUpdate = true;
+}
+
+// A cartoon gerbil (the stowaway). Forward = +Z. userData.eyes for glow.
+function makeCsGerbil(color) {
+  const g = new THREE.Group();
+  const fur = mat(color || 0xc8954a, { roughness: 0.85 });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 18, 14), fur);
+  body.scale.set(1.05, 0.8, 1.35); body.position.y = 0.5; body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.36, 18, 14), fur);
+  head.position.set(0, 0.62, 0.62); head.castShadow = true;
+  const earGeo = new THREE.SphereGeometry(0.13, 10, 8);
+  const earMat = mat(0xe8b06a, { roughness: 0.85 });
+  [-1, 1].forEach(s => { const e = new THREE.Mesh(earGeo, earMat); e.scale.set(1, 1.25, 0.5); e.position.set(s * 0.2, 0.92, 0.6); g.add(e); });
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x201510, roughness: 0.3 });
+  const eyes = [-1, 1].map(s => { const e = new THREE.Mesh(new THREE.SphereGeometry(0.06, 10, 8), eyeMat.clone()); e.position.set(s * 0.15, 0.66, 0.9); g.add(e); return e; });
+  const nose = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), mat(0xd06a6a));
+  nose.position.set(0, 0.56, 0.97); g.add(nose);
+  const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.02, 0.7, 6), fur);
+  tail.position.set(0, 0.5, -0.7); tail.rotation.x = -0.8; g.add(tail);
+  const legGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.28, 6); legGeo.translate(0, -0.14, 0);
+  const legs = [[-0.25, 0.42], [0.25, 0.42], [-0.25, -0.35], [0.25, -0.35]].map(([x, z]) => {
+    const l = new THREE.Mesh(legGeo, fur); l.position.set(x, 0.28, z); g.add(l); return l;
+  });
+  g.add(body, head);
+  g.userData = { eyes: eyes, eyeMat: eyeMat, legs: legs, head: head, fur: fur };
+  return g;
+}
+// Turn a gerbil menacing: glowing red eyes + a purple tint
+function gerbilGoNuclear(g, amt) {
+  g.userData.eyes.forEach(e => { e.material.color.setHex(0xff2020); e.material.emissive = new THREE.Color(0xff0000); e.material.emissiveIntensity = 1.2; e.scale.setScalar(1.3); });
+  g.userData.fur.color.lerpColors(new THREE.Color(0xc8954a), new THREE.Color(0xcc3aa0), Math.min(1, amt) * 0.5);
+}
+
+// A little rocket. Nose up (+Y). userData.flame toggles thrust.
+function makeCsRocket() {
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.34, 0.4, 1.5, 20), mat(0xeef2f7, { metalness: 0.2, roughness: 0.5 }));
+  body.position.y = 0.9; body.castShadow = true;
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.7, 20), mat(0xe0503a, { roughness: 0.5 }));
+  nose.position.y = 2.0;
+  const win = new THREE.Mesh(new THREE.SphereGeometry(0.16, 14, 12), new THREE.MeshStandardMaterial({ color: 0x9fe0ff, emissive: 0x2a7fb0, emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.2 }));
+  win.position.set(0, 1.25, 0.32);
+  const finMat = mat(0xe0503a, { roughness: 0.5 });
+  [0, 1, 2].forEach(i => {
+    const fin = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.6, 4), finMat);
+    const a = i * Math.PI * 2 / 3;
+    fin.position.set(Math.cos(a) * 0.42, 0.3, Math.sin(a) * 0.42);
+    fin.rotation.set(Math.PI, a + Math.PI / 4, 0.35);
+    g.add(fin);
+  });
+  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.9, 14), new THREE.MeshStandardMaterial({ color: 0xffc23a, emissive: 0xff7a1a, emissiveIntensity: 1.4, transparent: true, opacity: 0.9 }));
+  flame.rotation.x = Math.PI; flame.position.y = -0.2;
+  g.add(body, nose, win, flame);
+  g.userData = { flame: flame };
+  return g;
+}
+
+function makeCsPlanet(color, r) {
+  const g = new THREE.Group();
+  const p = new THREE.Mesh(new THREE.SphereGeometry(r || 1.2, 28, 22),
+    new THREE.MeshStandardMaterial({ color: color, roughness: 0.9, emissive: new THREE.Color(color).multiplyScalar(0.12) }));
+  g.add(p);
+  return g;
+}
+
+function makeTreeCone(h) {
+  const g = new THREE.Group();
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.6, 7), mat(0x6b4a2a));
+  trunk.position.y = 0.3;
+  const foliage = new THREE.Mesh(new THREE.ConeGeometry(0.7, h || 2.4, 9), mat(0x1f6b34, { roughness: 0.95 }));
+  foliage.position.y = (h || 2.4) / 2 + 0.5; foliage.castShadow = true;
+  g.add(trunk, foliage);
+  return g;
+}
+
+// Compact standalone astronaut (the player) for the intro.
+function makeCsAstronaut() {
+  const g = new THREE.Group();
+  const suit = mat(0xeef2f7, { roughness: 0.7 });
+  const grey = mat(0x9aa4b2, { roughness: 0.6, metalness: 0.2 });
+  const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.66, 14), suit); torso.position.y = 0.7; torso.castShadow = true;
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.29, 16, 14), suit); helmet.position.y = 1.2; helmet.castShadow = true;
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.23, 16, 12, Math.PI * 0.25, Math.PI * 0.5, Math.PI * 0.32, Math.PI * 0.36), new THREE.MeshStandardMaterial({ color: 0x9fe0ff, emissive: 0x2a6fa0, emissiveIntensity: 0.5, metalness: 0.4, roughness: 0.2 }));
+  visor.position.set(0, 1.2, 0.08);
+  const pack = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.44, 0.22), grey); pack.position.set(0, 0.74, -0.3);
+  const armGeo = new THREE.CylinderGeometry(0.085, 0.08, 0.5, 8); armGeo.translate(0, -0.25, 0);
+  const arms = [-1, 1].map(s => { const a = new THREE.Mesh(armGeo, suit); a.position.set(s * 0.33, 0.94, 0); a.rotation.z = s * 0.12; g.add(a); return a; });
+  const legGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.46, 8); legGeo.translate(0, -0.23, 0);
+  const legs = [-1, 1].map(s => { const l = new THREE.Mesh(legGeo, suit); l.position.set(s * 0.14, 0.48, 0); g.add(l); return l; });
+  g.add(torso, helmet, visor, pack);
+  g.userData = { arms: arms, legs: legs };
+  return g;
+}
+
+// ── Directors ───────────────────────────────────────────────────
+
+// INTRO: astronaut by a rocket in deep space; the gerbil sneaks aboard.
+const dirIntro = {
+  build(scene, cam) {
+    scene.background = new THREE.Color(0x05060f);
+    scene.fog = new THREE.Fog(0x05060f, 12, 34);
+    addCsLights(scene, { ambient: 0.5, key: 1.0, rim: 0.5, rimColor: 0x6a7bff });
+    const stars = makeStarfield(320, 40, 40); scene.add(stars); scene.userData.stars = stars;
+    const rocket = makeCsRocket(); rocket.position.set(1.4, -0.4, 0); rocket.rotation.z = -0.06; scene.add(rocket); scene.userData.rocket = rocket;
+    const astro = makeCsAstronaut(); astro.position.set(-1.7, -0.4, 0.6); astro.rotation.y = 0.5; scene.add(astro); scene.userData.astro = astro;
+    const gerbil = makeCsGerbil(); gerbil.scale.setScalar(0.6); gerbil.position.set(-3.6, -0.4, 1.4); gerbil.rotation.y = Math.PI / 2; scene.add(gerbil); scene.userData.gerbil = gerbil;
+    cam.position.set(0, 0.6, 7.2); cam.lookAt(0, 0.4, 0);
+  },
+  update(t, scene, cam, opts, dt) {
+    csWarp(scene.userData.stars, 6, dt);
+    const r = scene.userData.rocket;
+    r.position.y = -0.4 + Math.sin(t * 1.4) * 0.12; r.rotation.z = -0.06 + Math.sin(t * 0.7) * 0.04;
+    r.userData.flame.scale.y = 0.7 + Math.abs(Math.sin(t * 22)) * 0.6;
+    const ger = scene.userData.gerbil;
+    // gerbil scurries to the rocket then hops in (vanishes) around t=2.6
+    if (t < 2.6) { ger.position.x = -3.6 + (t / 2.6) * 4.6; ger.position.y = -0.4 + Math.abs(Math.sin(t * 10)) * 0.18; }
+    else { const p = Math.min(1, (t - 2.6) / 0.7); ger.position.set(1.0 + p * 0.4, -0.2 + p * 0.9, 1.4 - p * 1.4); ger.scale.setScalar(0.6 * (1 - p)); }
+    const astro = scene.userData.astro;
+    astro.userData.arms[1].rotation.x = Math.sin(t * 3) * 0.2 - 0.2;
+    cam.position.x = Math.sin(t * 0.25) * 0.6;
+  }
+};
+
+// TRANSITION: rocket streaks from one planet to the next through warp.
+const dirTransition = {
+  build(scene, cam, opts) {
+    scene.background = new THREE.Color(0x04040e);
+    addCsLights(scene, { ambient: 0.6, key: 1.0, rim: 0.5 });
+    const stars = makeStarfield(360, 46, 46); scene.add(stars); scene.userData.stars = stars;
+    const from = makeCsPlanet(CS_PLANET_COLOR[opts.fromN] || 0x557, 1.5); from.position.set(-4.5, 1.6, -6); scene.add(from); scene.userData.from = from;
+    const to = makeCsPlanet(CS_PLANET_COLOR[opts.toN] || 0x577, 1.9); to.position.set(6.5, -1.2, -9); scene.add(to); scene.userData.to = to;
+    const rocket = makeCsRocket(); rocket.rotation.z = -Math.PI / 2 + 0.15; rocket.position.set(-6, 0.2, 0); scene.add(rocket); scene.userData.rocket = rocket;
+    cam.position.set(0, 0.4, 8); cam.lookAt(0, 0, 0);
+  },
+  update(t, scene, cam, opts, dt) {
+    csWarp(scene.userData.stars, 22, dt);
+    scene.userData.from.rotation.y += 0.3 * dt;
+    scene.userData.to.rotation.y += 0.2 * dt;
+    const r = scene.userData.rocket, p = Math.min(1, t / (opts.dur / 1000 * 0.85));
+    r.position.x = -6 + p * 12; r.position.y = 0.2 + Math.sin(t * 3) * 0.15;
+    r.userData.flame.scale.y = 1.2 + Math.abs(Math.sin(t * 26)) * 0.8;
+  }
+};
+
+// PLANET 2: the gerbil drinks a potion and mutates into the Nuclear Gerbil.
+const dirNuclear = {
+  build(scene, cam) {
+    scene.background = new THREE.Color(0x061c0e);
+    scene.fog = new THREE.Fog(0x061c0e, 10, 26);
+    addCsLights(scene, { ambient: 0.5, key: 0.85, rim: 0.35, rimColor: 0x2f6 });
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), mat(0x14401e, { roughness: 1 }));
+    ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; scene.add(ground);
+    for (let i = 0; i < 9; i++) { const tr = makeTreeCone(2 + Math.random() * 1.6); tr.position.set(-7 + i * 1.8 + Math.random(), 0, -4 - Math.random() * 2.5); scene.add(tr); }
+    const gerbil = makeCsGerbil(); gerbil.position.set(-3.4, 0, 0); gerbil.rotation.y = Math.PI / 2; scene.add(gerbil); scene.userData.gerbil = gerbil;
+    // potion bottle
+    const potion = new THREE.Group();
+    const glass = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, 0.4, 12), new THREE.MeshStandardMaterial({ color: 0xbfffd0, transparent: true, opacity: 0.5, roughness: 0.2 }));
+    glass.position.y = 0.3;
+    const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.26, 12), new THREE.MeshStandardMaterial({ color: 0x66ff88, emissive: 0x33cc55, emissiveIntensity: 0.7 }));
+    liquid.position.y = 0.24;
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.1, 0.16, 10), new THREE.MeshStandardMaterial({ color: 0xbfffd0, transparent: true, opacity: 0.5 })); neck.position.y = 0.56;
+    const cork = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.08, 8), mat(0x8a5a2a)); cork.position.y = 0.66;
+    potion.add(glass, liquid, neck, cork); potion.position.set(0.5, 0, 0.2); scene.add(potion); scene.userData.potion = potion;
+    const flash = new THREE.PointLight(0xb400ff, 0, 20); flash.position.set(0, 2, 2); scene.add(flash); scene.userData.flash = flash;
+    cam.position.set(0, 1.7, 6.4); cam.lookAt(0, 0.9, 0);
+  },
+  update(t, scene, cam) {
+    const ger = scene.userData.gerbil, pot = scene.userData.potion, flash = scene.userData.flash;
+    const legWalk = (spd) => ger.userData.legs.forEach((l, i) => l.rotation.x = Math.sin(t * spd + i * 1.6) * 0.5);
+    if (t < 2.2) {                 // walk in
+      ger.position.x = -3.4 + (t / 2.2) * 3.0; legWalk(9);
+      setCaption('A tiny gerbil emerges from the jungle...', '#dfe');
+    } else if (t < 3.9) {          // drink
+      ger.position.x = -0.4; ger.rotation.z = Math.sin(t * 8) * 0.06;
+      ger.userData.head.rotation.x = -0.4;         // tip head back
+      const p = Math.min(1, (t - 2.2) / 1.7); pot.scale.y = Math.max(0.02, 1 - p); pot.visible = p < 1;
+      setCaption(t < 3.0 ? 'It found a mysterious potion!' : 'Glug glug glug...', '#dfe');
+    } else if (t < 5.8) {          // grow
+      ger.userData.head.rotation.x = 0; ger.rotation.z = 0; pot.visible = false;
+      const p = (t - 3.9) / 1.9; const s = 1 + p * 1.7; ger.scale.setScalar(s);
+      ger.position.x = -0.4 + Math.sin(t * 40) * (p < 0.6 ? 0.05 : 0); // shake
+      gerbilGoNuclear(ger, p);
+      flash.intensity = Math.max(0, Math.sin((t - 3.9) * 3.2)) * 6 * (1 - p * 0.5);
+      setCaption(p < 0.35 ? '...' : p < 0.7 ? 'Something is happening!!' : "IT'S GROWING!!!", p < 0.7 ? '#dfe' : '#f7a6ff');
+    } else {                        // lumber away
+      flash.intensity = 0; ger.scale.setScalar(2.7); ger.rotation.y = -Math.PI / 2;
+      ger.position.x = -0.4 - (t - 5.8) * 2.2; legWalk(5);
+      setCaption('The Nuclear Gerbil lumbers away into the darkness...', '#ff8a8a');
     }
-    _csRAF = requestAnimationFrame(loop);
+    cam.position.x = Math.sin(t * 0.3) * 0.4;
   }
-  loop();
+};
 
-  _csTimer = setTimeout(() => endCutscene(cb), opts.dur || 3600);
-  document.getElementById('csSkip').onclick = () => endCutscene(cb);
-}
-
-// Night desert base backdrop: stars, ground, a fence, sweeping searchlights
-function drawArea51(ctx, W, H, f, stars) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#04050f'); g.addColorStop(0.6, '#0a1122'); g.addColorStop(1, '#141c30');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  // twinkling stars
-  stars.forEach(s => { ctx.globalAlpha = 0.35 + 0.45 * Math.abs(Math.sin(f * 0.03 + s.t)); ctx.fillStyle = '#cdd6ff'; ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, 6.3); ctx.fill(); });
-  ctx.globalAlpha = 1;
-  const gy = H * 0.72;
-  // sweeping searchlights
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 3; i++) {
-    const bx = W * (0.22 + 0.28 * i), ang = -Math.PI / 2 + Math.sin(f * 0.012 + i * 2.1) * 0.55, len = H * 0.85, spread = 0.08;
-    const grad = ctx.createRadialGradient(bx, gy, 0, bx, gy, len);
-    grad.addColorStop(0, 'rgba(170,215,255,0.30)'); grad.addColorStop(1, 'rgba(170,215,255,0)');
-    ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.moveTo(bx, gy);
-    ctx.lineTo(bx + Math.cos(ang - spread) * len, gy + Math.sin(ang - spread) * len);
-    ctx.lineTo(bx + Math.cos(ang + spread) * len, gy + Math.sin(ang + spread) * len);
-    ctx.closePath(); ctx.fill();
+// AREA 51: night desert base — fence, sweeping searchlights, a saucer.
+const dirArea51 = {
+  build(scene, cam) {
+    scene.background = new THREE.Color(0x060814);
+    scene.fog = new THREE.Fog(0x060814, 14, 40);
+    scene.add(new THREE.AmbientLight(0x5566aa, 0.4));
+    const moon = new THREE.DirectionalLight(0x9fb4ff, 0.5); moon.position.set(-6, 8, 2); scene.add(moon);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), mat(0x241d14, { roughness: 1 }));
+    ground.rotation.x = -Math.PI / 2; scene.add(ground);
+    // chain-link fence: posts + rails
+    const postMat = mat(0x5a606c, { metalness: 0.3 });
+    for (let i = -10; i <= 10; i++) { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.4, 6), postMat); post.position.set(i * 1.1, 0.7, -2.5); scene.add(post); }
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(22, 0.06, 0.06), postMat); rail.position.set(0, 1.35, -2.5); scene.add(rail);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(22, 1.3), new THREE.MeshStandardMaterial({ color: 0x8892a0, wireframe: true, transparent: true, opacity: 0.35 }));
+    mesh.position.set(0, 0.7, -2.5); scene.add(mesh);
+    // warning sign
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.5, 0.05), mat(0xcc3333, { emissive: 0x551111, emissiveIntensity: 0.5 })); sign.position.set(-2, 0.9, -2.4); scene.add(sign);
+    // flying saucer
+    const saucer = new THREE.Group();
+    const disc = new THREE.Mesh(new THREE.SphereGeometry(1.3, 24, 16), mat(0xb8c0cc, { metalness: 0.5, roughness: 0.3 })); disc.scale.set(1, 0.32, 1);
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.6, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x9fe0ff, emissive: 0x2a7fb0, emissiveIntensity: 0.6, transparent: true, opacity: 0.8 })); dome.position.y = 0.2;
+    const rimLights = [];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const b = new THREE.Mesh(new THREE.SphereGeometry(0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffaa00, emissiveIntensity: 1 })); b.position.set(Math.cos(a) * 1.2, -0.05, Math.sin(a) * 1.2); saucer.add(b); rimLights.push(b); }
+    saucer.add(disc, dome); saucer.position.set(3.2, 3, -4); scene.add(saucer);
+    scene.userData.saucer = saucer; scene.userData.rimLights = rimLights;
+    // searchlight beams (additive cones)
+    const beams = [];
+    for (let i = 0; i < 3; i++) {
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(1.1, 7, 18, 1, true), new THREE.MeshBasicMaterial({ color: 0xaad7ff, transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, depthWrite: false }));
+      cone.position.set(-4 + i * 4, 0.2, -1.5); scene.add(cone); beams.push(cone);
+    }
+    scene.userData.beams = beams;
+    // gerbil sneaking under the fence
+    const gerbil = makeCsGerbil(); gerbil.scale.setScalar(0.7); gerbil.position.set(-1.2, 0, 1.4); gerbil.rotation.y = Math.PI; scene.add(gerbil); scene.userData.gerbil = gerbil;
+    cam.position.set(0, 2.4, 8); cam.lookAt(0, 1.2, -2);
+  },
+  update(t, scene, cam, opts, dt) {
+    scene.userData.beams.forEach((c, i) => { c.rotation.z = Math.sin(t * 0.9 + i * 2.1) * 0.5; });
+    const s = scene.userData.saucer; s.position.y = 3 + Math.sin(t * 1.2) * 0.2; s.rotation.y += 0.6 * dt;
+    scene.userData.rimLights.forEach((b, i) => { b.material.emissiveIntensity = 0.5 + 0.6 * Math.abs(Math.sin(t * 4 + i)); });
+    const g = scene.userData.gerbil;
+    // creep forward toward the fence, ducking under it
+    g.position.z = 1.4 - Math.min(3, t * 0.7);
+    g.userData.legs.forEach((l, i) => l.rotation.x = Math.sin(t * 8 + i * 1.6) * 0.4);
+    if (g.position.z < -2.2) g.position.y = 0; // through
+    setCaption(t < 2.5 ? 'Nevada desert — 0300 hours.' : t < 4.2 ? 'A tiny gerbil slips under the fence…' : 'Grab the ⚡ fuel and reach the saucer — don\'t get caught!', '#bfe0ff');
+    cam.position.x = Math.sin(t * 0.2) * 0.7;
   }
-  ctx.restore();
-  // ground
-  ctx.fillStyle = '#0a0d12'; ctx.fillRect(0, gy, W, H - gy);
-  // chain-link fence silhouette
-  ctx.strokeStyle = 'rgba(90,100,120,0.5)'; ctx.lineWidth = 3;
-  for (let x = 10; x < W; x += 26) { ctx.beginPath(); ctx.moveTo(x, gy); ctx.lineTo(x, gy - 46); ctx.stroke(); }
-  ctx.beginPath(); ctx.moveTo(0, gy - 46); ctx.lineTo(W, gy - 46); ctx.stroke();
-  // little warning sign
-  ctx.fillStyle = '#c33'; ctx.fillRect(W * 0.5 - 42, gy - 34, 84, 22);
-  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Courier New'; ctx.textAlign = 'center';
-  ctx.fillText('RESTRICTED', W * 0.5, gy - 19);
-}
+};
 
-// The stowaway gerbil drinks a strange potion and GROWS into the Nuclear
-// Gerbil, then lumbers away — a faithful port of the 2D Planet 2 cutscene.
-let _fly = null;
-function drawFlyaway(ctx, W, H, f) {
-  if (f <= 1 || !_fly) _fly = { phase: 'walkin', gx: W / 2 - 340, gy: H * 0.6, gSize: 10, facing: 1, t: 0 };
-  const c = _fly; c.t++;
-  const cx = W / 2, potionX = cx, potionY = H * 0.6;
-
-  // jungle-night backdrop
-  const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, '#04140a'); g.addColorStop(0.7, '#06210e'); g.addColorStop(1, '#0a3016');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  for (let i = 0; i < 40; i++) { const x = (i * 97) % W, y = (i * 53) % (H * 0.4); ctx.globalAlpha = 0.25 + 0.3 * Math.abs(Math.sin(f * 0.04 + i)); ctx.fillStyle = '#bfffd0'; ctx.fillRect(x, y, 2, 2); }
-  ctx.globalAlpha = 1;
-  const groundY = H * 0.74;
-  ctx.fillStyle = '#04160a';
-  for (let i = 0; i < 6; i++) { const tx = W * (0.05 + i * 0.18); ctx.beginPath(); ctx.moveTo(tx - 42, groundY); ctx.lineTo(tx, groundY - 170); ctx.lineTo(tx + 42, groundY); ctx.closePath(); ctx.fill(); }
-  ctx.fillStyle = '#08260f'; ctx.fillRect(0, groundY, W, H - groundY);
-
-  // letterbox bars (2D look)
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.fillRect(0, 0, W, 80);
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(0, H - 80, W, 80);
-
-  let caption = '', capColor = '#ddd', capBold = false;
-  if (c.phase === 'walkin') {
-    c.gx += 2.4; c.facing = 1; c.gy = H * 0.6;
-    caption = 'A tiny gerbil emerges from the jungle...';
-    if (c.gx >= potionX - 30) { c.phase = 'drink'; c.t = 0; }
+// ENDING: the hero rocket rises past Earth as fireworks bloom.
+const dirEnding = {
+  build(scene, cam) {
+    scene.background = new THREE.Color(0x05060f);
+    addCsLights(scene, { ambient: 0.55, key: 1.0, rim: 0.5, rimColor: 0x88aaff });
+    const stars = makeStarfield(300, 44, 44, 0xffffff, 0.16); scene.add(stars); scene.userData.stars = stars;
+    const earth = makeCsPlanet(0x2f7ad0, 3.2); earth.position.set(0, -4.4, -6); scene.add(earth);
+    const cont = new THREE.Mesh(new THREE.SphereGeometry(3.22, 24, 18), new THREE.MeshStandardMaterial({ color: 0x2f9e44, transparent: true, opacity: 0.55, roughness: 1 })); cont.scale.set(1, 1, 1); earth.add(cont);
+    scene.userData.earth = earth;
+    const rocket = makeCsRocket(); rocket.position.set(0, -1.5, 0); scene.add(rocket); scene.userData.rocket = rocket;
+    // firework bursts
+    const bursts = [];
+    for (let b = 0; b < 4; b++) {
+      const n = 60, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), vel = [];
+      for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI, sp = 1.5 + Math.random(); vel.push([Math.sin(e) * Math.cos(a) * sp, Math.cos(e) * sp, Math.sin(e) * Math.sin(a) * sp]); pos[i * 3] = pos[i * 3 + 1] = pos[i * 3 + 2] = 0; }
+      geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const col = [0xff5a5a, 0x5aff8a, 0x5a9aff, 0xffe066][b];
+      const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: col, size: 0.16, transparent: true, opacity: 1 }));
+      pts.position.set((b - 1.5) * 2.4, 2.2 + (b % 2) * 1.2, -2 - b); pts.userData = { vel: vel, born: -b * 0.8 - 0.5 }; scene.add(pts); bursts.push(pts);
+    }
+    scene.userData.bursts = bursts;
+    cam.position.set(0, 1.2, 8); cam.lookAt(0, 1, 0);
+  },
+  update(t, scene, cam, opts, dt) {
+    csWarp(scene.userData.stars, 2, dt);
+    scene.userData.earth.rotation.y += 0.15 * dt;
+    const r = scene.userData.rocket; r.position.y = -1.5 + t * 1.1; r.position.z = -t * 0.5; r.rotation.z = Math.sin(t * 2) * 0.05;
+    r.userData.flame.scale.y = 1 + Math.abs(Math.sin(t * 24)) * 0.7;
+    scene.userData.bursts.forEach(pts => {
+      let age = t - (pts.userData.born + 0); const cycle = 2.4; age = ((age % cycle) + cycle) % cycle;
+      const p = pts.geometry.attributes.position, v = pts.userData.vel;
+      for (let i = 0; i < v.length; i++) { p.array[i * 3] = v[i][0] * age; p.array[i * 3 + 1] = v[i][1] * age - 0.5 * age * age; p.array[i * 3 + 2] = v[i][2] * age; }
+      p.needsUpdate = true; pts.material.opacity = Math.max(0, 1 - age / cycle);
+    });
+    cam.position.x = Math.sin(t * 0.3) * 0.5;
   }
-  else if (c.phase === 'drink') {
-    if (!c._drink) { c._drink = true; if (typeof SFX !== 'undefined') SFX.powerup(); }
-    c.gy = H * 0.6 + Math.sin(c.t * 0.4) * 3;
-    const p = Math.min(1, c.t / 80);
-    caption = c.t < 40 ? 'It found a mysterious potion!' : 'Glug glug glug...';
-    if (p < 1) { ctx.save(); ctx.translate(potionX + 12, potionY - 34); ctx.scale(1 - p * 0.8, 1 - p * 0.8); ctx.font = '30px serif'; ctx.textAlign = 'center'; ctx.fillText('🧪', 0, 0); ctx.restore(); }
-    if (c.t >= 90) { c.phase = 'grow'; c.t = 0; }
-  }
-  else if (c.phase === 'grow') {
-    const target = Math.min(52, 10 + c.t * 0.7);
-    c.gSize += (target - c.gSize) * 0.15;
-    if (c.t < 40) c.gx += (Math.random() - 0.5) * 4 * 0.3;
-    if (c.t >= 26 && c.t <= 34) { ctx.fillStyle = 'rgba(180,0,255,0.30)'; ctx.fillRect(0, 0, W, H); }
-    caption = c.t < 20 ? '...' : c.t < 45 ? 'Something is happening!!' : "IT'S GROWING!!!";
-    capColor = c.t > 44 ? '#f8f' : '#ddd'; capBold = c.t > 44;
-    if (c.t >= 80) { c.phase = 'walkout'; c.t = 0; c.facing = -1; }
-  }
-  else if (c.phase === 'walkout') {
-    c.gx -= 3; c.facing = -1;
-    caption = 'The Nuclear Gerbil lumbers away into the darkness...';
-    capColor = '#f88'; capBold = true;
-  }
+};
 
-  drawCutsceneGerbil(ctx, c);
-
-  ctx.fillStyle = capColor; ctx.font = (capBold ? 'bold ' : '') + '15px Courier New'; ctx.textAlign = 'center';
-  ctx.fillText(caption, W / 2, H - 44);
-}
-
-// Canvas gerbil, ported from the 2D drawP2Cutscene
-function drawCutsceneGerbil(ctx, c) {
-  const s = c.gSize, glow = (c.phase === 'grow' && c.t > 30);
-  ctx.save();
-  ctx.translate(c.gx, c.gy);
-  if (c.facing === -1) ctx.scale(-1, 1);
-  // body
-  ctx.fillStyle = glow ? '#d4a' : '#c8954a';
-  ctx.beginPath(); ctx.ellipse(0, 0, s, s * 0.75, 0, 0, Math.PI * 2); ctx.fill();
-  // head
-  ctx.fillStyle = glow ? '#c9a' : '#c8954a';
-  ctx.beginPath(); ctx.arc(s * 0.7, -s * 0.2, s * 0.55, 0, Math.PI * 2); ctx.fill();
-  // ears
-  ctx.fillStyle = '#e8b06a';
-  ctx.beginPath(); ctx.ellipse(s * 0.55, -s * 0.7, s * 0.18, s * 0.28, -0.3, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(s * 0.9, -s * 0.65, s * 0.15, s * 0.25, 0.3, 0, Math.PI * 2); ctx.fill();
-  // eye (red + glowing once transformed)
-  const evil = (c.phase === 'grow' && c.gSize > 30) || c.phase === 'walkout';
-  if (evil) { ctx.shadowColor = '#f00'; ctx.shadowBlur = 8; }
-  ctx.fillStyle = evil ? '#f00' : '#222';
-  ctx.beginPath(); ctx.arc(s * 0.58, -s * 0.28, s * 0.12, 0, Math.PI * 2); ctx.fill();
-  ctx.shadowBlur = 0;
-  // nose
-  ctx.fillStyle = '#d06060';
-  ctx.beginPath(); ctx.arc(s * 1.18, -s * 0.18, s * 0.1, 0, Math.PI * 2); ctx.fill();
-  // tail
-  ctx.strokeStyle = '#a07040'; ctx.lineWidth = Math.max(2, s * 0.12);
-  ctx.beginPath(); ctx.moveTo(-s * 0.8, 0); ctx.quadraticCurveTo(-s * 1.3, -s * 0.6, -s * 1.0, -s * 0.9); ctx.stroke();
-  // legs
-  const swing = Math.sin(c.t * 0.25) * 0.4;
-  ctx.lineWidth = Math.max(1.5, s * 0.1);
-  ctx.beginPath(); ctx.moveTo(-s * 0.2, s * 0.5); ctx.lineTo(-s * 0.2 + Math.sin(swing) * s * 0.4, s * 0.5 + s * 0.5); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(s * 0.2, s * 0.5); ctx.lineTo(s * 0.2 + Math.sin(-swing) * s * 0.4, s * 0.5 + s * 0.5); ctx.stroke();
-  ctx.restore();
-}
-
-// ── The cutscenes ───────────────────────────────────────────────
+// ── Public entry points (unchanged signatures) ──────────────────
 function playIntroCutscene(cb) {
-  showCutscene({
+  runDirector(dirIntro, {
     title: '🚀 SPACE GERBIL ADVENTURE',
-    icon: '🧑‍🚀',
-    lines: ['You are a lone space explorer, blasting off across the galaxy…',
-      'But a curious little gerbil has just snuck aboard your ship! 🐹',
-      'Five strange worlds await. Gather fuel and become a legend!'],
-    dur: 5400
-  }, cb);
+    lines: ['A lone explorer blasts off across the galaxy…', 'and a curious little gerbil sneaks aboard! 🐹'],
+    dur: 5400, cb: cb
+  });
 }
-
 function playTransitionCutscene(fromN, toN, cb) {
   const a = CS_PLANET[fromN] || ['🚀', 'Space'], b = CS_PLANET[toN] || ['🪐', 'the next world'];
-  showCutscene({
+  runDirector(dirTransition, {
     title: '🚀 Blasting Off!',
-    icon: '🚀',
     lines: [`${a[0]} ${a[1]}   →   ${b[0]} ${b[1]}`, 'Warp drive engaged…'],
-    dur: 3800
-  }, cb);
+    fromN: fromN, toN: toN, dur: 3900, cb: cb
+  });
 }
-
 function playEnterPlanet2Cutscene(cb) {
-  showCutscene({ title: '', lines: [], icon: '', scene: 'flyaway', dur: 10500 }, cb);
+  runDirector(dirNuclear, { title: '', lines: [], dur: 8200, cb: cb });
 }
-
 function playEnterArea51Cutscene(cb) {
-  showCutscene({
-    title: '🛸 ENTERING AREA 51',
-    icon: '🛸',
-    lines: ['Nevada desert — 0300 hours.', 'A tiny gerbil slips under the fence into the secret base…',
-      'Grab the ⚡ fuel and reach the saucer — don\'t get caught!'],
-    scene: 'area51', dur: 5400
-  }, cb);
+  runDirector(dirArea51, { title: '🛸 ENTERING AREA 51', lines: [], dur: 5600, cb: cb });
 }
-
 function playEndingCutscene(cb) {
-  showCutscene({
+  runDirector(dirEnding, {
     title: '🏆 A LEGEND IS BORN',
-    icon: '🌟',
     lines: ['Every world explored. Every boss defeated.', 'The Space Gerbil soars home a hero of the galaxy!'],
-    dur: 5600
-  }, cb);
+    dur: 6000, cb: cb
+  });
 }
