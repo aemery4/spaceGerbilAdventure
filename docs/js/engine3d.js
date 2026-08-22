@@ -1343,12 +1343,12 @@ function updateEnemies(dt) {
     if (en.boss && typeof updateBoss === 'function') {
       updateBoss(en, dt, d, p, playerSafe);
     } else {
-      if (hostile && d < 6) { // chase
+      if (playerSafe && d < 9) { // flee every frame — the player is protected, leave the border
+        en.dir.set(m.position.x - p.x, 0, m.position.z - p.z).normalize();
+      } else if (hostile && d < 6) { // chase
         en.dir.set(p.x - m.position.x, 0, p.z - m.position.z).normalize();
       } else if (en.wander <= 0) {
-        // if the player just ducked into the safe zone nearby, wander away from it
-        if (playerSafe && d < 6) en.dir.set(m.position.x - p.x, 0, m.position.z - p.z).normalize();
-        else en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        en.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
         en.wander = 1 + Math.random() * 2;
       }
       const nx = m.position.x + en.dir.x * en.speed * dt;
