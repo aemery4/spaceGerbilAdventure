@@ -115,6 +115,33 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .arcade-card:hover { border-color:#8cf; transform:translateY(-3px); box-shadow:0 6px 22px rgba(80,160,255,0.35); }
 .ac-emoji { font-size:40px; } .ac-name { font-size:13px; font-weight:bold; color:#def; margin:5px 0 3px; }
 .ac-desc { font-size:10px; color:#9ab; line-height:1.4; }
+/* ===== TROPHY HALL INTERIOR ===== */
+#trophyPanel { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+  background:linear-gradient(150deg, rgba(30,26,18,0.99), rgba(18,15,9,0.99));
+  border:1px solid rgba(210,180,90,0.55); border-radius:16px; padding:22px 26px;
+  display:none; z-index:75; width:600px; max-width:96vw; max-height:86vh; overflow-y:auto;
+  box-shadow:0 0 70px rgba(200,160,60,0.22), 0 20px 60px rgba(0,0,0,0.85); text-align:center; }
+#trophyTitle { font-size:22px; font-weight:bold; letter-spacing:3px; color:#ffdf8a;
+  text-shadow:0 0 16px rgba(220,180,70,0.6); margin-bottom:2px; }
+#trophySub { color:#cbb98a; font-size:12px; margin-bottom:16px; }
+.trophy-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.trophy-case { position:relative; border-radius:12px; padding:16px 12px 14px;
+  background:linear-gradient(180deg, rgba(60,52,34,0.7), rgba(28,24,15,0.8));
+  border:1px solid rgba(200,170,90,0.4); box-shadow:inset 0 0 22px rgba(0,0,0,0.5); }
+.trophy-case.locked { filter:grayscale(1) brightness(0.6); border-color:rgba(120,120,120,0.3); }
+.tc-plinth { height:10px; margin:8px auto 0; width:70%; border-radius:3px;
+  background:linear-gradient(180deg,#e8dcae,#8a7a48); }
+.tc-emoji { font-size:52px; line-height:1; filter:drop-shadow(0 6px 10px rgba(0,0,0,0.6)); }
+.tc-name { font-size:14px; font-weight:bold; color:#ffe9b0; margin:6px 0 3px; letter-spacing:1px; }
+.tc-desc { font-size:10px; color:#c8b58c; line-height:1.45; min-height:28px; }
+.tc-badge { display:inline-block; margin-top:8px; font-size:10px; font-weight:bold;
+  padding:3px 10px; border-radius:20px; }
+.tc-badge.earned { background:rgba(210,170,60,0.25); color:#ffd976; border:1px solid rgba(220,180,80,0.5); }
+.tc-badge.locked { background:rgba(120,120,120,0.2); color:#aaa; border:1px solid rgba(150,150,150,0.3); }
+#trophyCloseBtn { margin-top:18px; padding:9px 26px; background:rgba(70,55,20,0.9);
+  border:1px solid rgba(210,170,70,0.5); color:#ffdf8a; cursor:pointer; font-family:inherit;
+  font-size:12px; border-radius:9px; }
+#trophyCloseBtn:hover { background:rgba(110,85,30,0.95); }
 .ag-title { font-size:16px; color:#bdf; margin-bottom:10px; }
 .ag-msg { font-size:13px; color:#dde; min-height:20px; margin-bottom:14px; white-space:pre-line; }
 .ag-sub { font-size:12px; color:#9cf; margin-top:8px; }
@@ -174,7 +201,7 @@ body.touch #view3d, body.touch #view3d canvas { touch-action:none; }
   background:rgba(200,70,40,0.72); border:2px solid rgba(255,170,110,0.6); color:#fff; font-size:32px;
   display:flex; align-items:center; justify-content:center; z-index:46; touch-action:none; user-select:none; -webkit-user-select:none; }
 #touchAct.pressed { background:rgba(240,110,60,0.92); transform:scale(0.94); }
-body.touch #villageShop, body.touch #arcadePanel, body.touch #skinMenu,
+body.touch #villageShop, body.touch #arcadePanel, body.touch #trophyPanel, body.touch #skinMenu,
 body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
   max-width:94vw !important; min-width:0 !important; width:auto; max-height:82dvh; overflow-y:auto; }
 </style>
@@ -252,6 +279,12 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
     <button id="arcadeCloseBtn">✕ Leave Arcade</button>
   </div>
 </div>
+<div id="trophyPanel">
+  <div id="trophyTitle">🏛️ TROPHY HALL</div>
+  <div id="trophySub"></div>
+  <div id="trophyBody"></div>
+  <button id="trophyCloseBtn">✕ Leave the Hall</button>
+</div>
 <div id="villageShop">
   <div id="shopMerchantName"></div>
   <div id="shopMerchantDialog"></div>
@@ -276,33 +309,33 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=43"></script>
+<script src="js/three.min.js?v=44"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=43"></script>
-<script src="js/save.js?v=43"></script>
-<script src="js/hud.js?v=43"></script>
-<script src="js/craft.js?v=43"></script>
+<script src="js/globals.js?v=44"></script>
+<script src="js/save.js?v=44"></script>
+<script src="js/hud.js?v=44"></script>
+<script src="js/craft.js?v=44"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=43"></script>
-<script src="js/p2-data.js?v=43"></script>
-<script src="js/p3-data.js?v=43"></script>
-<script src="js/p4-data.js?v=43"></script>
-<script src="js/p5-data.js?v=43"></script>
+<script src="js/p1-data.js?v=44"></script>
+<script src="js/p2-data.js?v=44"></script>
+<script src="js/p3-data.js?v=44"></script>
+<script src="js/p4-data.js?v=44"></script>
+<script src="js/p5-data.js?v=44"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/mobile3d.js?v=43"></script>
-<script src="js/sfx3d.js?v=43"></script>
-<script src="js/cutscene3d.js?v=43"></script>
-<script src="js/planets3d.js?v=43"></script>
-<script src="js/engine3d.js?v=43"></script>
-<script src="js/boss3d.js?v=43"></script>
-<script src="js/village3d.js?v=43"></script>
-<script src="js/home3d.js?v=43"></script>
-<script src="js/arcade3d.js?v=43"></script>
-<script src="js/seahorse3d.js?v=43"></script>
-<script src="js/menu3d.js?v=43"></script>
-<script src="js/skins.js?v=43"></script>
+<script src="js/mobile3d.js?v=44"></script>
+<script src="js/sfx3d.js?v=44"></script>
+<script src="js/cutscene3d.js?v=44"></script>
+<script src="js/planets3d.js?v=44"></script>
+<script src="js/engine3d.js?v=44"></script>
+<script src="js/boss3d.js?v=44"></script>
+<script src="js/village3d.js?v=44"></script>
+<script src="js/home3d.js?v=44"></script>
+<script src="js/arcade3d.js?v=44"></script>
+<script src="js/seahorse3d.js?v=44"></script>
+<script src="js/menu3d.js?v=44"></script>
+<script src="js/skins.js?v=44"></script>
 </body>
 </html>

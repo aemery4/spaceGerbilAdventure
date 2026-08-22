@@ -348,31 +348,39 @@ function useHomeBuilding(b) {
   }
 }
 
-// ── Trophy Hall — a gallery of every boss you've defeated ─────────
+// ── Trophy Hall interior — a walk-in museum of your defeated bosses ─
 function openTrophyHall() {
   gamePaused = true;
   const list = (typeof P5_TROPHIES !== 'undefined') ? P5_TROPHIES : [];
   const cleared = save.planetsCleared || [];
   const earned = list.filter(t => cleared.includes(t.planet)).length;
-  document.getElementById('shopMerchantName').textContent = '🏛️ Trophy Hall';
-  document.getElementById('shopMerchantDialog').textContent = `"Monuments to every foe you have vanquished — ${earned}/${list.length} on display."`;
-  const grid = document.getElementById('shopGrid');
-  grid.innerHTML = '';
+  document.getElementById('trophySub').textContent =
+    earned === 0 ? 'The plinths stand empty. Go defeat a boss to fill them!'
+    : earned === list.length ? `Every foe vanquished — all ${list.length} trophies on display. Legendary!`
+    : `${earned} of ${list.length} trophies claimed. Empty cases await your next victory.`;
+  const body = document.getElementById('trophyBody');
+  body.innerHTML = '';
+  const grid = document.createElement('div');
+  grid.className = 'trophy-grid';
   list.forEach(t => {
     const has = cleared.includes(t.planet);
-    const el = document.createElement('div');
-    el.className = 'shop-item' + (has ? '' : ' shop-disabled');
-    el.innerHTML = `<div class="shop-item-name">${has ? t.emoji : '🔒'} ${has ? t.name : '???'}</div>
-      <div class="shop-item-desc">${has ? t.desc : "Defeat this planet's boss to earn this trophy."}</div>
-      <div class="shop-cost">${has ? '<span class="has">🏆 Earned</span>' : '<span class="lacks">Locked</span>'}</div>`;
-    grid.appendChild(el);
+    const c = document.createElement('div');
+    c.className = 'trophy-case' + (has ? '' : ' locked');
+    c.innerHTML =
+      `<div class="tc-emoji">${has ? t.emoji : '❔'}</div>` +
+      `<div class="tc-plinth"></div>` +
+      `<div class="tc-name">${has ? t.name : '???'}</div>` +
+      `<div class="tc-desc">${has ? t.desc : "Defeat this planet's boss to earn this trophy."}</div>` +
+      `<div class="tc-badge ${has ? 'earned' : 'locked'}">${has ? '🏆 Vanquished' : '🔒 Locked'}</div>`;
+    grid.appendChild(c);
   });
-  const close = document.createElement('div');
-  close.className = 'shop-item';
-  close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Back to your base</div>';
-  close.onclick = () => closeShop();
-  grid.appendChild(close);
-  document.getElementById('villageShop').style.display = 'block';
+  body.appendChild(grid);
+  document.getElementById('trophyCloseBtn').onclick = closeTrophyHall;
+  document.getElementById('trophyPanel').style.display = 'block';
+}
+function closeTrophyHall() {
+  document.getElementById('trophyPanel').style.display = 'none';
+  gamePaused = false;
 }
 
 // ── Observatory — fast-travel to any unlocked planet from home ────
