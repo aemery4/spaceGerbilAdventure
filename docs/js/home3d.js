@@ -110,7 +110,7 @@ function useHomeAlien(a) {
   const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', coins: '🪙' };
   if (d.minigame) {
     showMsg(`${d.emoji} ${d.name}`, d.dialog + '\n\nCome play at the arcade?',
-      () => { if (typeof openArcade === 'function') { openArcade(); openArcadeGame('rps'); } }, 'Play RPS');
+      () => { if (typeof openArcade === 'function') { openArcade(); openArcadeGame('rps'); } }, 'Play RPS', 'No thanks');
     return;
   }
   if (d.trade) {
@@ -124,7 +124,8 @@ function useHomeAlien(a) {
         persist(); updateHUD();
         showToast('✅ Trade Complete!', `You received ${t.rewardAmt} ${icons[t.reward]}!`);
       } : null,
-      has ? 'Trade!' : 'Not enough...');
+      has ? 'Trade!' : 'Close',
+      has ? 'No thanks' : undefined);
     return;
   }
   showMsg(`${d.emoji} ${d.name}`, d.dialog);

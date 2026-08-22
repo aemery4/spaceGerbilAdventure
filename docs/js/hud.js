@@ -11,7 +11,7 @@ function updateHUD(){
   const M={shield:'🛡',boots:'👟',medkit:'💊',scanner:'📡',magnet:'🧲',armor:'🦺',banana_sword:'🍌Sword',vine_hook:'🪝Hook',rocket_upgrade:'🚀Upg'};
   document.getElementById('items').textContent=save.items.map(i=>M[i]||i).join(' ')||'none';
 }
-function showMsg(t,b,cb,btn){
+function showMsg(t,b,cb,btn,cancelLabel){
   gamePaused=true;
   document.getElementById('mt').textContent=t;
   document.getElementById('mb').textContent=b;
@@ -19,6 +19,11 @@ function showMsg(t,b,cb,btn){
   const el=document.getElementById('mbtn');
   el.textContent=btn||'OK';
   el.onclick=()=>{closeMsg();gamePaused=false;if(cb)cb();};
+  const el2=document.getElementById('mbtn2');
+  if(el2){
+    if(cancelLabel){ el2.style.display=''; el2.textContent=cancelLabel; el2.onclick=()=>{closeMsg();gamePaused=false;}; }
+    else { el2.style.display='none'; }
+  }
 }
 function closeMsg(){document.getElementById('message').style.display='none';}
 let _toastTimer=null;

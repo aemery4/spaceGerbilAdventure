@@ -235,7 +235,7 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
 <div id="saveIndicator" style="position:fixed;top:10px;right:10px;background:rgba(0,0,0,0.8);color:#4f4;padding:4px 12px;border-radius:4px;font-size:12px;font-family:monospace;opacity:0;transition:opacity 0.3s;pointer-events:none;z-index:200;">💾 Saved!</div>
 
 <!-- modals -->
-<div id="message"><h2 id="mt"></h2><p id="mb"></p><button id="mbtn" onclick="closeMsg()">OK</button></div>
+<div id="message"><h2 id="mt"></h2><p id="mb"></p><button id="mbtn" onclick="closeMsg()">OK</button><button id="mbtn2" style="display:none;background:#333;border-color:#556;margin-left:8px;" onclick="closeMsg()">No</button></div>
 <div id="craftPanel"><h2>⚗️ Crafting</h2><div class="cgrid" id="cg"></div><button class="cclose" onclick="toggleCraft()">Close [C]</button></div>
 <div id="gearPanel" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(5,5,20,0.97);border:2px solid #f80;border-radius:12px;padding:18px 22px;display:none;z-index:60;min-width:420px;max-width:480px;">
   <h2 style="color:#fa0;font-size:15px;margin-bottom:10px;text-align:center;">⚔️ Gear &amp; Weapons</h2>
@@ -275,33 +275,33 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=29"></script>
+<script src="js/three.min.js?v=30"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=29"></script>
-<script src="js/save.js?v=29"></script>
-<script src="js/hud.js?v=29"></script>
-<script src="js/craft.js?v=29"></script>
+<script src="js/globals.js?v=30"></script>
+<script src="js/save.js?v=30"></script>
+<script src="js/hud.js?v=30"></script>
+<script src="js/craft.js?v=30"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=29"></script>
-<script src="js/p2-data.js?v=29"></script>
-<script src="js/p3-data.js?v=29"></script>
-<script src="js/p4-data.js?v=29"></script>
-<script src="js/p5-data.js?v=29"></script>
+<script src="js/p1-data.js?v=30"></script>
+<script src="js/p2-data.js?v=30"></script>
+<script src="js/p3-data.js?v=30"></script>
+<script src="js/p4-data.js?v=30"></script>
+<script src="js/p5-data.js?v=30"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/mobile3d.js?v=29"></script>
-<script src="js/sfx3d.js?v=29"></script>
-<script src="js/cutscene3d.js?v=29"></script>
-<script src="js/planets3d.js?v=29"></script>
-<script src="js/engine3d.js?v=29"></script>
-<script src="js/boss3d.js?v=29"></script>
-<script src="js/village3d.js?v=29"></script>
-<script src="js/home3d.js?v=29"></script>
-<script src="js/arcade3d.js?v=29"></script>
-<script src="js/seahorse3d.js?v=29"></script>
-<script src="js/menu3d.js?v=29"></script>
-<script src="js/skins.js?v=29"></script>
+<script src="js/mobile3d.js?v=30"></script>
+<script src="js/sfx3d.js?v=30"></script>
+<script src="js/cutscene3d.js?v=30"></script>
+<script src="js/planets3d.js?v=30"></script>
+<script src="js/engine3d.js?v=30"></script>
+<script src="js/boss3d.js?v=30"></script>
+<script src="js/village3d.js?v=30"></script>
+<script src="js/home3d.js?v=30"></script>
+<script src="js/arcade3d.js?v=30"></script>
+<script src="js/seahorse3d.js?v=30"></script>
+<script src="js/menu3d.js?v=30"></script>
+<script src="js/skins.js?v=30"></script>
 </body>
 </html>
