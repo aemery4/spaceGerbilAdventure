@@ -274,7 +274,7 @@ function applyHomeFarmsOnVisit() {
 function toggleBuildMode() {
   if (!E.cfg || !E.cfg.home) return;
   homeBuildMode = !homeBuildMode;
-  homeMoveTarget = null; // cancel any in-progress relocation
+  homeMoveTarget = null; clearMoveGhost(); // cancel any in-progress relocation
   updateBuildButton();
   showToast(homeBuildMode ? '🔨 Build Mode ON' : '🚶 Explore Mode',
     homeBuildMode ? 'Click grass to build. Click a building to move or remove it.' : 'Walk around your base. Press Space by a building to use it.');
@@ -290,6 +290,60 @@ function updateBuildButton() {
 }
 
 let homeMoveTarget = null; // a building currently being relocated
+
+// ── Ghost preview that follows the cursor while relocating ──────
+function startMoveGhost(b) {
+  clearMoveGhost();
+  const info = P5_BUILDINGS.find(pb => pb.type === b.type);
+  if (!info || !E.scene) return;
+  const g = new THREE.Group();
+  const bldg = makeBuildingMesh(b.type, info.w, info.h);
+  bldg.position.y = 0.06;
+  bldg.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.45; o.castShadow = false; } });
+  const pad = new THREE.Mesh(new THREE.PlaneGeometry(info.w, info.h),
+    new THREE.MeshBasicMaterial({ color: 0x44ff66, transparent: true, opacity: 0.4, depthWrite: false }));
+  pad.rotation.x = -Math.PI / 2; pad.position.y = 0.04;
+  g.add(pad, bldg);
+  E.scene.add(g);
+  E.moveGhost = { group: g, pad, w: info.w, h: info.h, target: b };
+  updateMoveGhost(b.gridX, b.gridY);
+}
+function moveGhostFits(gx, gy) {
+  const mg = E.moveGhost; if (!mg) return false;
+  const b = mg.target;
+  for (let dr = 0; dr < mg.h; dr++)
+    for (let dc = 0; dc < mg.w; dc++) {
+      const x = gx + dc, z = gy + dr;
+      const own = (x >= b.gridX && x < b.gridX + mg.w && z >= b.gridY && z < b.gridY + mg.h);
+      if (x < 1 || z < 1 || x >= E.cols - 1 || z >= E.rows - 1 || (!own && E.map[z][x] !== 0)) return false;
+    }
+  return true;
+}
+function updateMoveGhost(gx, gy) {
+  const mg = E.moveGhost; if (!mg) return;
+  mg.group.position.set(gx + mg.w / 2, 0, gy + mg.h / 2);
+  mg.group.visible = true;
+  mg.pad.material.color.setHex(moveGhostFits(gx, gy) ? 0x44ff66 : 0xff4444);
+}
+function clearMoveGhost() {
+  const mg = E.moveGhost; if (!mg) return;
+  if (E.scene && mg.group) {
+    E.scene.remove(mg.group);
+    mg.group.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose()); });
+  }
+  E.moveGhost = null;
+}
+// The ghost tracks the cursor over the yard
+window.addEventListener('pointermove', e => {
+  if (!E.moveGhost || !E.renderer || !E.camera || gamePaused) return;
+  const rect = E.renderer.domElement.getBoundingClientRect();
+  const px = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  const py = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  E.raycaster.setFromCamera({ x: px, y: py }, E.camera);
+  const hit = new THREE.Vector3();
+  if (E.raycaster.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), hit))
+    updateMoveGhost(Math.floor(hit.x), Math.floor(hit.z));
+});
 
 // Which saved building (if any) covers a given tile
 function buildingAtTile(gx, gy) {
@@ -326,7 +380,8 @@ function openManageBuilding(b) {
   };
   item('↔️ Move', 'Then click a grass tile to place it', () => {
     homeMoveTarget = b; closeShop();
-    showToast('↔️ Moving ' + (info.name || 'building'), 'Click a grass tile to set it down. (Press B to cancel.)');
+    startMoveGhost(b);
+    showToast('↔️ Moving ' + (info.name || 'building'), 'Move the ghost and click to set it down. Green = OK, red = blocked. (B to cancel.)');
   });
   item('🗑️ Remove', `Tear it down — refund ${refund} 🪙`, () => {
     closeShop();
@@ -364,9 +419,9 @@ function removeBuilding(b, refund) {
 }
 
 function tryMoveBuilding(gx, gy) {
-  const b = homeMoveTarget; homeMoveTarget = null;
+  const b = homeMoveTarget;
   const info = P5_BUILDINGS.find(pb => pb.type === b.type);
-  if (!info) return;
+  if (!info) { homeMoveTarget = null; clearMoveGhost(); return; }
   // fits if every target tile is open grass — treating the building's own
   // current footprint as free (so you can nudge it a little)
   let fits = true;
@@ -376,7 +431,8 @@ function tryMoveBuilding(gx, gy) {
       const ownTile = (x >= b.gridX && x < b.gridX + info.w && z >= b.gridY && z < b.gridY + info.h);
       if (x < 1 || z < 1 || x >= E.cols - 1 || z >= E.rows - 1 || (!ownTile && E.map[z][x] !== 0)) fits = false;
     }
-  if (!fits) { showToast('🚫 No room', 'That spot is blocked — pick open grass.'); return; }
+  if (!fits) { showToast('🚫 No room', 'That spot is blocked — pick open grass.'); return; } // keep moving
+  homeMoveTarget = null; clearMoveGhost();
   b.gridX = gx; b.gridY = gy;
   if (typeof SFX !== 'undefined' && SFX.build) SFX.build();
   persist();
