@@ -160,6 +160,7 @@ function buildWorld(n, cfg) {
   buildResources(data, cfg, scene);
   buildEnemies(data, cfg, scene);
   sprinkleExtras(cfg, scene);
+  ensureFuel(cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
@@ -331,6 +332,28 @@ function createEnemy(cfg, variant, worldX, worldZ, e, key) {
 
 // Scatter extra resources + wandering enemies across the enlarged map so the
 // bigger arenas don't feel empty.
+// Guarantee a planet always has enough fuel to actually finish it
+function ensureFuel(cfg, scene) {
+  const target = cfg.fuelTarget || 0;
+  if (!target) return;
+  const need = target + 5; // comfortable margin
+  let have = E.resources.filter(r => r.type === 'fuel').length;
+  if (have >= need) return;
+  const open = [];
+  for (let z = 2; z < E.rows - 2; z++) for (let x = 2; x < E.cols - 2; x++) {
+    const v = E.map[z][x];
+    if (cfg.solid.includes(v) || cfg.damage.includes(v) || v === 7) continue;
+    open.push([x, z]);
+  }
+  let guard = 0;
+  while (have < need && open.length && guard++ < 500) {
+    const [x, z] = open[Math.floor(Math.random() * open.length)];
+    const mesh = makeResourceMesh('fuel'); mesh.position.set(x + 0.5, 0.45, z + 0.5); scene.add(mesh);
+    E.resources.push({ type: 'fuel', hp: 1, maxhp: 1, mesh, spin: Math.random() * 6 });
+    have++;
+  }
+}
+
 function sprinkleExtras(cfg, scene) {
   const off = E.worldOff || 0;
   if (off <= 0) return; // home base isn't enlarged
