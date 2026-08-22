@@ -580,6 +580,11 @@ function useHomeBuilding(b) {
       else openTrophyHall();
       break;
     case 'observatory': openObservatory(); break;
+    default: {
+      const info = P5_BUILDINGS.find(pb => pb.type === b.type);
+      if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
+      break;
+    }
   }
 }
 
@@ -798,6 +803,56 @@ function makeBuildingMesh(type, w, h) {
     const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2277bb, emissiveIntensity: 0.7 })); lens.position.set(0, 1.5, w * 0.42); lens.rotation.x = -0.9;
     const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, 0.04, 8, 24), new THREE.MeshStandardMaterial({ color: 0x66c2ff, emissive: 0x2277bb, emissiveIntensity: 0.9 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.9;
     g.add(drum, dome, scope, lens, ring); g.userData.spin = dome;
+  } else if (type === 'tree') {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 8), M(0x6b4a2a)); trunk.position.y = 0.3;
+    const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), M(0x2f8a3a)); f1.position.y = 0.95;
+    const f2 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), M(0x37a047)); f2.position.set(0.18, 1.2, 0.05);
+    const f3 = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), M(0x2f8a3a)); f3.position.set(-0.16, 1.12, -0.05);
+    g.add(trunk, f1, f2, f3);
+  } else if (type === 'pine') {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.4, 7), M(0x6b4a2a)); trunk.position.y = 0.2;
+    const c1 = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.6, 9), M(0x1f6b34)); c1.position.y = 0.6;
+    const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.55, 9), M(0x257a3c)); c2.position.y = 0.95;
+    const c3 = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 9), M(0x2f8a3a)); c3.position.y = 1.3;
+    g.add(trunk, c1, c2, c3);
+  } else if (type === 'flowers') {
+    const bed = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.44, 0.14, 12), M(0x5a3a1e)); bed.position.y = 0.07;
+    const cols = [0xff5a8a, 0xffe066, 0xff8a4a, 0x9a6aff, 0xffffff];
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * Math.PI * 2, r = 0.22;
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.22, 4), M(0x3fae50)); stem.position.set(Math.cos(a) * r, 0.24, Math.sin(a) * r);
+      const petal = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), M(cols[i % cols.length], 0.6)); petal.position.set(Math.cos(a) * r, 0.37, Math.sin(a) * r);
+      g.add(stem, petal);
+    }
+    g.add(bed);
+  } else if (type === 'bush') {
+    const b1 = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), M(0x2f7a34)); b1.position.set(-0.12, 0.28, 0); b1.scale.y = 0.8;
+    const b2 = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), M(0x379040)); b2.position.set(0.16, 0.24, 0.08); b2.scale.y = 0.8;
+    const b3 = new THREE.Mesh(new THREE.SphereGeometry(0.24, 12, 10), M(0x2f7a34)); b3.position.set(0.02, 0.34, -0.14); b3.scale.y = 0.8;
+    g.add(b1, b2, b3);
+  } else if (type === 'rock') {
+    const r1 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.34), M(0x8a8f96, 0.9)); r1.position.y = 0.26; r1.scale.set(1.2, 0.9, 1); r1.rotation.set(0.3, 0.5, 0.1);
+    const r2 = new THREE.Mesh(new THREE.DodecahedronGeometry(0.2), M(0x9aa0a6, 0.9)); r2.position.set(0.28, 0.16, 0.16); r2.rotation.set(0.6, 0.2, 0.4);
+    g.add(r1, r2);
+  } else if (type === 'lamp') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.16, 10), M(0x2a2a30, 0.6)); base.position.y = 0.08;
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 1.2, 8), M(0x33333c, 0.6)); pole.position.y = 0.7;
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, 0.16, 8), M(0x2a2a30, 0.6)); head.position.y = 1.32;
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), new THREE.MeshStandardMaterial({ color: 0xfff2a0, emissive: 0xffd060, emissiveIntensity: 1.2 })); bulb.position.y = 1.28;
+    const light = new THREE.PointLight(0xffd070, 0.6, 5, 2); light.position.y = 1.28;
+    g.add(base, pole, head, bulb, light);
+  } else if (type === 'banner') {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8), M(0x8a6a3a, 0.6)); pole.position.y = 0.7;
+    const flag = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.34, 0.03), M(0xd83b5b, 0.7)); flag.position.set(0.28, 1.1, 0);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.035), M(0xffd54a, 0.5)); trim.position.set(0.28, 0.92, 0);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 8), M(0xffd54a, 0.4)); knob.position.y = 1.42;
+    g.add(pole, flag, trim, knob);
+  } else if (type === 'statue') {
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 0.24, 12), M(0xbfb9a8, 0.9)); ped.position.y = 0.12;
+    const body = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.5, 12), M(0xdad3c2, 0.9)); body.position.y = 0.5;
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 10), M(0xe8dcc8, 0.9)); head.position.y = 0.82;
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.3, 12), M(0xc0563b, 0.8)); hat.position.y = 1.05;
+    g.add(ped, body, head, hat);
   } else { // fountain
     const basin = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.45, w * 0.5, 0.3, 16), M(0xb0b8c0));
     basin.position.y = 0.15;

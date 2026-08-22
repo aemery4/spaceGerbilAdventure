@@ -14,6 +14,15 @@ const P5_BUILDINGS = [
   { type: 'fountain',name: 'Fountain',     emoji: '⛲', desc: 'A decorative fountain with sparkles.', cost: 100, w: 1, h: 1 },
   { type: 'trophy',  name: 'Trophy Hall',  emoji: '🏛️', desc: 'A museum of every boss you have defeated.', cost: 250, w: 2, h: 2 },
   { type: 'observatory', name: 'Observatory', emoji: '🔭', desc: 'Launch from home to any unlocked planet.', cost: 350, w: 2, h: 2 },
+  // ── Decorations (cosmetic, 1×1) ──
+  { type: 'tree',    name: 'Shade Tree',   emoji: '🌳', desc: 'A big leafy tree.',            cost: 20, w: 1, h: 1, deco: true },
+  { type: 'pine',    name: 'Pine Tree',    emoji: '🌲', desc: 'A tall evergreen.',            cost: 20, w: 1, h: 1, deco: true },
+  { type: 'flowers', name: 'Flower Bed',   emoji: '🌸', desc: 'A patch of colourful flowers.', cost: 10, w: 1, h: 1, deco: true },
+  { type: 'bush',    name: 'Bush',         emoji: '🌿', desc: 'A tidy green shrub.',          cost: 10, w: 1, h: 1, deco: true },
+  { type: 'rock',    name: 'Boulder',      emoji: '🪨', desc: 'A decorative rock.',           cost: 10, w: 1, h: 1, deco: true },
+  { type: 'lamp',    name: 'Lamp Post',    emoji: '💡', desc: 'Casts a warm glow, day or night.', cost: 30, w: 1, h: 1, deco: true },
+  { type: 'banner',  name: 'Banner',       emoji: '🚩', desc: 'A cheerful flag on a pole.',   cost: 25, w: 1, h: 1, deco: true },
+  { type: 'statue',  name: 'Garden Gnome', emoji: '🗿', desc: 'Keeps a watchful eye on the yard.', cost: 40, w: 1, h: 1, deco: true },
 ];
 
 // Trophy Hall exhibits — one per planet, earned by clearing that planet.
