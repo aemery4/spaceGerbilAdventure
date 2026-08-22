@@ -114,22 +114,52 @@ function updateHomeAliens(dt) {
     if (tx < 1 || tz < 1 || tx >= E.cols - 1 || tz >= E.rows - 1) return true;
     return E.cfg.solid.includes(E.map[tz][tx]);
   };
-  E.homeAliens.forEach(a => {
-    a.bob += dt; a.wander -= dt;
-    if (a.wander <= 0) {
-      // stay near home (their hut): if they've drifted too far, head back
-      const dhx = (a.homeX || a.x) - a.x, dhz = (a.homeZ || a.z) - a.z;
-      if (Math.hypot(dhx, dhz) > 3.2) a.dir.set(dhx, 0, dhz).normalize();
-      else a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
-      a.wander = 1.5 + Math.random() * 2.5;
-    }
-    const nx = a.x + a.dir.x * 0.7 * dt, nz = a.z + a.dir.z * 0.7 * dt;
+  const step = (a, spd) => {
+    const nx = a.x + a.dir.x * spd * dt, nz = a.z + a.dir.z * spd * dt;
     if (!solid(nx, a.z)) a.x = nx; else a.dir.x *= -1;
     if (!solid(a.x, nz)) a.z = nz; else a.dir.z *= -1;
     a.mesh.position.x = a.x; a.mesh.position.z = a.z;
     a.mesh.position.y = 0.05 + Math.abs(Math.sin(a.bob * 3)) * 0.06;
     a.mesh.rotation.y = Math.atan2(a.dir.x, a.dir.z);
-    if (a.marker) { a.marker.rotation.y += dt * 2; a.marker.position.y = 1.3 + Math.sin(a.bob * 2) * 0.1; }
+  };
+  E.homeAliens.forEach(a => {
+    a.bob += dt;
+    if (a.marker && a.mesh.visible) { a.marker.rotation.y += dt * 2; a.marker.position.y = 1.3 + Math.sin(a.bob * 2) * 0.1; }
+
+    if (a.resident) {
+      a.stateTimer = (a.stateTimer == null ? 5 + Math.random() * 6 : a.stateTimer) - dt;
+      if (a.state === 'in') {                         // tucked inside the hut
+        if (a.stateTimer <= 0) {                       // come back out
+          a.state = 'out'; a.x = a.homeX; a.z = a.homeZ;
+          a.mesh.position.set(a.x, 0.05, a.z); a.mesh.visible = true;
+          a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+          a.stateTimer = 6 + Math.random() * 7;
+        }
+        return;
+      }
+      if (a.state === 'toHome') {                       // walking home to duck inside
+        a.dir.set(a.homeX - a.x, 0, a.homeZ - a.z);
+        const d = a.dir.length(); a.dir.normalize();
+        step(a, 1.1);
+        if (d < 0.5) { a.state = 'in'; a.mesh.visible = false; a.stateTimer = 3 + Math.random() * 4; }
+        return;
+      }
+      // state 'out': occasionally head home; otherwise wander nearby
+      if (a.stateTimer <= 0) { a.state = 'toHome'; return; }
+      a.wander = (a.wander == null ? 0 : a.wander) - dt;
+      if (a.wander <= 0) {
+        if (Math.hypot(a.homeX - a.x, a.homeZ - a.z) > 3.2) a.dir.set(a.homeX - a.x, 0, a.homeZ - a.z).normalize();
+        else a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize();
+        a.wander = 1.5 + Math.random() * 2;
+      }
+      step(a, 0.7);
+      return;
+    }
+
+    // non-resident wanderers
+    a.wander -= dt;
+    if (a.wander <= 0) { a.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(); a.wander = 1.5 + Math.random() * 2.5; }
+    step(a, 0.7);
   });
 }
 
@@ -137,6 +167,7 @@ function homeAlienNear(worldPoint) {
   if (!E.homeAliens) return null;
   const p = E.player.position;
   for (const a of E.homeAliens) {
+    if (a.state === 'in' || !a.mesh.visible) continue; // hidden inside its hut
     const here = new THREE.Vector3(a.x, 0.5, a.z);
     if (p.distanceTo(here) < 2.0 && (!worldPoint || worldPoint.distanceTo(here) < 1.4)) return a;
   }
