@@ -71,7 +71,7 @@ function openArcadeGame(id) {
   const body = document.getElementById('arcadeBody');
   body.innerHTML = '';
   ({ rps: gameRPS, reflex: gameReflex, memory: gameMemory, slots: gameSlots, highlow: gameHighLow,
-     whack: gameWhack, maze: gameMaze, flappy: gameFlappy }[id])(body);
+     whack: gameWhack, maze: gameMaze, flappy: gameFlappy, claw: gameClaw }[id])(body);
 }
 
 function agAgain(el, fn) {
@@ -324,6 +324,72 @@ function gameFlappy(el) {
       el.querySelector('#fdMsg').textContent = `Crashed! Score ${score} — +${reward} 🪙. Click to retry.`;
       return;
     }
+    arcadeRAF = requestAnimationFrame(loop);
+  }
+  arcadeRAF = requestAnimationFrame(loop);
+}
+
+// ── 9. Prize Claw ───────────────────────────────────────────────
+function gameClaw(el) {
+  el.innerHTML = `<div class="ag-title">🕹️ Prize Claw</div>
+    <div class="ag-msg" id="clMsg">Click or press Space to drop the claw on a prize!</div>
+    <canvas id="clCanvas" width="440" height="300" style="background:#0a0a1e;border:1px solid #55f;border-radius:8px;max-width:100%;cursor:pointer;"></canvas>
+    <div class="ag-sub" id="clScore">Won: 0 🪙</div>`;
+  const cv = el.querySelector('#clCanvas'), ctx = cv.getContext('2d');
+  const W = cv.width, H = cv.height, prizeY = H - 46;
+  const POOL = [['🧸', 10], ['💎', 40], ['🍬', 5], ['🎁', 25], ['⭐', 15], ['🍭', 5], ['🚀', 20]];
+  function makeRow() {
+    const n = 5, gap = (W - 90) / (n - 1), arr = [];
+    for (let i = 0; i < n; i++) { const p = POOL[Math.floor(Math.random() * POOL.length)]; arr.push({ x: 45 + i * gap, emoji: p[0], val: p[1], gone: false }); }
+    return arr;
+  }
+  let prizes = makeRow(), clawX = W / 2, dir = 1, clawY = 34, state = 'aim', total = 0, held = null;
+  const grabRange = 30, dropSpeed = 6, aimSpeed = 2.7;
+  const drop = () => { if (state === 'aim') state = 'drop'; };
+  cv.onclick = drop;
+  arcadeKeyHandler = (e) => { if (e.key === ' ') { e.preventDefault(); drop(); } };
+  window.addEventListener('keydown', arcadeKeyHandler);
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#2a2a48'; ctx.lineWidth = 2; ctx.strokeRect(4, 4, W - 8, H - 8);
+    ctx.fillStyle = '#141430'; ctx.fillRect(4, prizeY + 12, W - 8, H - prizeY - 16); // prize bin
+    ctx.fillStyle = '#3a3a66'; ctx.fillRect(4, 20, W - 8, 5);                        // top rail
+    ctx.font = '28px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    prizes.forEach(p => { if (!p.gone) ctx.fillText(p.emoji, p.x, prizeY); });
+    ctx.strokeStyle = '#99a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(clawX, 22); ctx.lineTo(clawX, clawY); ctx.stroke();
+    ctx.fillStyle = '#cdd'; ctx.beginPath();
+    ctx.moveTo(clawX - 13, clawY); ctx.lineTo(clawX, clawY + 15); ctx.lineTo(clawX + 13, clawY);
+    ctx.lineTo(clawX + 6, clawY - 3); ctx.lineTo(clawX - 6, clawY - 3); ctx.closePath(); ctx.fill();
+    if (held) { ctx.font = '24px serif'; ctx.fillText(held.emoji, clawX, clawY + 20); }
+  }
+  function loop() {
+    if (state === 'aim') { clawX += dir * aimSpeed; if (clawX > W - 34) { clawX = W - 34; dir = -1; } if (clawX < 34) { clawX = 34; dir = 1; } }
+    else if (state === 'drop') {
+      clawY += dropSpeed;
+      if (clawY >= prizeY - 6) {
+        let best = null, bd = grabRange;
+        prizes.forEach(p => { if (p.gone) return; const d = Math.abs(p.x - clawX); if (d < bd) { bd = d; best = p; } });
+        if (best && Math.random() < 0.72) { held = { emoji: best.emoji, val: best.val }; best.gone = true; }
+        else held = null;
+        state = 'rise';
+      }
+    } else if (state === 'rise') {
+      clawY -= dropSpeed;
+      if (clawY <= 34) {
+        clawY = 34;
+        if (held) {
+          total += held.val; arcadeAward(held.val);
+          el.querySelector('#clScore').textContent = 'Won: ' + total + ' 🪙';
+          el.querySelector('#clMsg').textContent = 'Grabbed ' + held.emoji + '  +' + held.val + ' 🪙! Drop again!';
+        } else {
+          el.querySelector('#clMsg').textContent = 'So close — the claw slipped! Try again.';
+        }
+        held = null;
+        if (prizes.every(p => p.gone)) prizes = makeRow();
+        state = 'aim';
+      }
+    }
+    draw();
     arcadeRAF = requestAnimationFrame(loop);
   }
   arcadeRAF = requestAnimationFrame(loop);

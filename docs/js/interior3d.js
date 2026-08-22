@@ -371,7 +371,7 @@ function populateArcadeInterior(scene, COLS, ROWS, def) {
   const sign = makeSign('★ ARCADE ★', 0x22ffdd, 5.2, 1.3); sign.position.set(COLS / 2, 2.55, 0.5); scene.add(sign);
   // claw / prize machine in the open floor (front-left)
   const claw = makeClawMachine(); claw.position.set(2.6, 0, ROWS - 3.4); claw.rotation.y = 0.3; scene.add(claw);
-  E.interiorProps.push({ mesh: claw, x: 2.6, z: ROWS - 3.4, spin: claw.userData.prizeSpin, action: () => showToast('🕹️ Claw Machine', 'Purely decorative… for now. Try the cabinets for real coins!') });
+  E.interiorProps.push({ mesh: claw, x: 2.6, z: ROWS - 3.4, spin: claw.userData.prizeSpin, action: () => playArcadeCabinet('claw') });
   // snack + token counter (front-right) with stools
   const counter = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.9, 0.7), new THREE.MeshStandardMaterial({ color: 0x2c2450, roughness: 0.6 }));
   counter.position.set(COLS - 2.6, 0.45, ROWS - 3.2); counter.rotation.y = -0.3; counter.castShadow = true; scene.add(counter);
