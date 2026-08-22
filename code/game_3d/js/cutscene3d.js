@@ -340,20 +340,21 @@ const dirArea51 = {
       cone.position.set(-4 + i * 4, 0.2, -1.5); scene.add(cone); beams.push(cone);
     }
     scene.userData.beams = beams;
-    // gerbil sneaking under the fence
-    const gerbil = makeCsGerbil(); gerbil.scale.setScalar(0.7); gerbil.position.set(-1.2, 0, 1.4); gerbil.rotation.y = Math.PI; scene.add(gerbil); scene.userData.gerbil = gerbil;
+    // the player (astronaut) sneaking toward the base
+    const hero = makeCsAstronaut(); hero.position.set(-0.8, 0, 2.2); hero.rotation.y = Math.PI; scene.add(hero); scene.userData.hero = hero;
     cam.position.set(0, 2.4, 8); cam.lookAt(0, 1.2, -2);
   },
   update(t, scene, cam, opts, dt) {
     scene.userData.beams.forEach((c, i) => { c.rotation.z = Math.sin(t * 0.9 + i * 2.1) * 0.5; });
     const s = scene.userData.saucer; s.position.y = 3 + Math.sin(t * 1.2) * 0.2; s.rotation.y += 0.6 * dt;
     scene.userData.rimLights.forEach((b, i) => { b.material.emissiveIntensity = 0.5 + 0.6 * Math.abs(Math.sin(t * 4 + i)); });
-    const g = scene.userData.gerbil;
-    // creep forward toward the fence, ducking under it
-    g.position.z = 1.4 - Math.min(3, t * 0.7);
-    g.userData.legs.forEach((l, i) => l.rotation.x = Math.sin(t * 8 + i * 1.6) * 0.4);
-    if (g.position.z < -2.2) g.position.y = 0; // through
-    setCaption(t < 2.5 ? 'Nevada desert — 0300 hours.' : t < 4.2 ? 'A tiny gerbil slips under the fence…' : 'Grab the ⚡ fuel and reach the saucer — don\'t get caught!', '#bfe0ff');
+    const h = scene.userData.hero;
+    // stride forward toward the fence and slip past it
+    h.position.z = 2.2 - Math.min(4.2, t * 0.85);
+    h.rotation.z = Math.sin(t * 6) * 0.03; // slight sway
+    h.userData.legs.forEach((l, i) => l.rotation.x = Math.sin(t * 7 + i * Math.PI) * 0.5);
+    h.userData.arms.forEach((a, i) => a.rotation.x = Math.sin(t * 7 + i * Math.PI) * 0.35);
+    setCaption(t < 2.5 ? 'Nevada desert — 0300 hours.' : t < 4.2 ? 'A lone astronaut slips past the fence…' : 'Grab the ⚡ fuel and reach the saucer — don\'t get caught!', '#bfe0ff');
     cam.position.x = Math.sin(t * 0.2) * 0.7;
   }
 };
