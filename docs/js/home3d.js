@@ -634,7 +634,10 @@ function useHomeBuilding(b) {
       if (typeof enterInterior === 'function') enterInterior('trophy');
       else openTrophyHall();
       break;
-    case 'observatory': openObservatory(); break;
+    case 'observatory':
+      if (typeof enterInterior === 'function') enterInterior('observatory');
+      else openObservatory();
+      break;
     case 'quest': openQuestBoard(); break;
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);

@@ -11,7 +11,8 @@ let interiorReturn = null; // {x,z} where to drop the player back home
 
 const INTERIOR_DEFS = {
   trophy: { title: '🏛️ Trophy Hall', sky: 0x14110a, floor: 0xcdc4a8, wall: 0xb0a074, accent: 0xffd54a, populate: populateTrophyInterior },
-  arcade: { title: '🕹️ Space Arcade', sky: 0x0a0818, floor: 0x2a2440, wall: 0x38305c, accent: 0x22ffdd, populate: populateArcadeInterior }
+  arcade: { title: '🕹️ Space Arcade', sky: 0x0a0818, floor: 0x2a2440, wall: 0x38305c, accent: 0x22ffdd, populate: populateArcadeInterior },
+  observatory: { title: '🔭 Observatory', sky: 0x05070f, floor: 0x0a0f1e, wall: 0x18223a, accent: 0x66ccff, populate: populateObservatoryInterior }
 };
 
 function enterInterior(kind) {
@@ -116,6 +117,9 @@ function buildInterior(kind, def) {
   if (kind === 'arcade') {
     const t = makeGridTexture('#120d26', '#00e6d0', 15); t.repeat.set(1, 1);
     floorMat.map = t; floorMat.emissiveMap = t; floorMat.emissive = new THREE.Color(0x0a5c55); floorMat.emissiveIntensity = 0.6;
+  } else if (kind === 'observatory') {
+    const t = makeGridTexture('#060a16', '#2a5a8a', 15); t.repeat.set(1, 1);
+    floorMat.map = t; floorMat.emissiveMap = t; floorMat.emissive = new THREE.Color(0x123354); floorMat.emissiveIntensity = 0.5;
   } else {
     const t = makeCheckerTexture('#ece5cb', '#c7ba92', COLS); t.repeat.set(COLS / 2, ROWS / 2);
     floorMat.map = t; floorMat.color = new THREE.Color(0xffffff);
@@ -447,6 +451,67 @@ function playArcadeCabinet(id) {
   document.getElementById('arcadeCloseBtn').onclick = () => { if (typeof closeArcade === 'function') closeArcade(); };
   if (typeof openArcadeGame === 'function') openArcadeGame(id);
   document.getElementById('arcadePanel').style.display = 'block';
+}
+
+// ── Observatory interior: a star-map room to launch to any world ──
+function populateObservatoryInterior(scene, COLS, ROWS, def) {
+  const worlds = [
+    { n: 1, emoji: '🌍', name: 'Earth — Area 51', color: 0x3a7bd0 },
+    { n: 2, emoji: '🌴', name: 'Jungle Zorbax', color: 0x2f9e44 },
+    { n: 3, emoji: '❄️', name: 'Tundra Frigia', color: 0xcfe8ff },
+    { n: 4, emoji: '🌊', name: 'Aquatic Neptuna', color: 0x1f6fb0 },
+    { n: 6, emoji: '🌋', name: 'Volcano Magmara', color: 0xc0401a }
+  ];
+  const spots = [
+    { x: COLS * 0.28, z: 1.9, rot: 0 }, { x: COLS * 0.5, z: 1.7, rot: 0 }, { x: COLS * 0.72, z: 1.9, rot: 0 },
+    { x: 1.9, z: 4.6, rot: Math.PI / 2 }, { x: COLS - 1.9, z: 4.6, rot: -Math.PI / 2 }
+  ];
+  worlds.forEach((w, i) => {
+    const s = spots[i] || { x: 2 + i, z: 2, rot: 0 };
+    const locked = (typeof isLocked === 'function') ? isLocked(w.n) : false;
+    const con = makeLaunchConsole(w, locked);
+    con.position.set(s.x, 0, s.z); con.rotation.y = s.rot; scene.add(con);
+    const glow = new THREE.PointLight(locked ? 0x223344 : w.color, 0.5, 4, 2); glow.position.set(s.x, 1.3, s.z); scene.add(glow);
+    E.interiorProps.push({
+      mesh: con, x: s.x, z: s.z, spin: con.userData.globe,
+      action: () => {
+        if (locked) { showToast('🔒 ' + w.name, 'Clear the previous world first to chart a course here.'); return; }
+        E.interior = null; E.doorTiles = null; E.interiorProps = null; interiorReturn = null;
+        if (typeof playTransitionCutscene === 'function') playTransitionCutscene(5, w.n, () => startPlanet(w.n));
+        else startPlanet(w.n);
+      }
+    });
+  });
+  // central holographic star globe
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1.1, 0.4, 20), new THREE.MeshStandardMaterial({ color: 0x1a2440, roughness: 0.6 }));
+  base.position.set(COLS / 2, 0.2, ROWS / 2 + 0.5); base.castShadow = true; scene.add(base);
+  const globe = new THREE.Mesh(new THREE.SphereGeometry(0.9, 18, 14), new THREE.MeshBasicMaterial({ color: 0x66ccff, wireframe: true, transparent: true, opacity: 0.5 }));
+  globe.position.set(COLS / 2, 1.55, ROWS / 2 + 0.5); scene.add(globe);
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 12), new THREE.MeshStandardMaterial({ color: 0x2a7fb0, emissive: 0x2266aa, emissiveIntensity: 0.8, transparent: true, opacity: 0.7 }));
+  core.position.copy(globe.position); scene.add(core);
+  const gLight = new THREE.PointLight(0x66ccff, 0.6, 6, 2); gLight.position.copy(globe.position); scene.add(gLight);
+  E.interiorProps.push({ mesh: globe, x: COLS / 2, z: ROWS / 2 + 0.5, spin: globe, action: () => showToast('🌌 Star Chart', 'Step up to a planet console and press Space to launch there.') });
+  // sign + scattered stars for ambience
+  const sign = makeSign('★ OBSERVATORY ★', 0x66ccff, 5.2, 1.2); sign.position.set(COLS / 2, 2.55, 0.5); scene.add(sign);
+  for (let i = 0; i < 26; i++) { const st = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), new THREE.MeshBasicMaterial({ color: 0xffffff })); st.position.set(1 + i * 0.53 % (COLS - 2), 1.7 + (i % 3) * 0.25, 1 + (i * 0.37) % (ROWS - 2)); scene.add(st); }
+}
+
+// A launch console: pedestal + a glowing planet globe (spins) + a screen
+function makeLaunchConsole(world, locked) {
+  const g = new THREE.Group();
+  const col = locked ? 0x2a3346 : world.color;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.5), new THREE.MeshStandardMaterial({ color: 0x16203a, roughness: 0.6, metalness: 0.2 }));
+  body.position.y = 0.45; body.castShadow = true;
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.32), new THREE.MeshStandardMaterial({ color: locked ? 0x1a2230 : 0x0a2036, emissive: new THREE.Color(locked ? 0x111820 : col), emissiveIntensity: locked ? 0.2 : 0.5 }));
+  screen.position.set(0, 0.6, 0.26); screen.rotation.x = -0.35;
+  const planet = new THREE.Mesh(new THREE.SphereGeometry(0.26, 16, 12), new THREE.MeshStandardMaterial({ color: col, roughness: 0.9, emissive: new THREE.Color(col).multiplyScalar(locked ? 0.05 : 0.3), emissiveIntensity: locked ? 0.1 : 0.6 }));
+  planet.position.set(0, 1.25, 0);
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.02, 8, 20), new THREE.MeshStandardMaterial({ color: locked ? 0x445566 : 0xaad8ff, emissive: new THREE.Color(locked ? 0x111111 : col), emissiveIntensity: locked ? 0 : 0.5 }));
+  ring.position.copy(planet.position); ring.rotation.x = Math.PI / 2.3;
+  g.add(body, screen, planet, ring);
+  if (locked) { const lock = makeSign('LOCKED', 0x8fa8c4, 0.46, 0.16); lock.position.set(0, 0.6, 0.28); lock.rotation.x = -0.35; g.add(lock); }
+  g.userData.globe = planet;
+  return g;
 }
 
 // Per-frame: spin exhibits, pulse cabinet screens, auto-exit at the doorway
