@@ -1028,6 +1028,7 @@ function buildPlayer(cfg, scene) {
   g.userData.arms = arms;
   g.userData.legs = legs;
   g.userData.antTip = antTip;
+  applySkinAdornments(g, save.skin); // add the chosen skin's animal features
 
   const spawn = cfg.spawn, off = E.worldOff || 0;
   g.position.set(spawn.tx + off + 0.5, 0, spawn.tz + off + 0.5);
@@ -1054,6 +1055,78 @@ const SKIN_SUITS = {
   skeleton:    { suit: '#e8e4d8', accent: '#3a3a3a', visor: '#111111' },
   wizard:      { suit: '#5a2a9a', accent: '#c060ff', visor: '#1a0630' }
 };
+
+// Give the astronaut the chosen skin's signature features (ears, mane,
+// beak, horns, hat…) so each 2D skin reads on the 3D character.
+function applySkinAdornments(g, skinId) {
+  if (!skinId || skinId === 'astronaut') return;
+  const M = (c, o) => new THREE.MeshStandardMaterial(Object.assign({ color: c, roughness: 0.7 }, o || {}));
+  const mk = (geo, m, x, y, z) => { const me = new THREE.Mesh(geo, m); me.position.set(x, y, z); me.castShadow = true; g.add(me); return me; };
+  const roundEar = (c, x, y) => { const e = mk(new THREE.SphereGeometry(0.09, 10, 8), M(c), x, y == null ? 1.34 : y, 0); e.scale.set(1, 1, 0.6); return e; };
+  const pointyEar = (c, x) => { const e = mk(new THREE.ConeGeometry(0.08, 0.18, 6), M(c), x, 1.4, 0); e.rotation.z = -x * 1.2; return e; };
+  const F = 0.24; // face front
+
+  switch (skinId) {
+    case 'penguin':
+      mk(new THREE.ConeGeometry(0.06, 0.16, 8), M(0xff9d2e), 0, 1.12, F + 0.04).rotation.x = Math.PI / 2;
+      roundEar(0x20242e, -0.2); roundEar(0x20242e, 0.2);
+      break;
+    case 'lion': {
+      const mane = mk(new THREE.TorusGeometry(0.31, 0.13, 8, 20), M(0xb5671a), 0, 1.1, 0); mane.rotation.x = Math.PI / 2;
+      roundEar(0xe0b25a, -0.18); roundEar(0xe0b25a, 0.18);
+      mk(new THREE.SphereGeometry(0.1, 10, 8), M(0xf0d89a), 0, 1.02, F).scale.set(1.2, 0.8, 0.7);
+      break;
+    }
+    case 'tiger':
+      pointyEar(0xe8892a, -0.16); pointyEar(0xe8892a, 0.16);
+      [-0.09, 0.03, 0.15].forEach(zz => mk(new THREE.BoxGeometry(0.5, 0.035, 0.05), M(0x201008), 0, 1.2, zz));
+      break;
+    case 'robot':
+      mk(new THREE.BoxGeometry(0.1, 0.16, 0.1), M(0x8a94a2, { metalness: 0.4 }), -0.28, 1.12, 0);
+      mk(new THREE.BoxGeometry(0.1, 0.16, 0.1), M(0x8a94a2, { metalness: 0.4 }), 0.28, 1.12, 0);
+      mk(new THREE.CylinderGeometry(0.015, 0.015, 0.18, 5), M(0x9aa4b2), 0, 1.44, 0);
+      mk(new THREE.SphereGeometry(0.045, 8, 8), M(0xff4040, { emissive: new THREE.Color(0xcc2020), emissiveIntensity: 1 }), 0, 1.54, 0);
+      break;
+    case 'fox':
+      pointyEar(0xc96a35, -0.16); pointyEar(0xc96a35, 0.16);
+      mk(new THREE.ConeGeometry(0.09, 0.18, 8), M(0xdd8a4a), 0, 1.05, F + 0.02).rotation.x = Math.PI / 2;
+      mk(new THREE.SphereGeometry(0.035, 6, 6), M(0x111111), 0, 1.05, F + 0.14);
+      break;
+    case 'dragon':
+      mk(new THREE.ConeGeometry(0.06, 0.24, 6), M(0xf2d05a), -0.13, 1.42, -0.05).rotation.x = -0.4;
+      mk(new THREE.ConeGeometry(0.06, 0.24, 6), M(0xf2d05a), 0.13, 1.42, -0.05).rotation.x = -0.4;
+      mk(new THREE.BoxGeometry(0.16, 0.12, 0.16), M(0x7a1030), 0, 1.04, F);
+      break;
+    case 'monkey_skin':
+      roundEar(0x6a4a2a, -0.24); roundEar(0x6a4a2a, 0.24);
+      mk(new THREE.SphereGeometry(0.13, 12, 10), M(0xdcb98a), 0, 1.05, F - 0.02).scale.set(1, 0.8, 0.6);
+      break;
+    case 'alien_skin':
+      mk(new THREE.CylinderGeometry(0.013, 0.013, 0.2, 5), M(0x2aa050), -0.1, 1.44, 0).rotation.z = 0.3;
+      mk(new THREE.CylinderGeometry(0.013, 0.013, 0.2, 5), M(0x2aa050), 0.1, 1.44, 0).rotation.z = -0.3;
+      mk(new THREE.SphereGeometry(0.05, 8, 8), M(0x7dff5a, { emissive: new THREE.Color(0x3aff20), emissiveIntensity: 1 }), -0.15, 1.55, 0);
+      mk(new THREE.SphereGeometry(0.05, 8, 8), M(0x7dff5a, { emissive: new THREE.Color(0x3aff20), emissiveIntensity: 1 }), 0.15, 1.55, 0);
+      break;
+    case 'frog':
+      [-0.11, 0.11].forEach(x => { mk(new THREE.SphereGeometry(0.08, 10, 8), M(0xd6ff40), x, 1.35, 0.05); mk(new THREE.SphereGeometry(0.04, 8, 8), M(0x111111), x, 1.37, 0.12); });
+      break;
+    case 'star_child':
+      mk(new THREE.OctahedronGeometry(0.1), M(0xffe066, { emissive: new THREE.Color(0xffaa00), emissiveIntensity: 1 }), 0, 1.44, 0);
+      [[-0.22, 1.3], [0.22, 1.3], [0, 1.55]].forEach(([x, y]) => mk(new THREE.OctahedronGeometry(0.03), M(0xffffff, { emissive: new THREE.Color(0xb388ff), emissiveIntensity: 1 }), x, y, 0));
+      break;
+    case 'skeleton':
+      mk(new THREE.SphereGeometry(0.2, 14, 12), M(0xe8e4d8), 0, 1.12, 0.05).scale.set(1, 1, 0.7);
+      mk(new THREE.SphereGeometry(0.05, 8, 8), M(0x111111), -0.09, 1.15, F); mk(new THREE.SphereGeometry(0.05, 8, 8), M(0x111111), 0.09, 1.15, F);
+      mk(new THREE.BoxGeometry(0.14, 0.05, 0.05), M(0x2a2a2a), 0, 1.02, F);
+      break;
+    case 'wizard':
+      mk(new THREE.CylinderGeometry(0.3, 0.3, 0.04, 16), M(0x4a2080), 0, 1.3, 0);
+      mk(new THREE.ConeGeometry(0.24, 0.5, 14), M(0x5a2a9a), 0, 1.55, 0);
+      mk(new THREE.OctahedronGeometry(0.05), M(0xffe066, { emissive: new THREE.Color(0xffaa00), emissiveIntensity: 1 }), 0.09, 1.62, 0.05);
+      mk(new THREE.ConeGeometry(0.1, 0.3, 8), M(0xececee), 0, 0.92, F).rotation.x = Math.PI;
+      break;
+  }
+}
 
 // ── Exit rocket / portal ───────────────────────────────────────
 function buildExit(cfg, scene) {
