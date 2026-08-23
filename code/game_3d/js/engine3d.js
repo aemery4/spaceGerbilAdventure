@@ -1357,6 +1357,7 @@ function planetCleared() {
   save.spaceCoins = (save.spaceCoins || 0) + 50;
   if (typeof SFX !== 'undefined') SFX.win();
   persist();
+  if (typeof checkSkinUnlocks === 'function') checkSkinUnlocks(); // award skins earned by this clear
   const ORDER = [1, 2, 3, 4, 6];           // adventure sequence (5 = home hub)
   const oi = ORDER.indexOf(n);
   const next = (oi >= 0 && oi < ORDER.length - 1) ? ORDER[oi + 1] : null;
