@@ -276,6 +276,29 @@ const ALL_SKINS = [
       ctx.fillStyle='rgba(220,220,240,0.8)'; ctx.beginPath(); ctx.ellipse(px,py+2,5,7,0,0,Math.PI); ctx.fill();
     }
   },
+  { id:'magma_skin', name:'Magma Knight', emoji:'🔥', how:'Defeat the Magma Titan on Magmara',
+    badge:'earn', unlock:'volcano',
+    draw:(ctx,px,py,sz)=>{
+      const t=Date.now();
+      ctx.shadowColor='#ff5a1e'; ctx.shadowBlur=18;
+      // molten rock body
+      const g=ctx.createRadialGradient(px,py+3,2,px,py,sz);
+      g.addColorStop(0,'#ff9a3a'); g.addColorStop(0.6,'#c0401a'); g.addColorStop(1,'#3a1008');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px,py,sz,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+      // glowing lava cracks
+      ctx.strokeStyle='#ffcf4a'; ctx.lineWidth=1.4;
+      [[-6,-6,-2,2],[5,-4,2,6],[-3,4,3,7]].forEach(([x1,y1,x2,y2])=>{ ctx.beginPath(); ctx.moveTo(px+x1,py+y1); ctx.lineTo(px+x2,py+y2); ctx.stroke(); });
+      // flame crest flickering on top
+      const f=Math.sin(t*0.02)*1.5;
+      ctx.fillStyle='#ffd23a'; ctx.beginPath(); ctx.moveTo(px,py-sz-8-f); ctx.quadraticCurveTo(px-5,py-sz+2,px,py-sz+3); ctx.quadraticCurveTo(px+5,py-sz+2,px,py-sz-8-f); ctx.fill();
+      ctx.fillStyle='#ff7a1e'; ctx.beginPath(); ctx.moveTo(px,py-sz-4-f); ctx.quadraticCurveTo(px-3,py-sz+2,px,py-sz+2); ctx.quadraticCurveTo(px+3,py-sz+2,px,py-sz-4-f); ctx.fill();
+      // glowing eyes
+      ctx.fillStyle='#fff2a0'; ctx.shadowColor='#ffcc00'; ctx.shadowBlur=8;
+      ctx.beginPath(); ctx.arc(px-4,py-3,2.4,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(px+4,py-3,2.4,0,Math.PI*2); ctx.fill();
+      ctx.shadowBlur=0;
+    }
+  },
 ];
 
 function getSkin(id) { return ALL_SKINS.find(s=>s.id===id) || ALL_SKINS[0]; }
@@ -295,6 +318,7 @@ function checkSkinUnlocks() {
   if(save.aliensBeat) tryUnlock('alien_skin');
   if(save.hiddenRoomFound) tryUnlock('frog');
   if(save.diedOnce) tryUnlock('skeleton');
+  if(save.planetsCleared.includes(6) || (save.bossWins && save.bossWins[6])) tryUnlock('magma_skin');
 }
 
 function showSkinUnlockToast(skinId) {

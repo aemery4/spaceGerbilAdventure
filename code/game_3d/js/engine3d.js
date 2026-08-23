@@ -1053,7 +1053,8 @@ const SKIN_SUITS = {
   frog:        { suit: '#3fbf50', accent: '#d6ff40', visor: '#082010' },
   star_child:  { suit: '#3a2a66', accent: '#b388ff', visor: '#0a0620' },
   skeleton:    { suit: '#e8e4d8', accent: '#3a3a3a', visor: '#111111' },
-  wizard:      { suit: '#5a2a9a', accent: '#c060ff', visor: '#1a0630' }
+  wizard:      { suit: '#5a2a9a', accent: '#c060ff', visor: '#1a0630' },
+  magma_skin:  { suit: '#7a2410', accent: '#ff7a1e', visor: '#1a0602' }
 };
 
 // Give the astronaut the chosen skin's signature features (ears, mane,
@@ -1125,6 +1126,17 @@ function applySkinAdornments(g, skinId) {
       mk(new THREE.OctahedronGeometry(0.05), M(0xffe066, { emissive: new THREE.Color(0xffaa00), emissiveIntensity: 1 }), 0.09, 1.62, 0.05);
       mk(new THREE.ConeGeometry(0.1, 0.3, 8), M(0xececee), 0, 0.92, F).rotation.x = Math.PI;
       break;
+    case 'magma_skin': {
+      // rocky crest with glowing lava chunks + flame plume
+      const rock = M(0x3a1a12, { roughness: 1 });
+      const lava = M(0xff7a1e, { emissive: new THREE.Color(0xff5a08), emissiveIntensity: 1.2 });
+      [-0.16, 0, 0.16].forEach((x, i) => mk(new THREE.ConeGeometry(0.07, 0.16 + i % 2 * 0.06, 5), rock, x, 1.36, 0));
+      mk(new THREE.SphereGeometry(0.06, 8, 8), lava, -0.2, 1.14, 0.06);
+      mk(new THREE.SphereGeometry(0.06, 8, 8), lava, 0.2, 1.14, 0.06);
+      mk(new THREE.SphereGeometry(0.05, 8, 8), lava, 0, 1.1, F + 0.02);
+      mk(new THREE.ConeGeometry(0.09, 0.28, 8), M(0xffc23a, { emissive: new THREE.Color(0xff7a1e), emissiveIntensity: 1.1, transparent: true, opacity: 0.9 }), 0, 1.56, 0);
+      break;
+    }
   }
 }
 
