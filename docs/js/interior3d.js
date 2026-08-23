@@ -299,6 +299,7 @@ function makeInteriorExhibit(trophy, earned, tier) {
       if (trophy.planet === 2 && typeof makeApeBossMesh === 'function') fig = makeApeBossMesh(1, 0x888888);
       else if (trophy.planet === 3 && typeof makeYetiMesh === 'function') fig = makeYetiMesh(1, 0x888888);
       else if (trophy.planet === 4 && typeof makeOctopusMesh === 'function') fig = makeOctopusMesh(1, 0x888888);
+      else if (trophy.planet === 6 && typeof makeMagmaBossMesh === 'function') fig = makeMagmaBossMesh(1, 0x888888);
       else fig = makeAlienMesh(0x999999);
     } catch (e) { fig = null; }
     if (fig) {

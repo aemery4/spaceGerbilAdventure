@@ -104,5 +104,25 @@ const PLANETS_3D = {
     },
     ambient: 0x5566aa, sun: 0xfff0c0, sunPos: [6, 16, 6],
     enemyKind: 'none', home: true
+  },
+  6: {
+    name: 'Volcano Magmara', emoji: '🌋', tile: 26, cols: 48, rows: 28,
+    build: (T, C, R) => buildP6Data(T, C, R),
+    enemyKeys: ['golems', 'lizards', 'magma'],
+    enemyColors: { golems: 0xc0401a, lizards: 0xff8a3a }, // magma golems + fire salamanders
+    solid: [1, 3], slow: [2], damage: [8],
+    fuelTarget: 30,
+    spawn: { tx: 2, tz: 2 },
+    sky: 0x1c0705, fog: [0x2a0a04, 12, 42],
+    ground: 0x3a1712, grid: 0x6a2a14,
+    wall: { color: 0x241018, h: 2.4 },
+    deco: {
+      2: { kind: 'ash',  color: 0x2a2420, h: 0.05 },
+      3: { kind: 'rock', color: 0x3a201a, h: 1.0 },
+      8: { kind: 'lava', color: 0xff5a1e, h: 0.05 },
+      9: { kind: 'vent', color: 0xff7a2a, h: 0.5 }
+    },
+    ambient: 0x6a2a1a, sun: 0xffb060, sunPos: [6, 14, 5],
+    enemyKind: 'beast'
   }
 };

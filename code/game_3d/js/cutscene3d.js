@@ -12,9 +12,9 @@ const CS = { renderer: null, scene: null, camera: null, raf: null, timer: null,
 
 const CS_PLANET = {
   1: ['🌍', 'Earth — Area 51'], 2: ['🌴', 'Jungle Zorbax'],
-  3: ['❄️', 'Tundra Frigia'], 4: ['🌊', 'Aquatic Neptuna'], 5: ['🏠', 'Home Base']
+  3: ['❄️', 'Tundra Frigia'], 4: ['🌊', 'Aquatic Neptuna'], 5: ['🏠', 'Home Base'], 6: ['🌋', 'Volcano Magmara']
 };
-const CS_PLANET_COLOR = { 1: 0x3a7bd0, 2: 0x2f9e44, 3: 0xcfe8ff, 4: 0x1f6fb0, 5: 0x9a7038 };
+const CS_PLANET_COLOR = { 1: 0x3a7bd0, 2: 0x2f9e44, 3: 0xcfe8ff, 4: 0x1f6fb0, 5: 0x9a7038, 6: 0xc0401a };
 
 // ── Renderer / lifecycle ────────────────────────────────────────
 function ensureCsRenderer() {

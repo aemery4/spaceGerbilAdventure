@@ -304,6 +304,7 @@ function makeTrophyStatue(planet) {
     if (planet === 2 && typeof makeApeBossMesh === 'function') fig = makeApeBossMesh(1, 0x888888);
     else if (planet === 3 && typeof makeYetiMesh === 'function') fig = makeYetiMesh(1, 0x888888);
     else if (planet === 4 && typeof makeOctopusMesh === 'function') fig = makeOctopusMesh(1, 0x888888);
+    else if (planet === 6 && typeof makeMagmaBossMesh === 'function') fig = makeMagmaBossMesh(1, 0x888888);
     else fig = makeAlienMesh(0x888888); // Area 51 (planet 1)
   } catch (e) { fig = null; }
   if (fig) {
@@ -315,7 +316,7 @@ function makeTrophyStatue(planet) {
 
 // Line up a statue for each boss the player has beaten, in front of the hall.
 function addTrophyStatues(scene, cx, cz) {
-  const cleared = (save.planetsCleared || []).filter(n => n >= 1 && n <= 4).sort();
+  const cleared = (save.planetsCleared || []).filter(n => n >= 1 && n <= 6).sort();
   if (!cleared.length) return;
   const spread = 1.15, startX = cx - (cleared.length - 1) * spread / 2;
   cleared.forEach((p, i) => {

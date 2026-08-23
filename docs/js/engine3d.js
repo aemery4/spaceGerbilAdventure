@@ -242,11 +242,21 @@ function makeDeco(spec, mat, x, z, wallGeo) {
       mesh.scale.y = spec.kind === 'building' ? 1 : Math.max(0.5, h);
       mesh.position.y = h / 2; break;
     }
-    case 'bush': case 'snow': case 'garden': case 'vent': {
+    case 'vent': {
+      const m2 = new THREE.MeshStandardMaterial({ color: mat.color, emissive: mat.color, emissiveIntensity: 0.9, roughness: 0.5 });
+      mesh = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), m2);
+      mesh.scale.y = h; mesh.position.y = h * 0.4; break;
+    }
+    case 'bush': case 'snow': case 'garden': {
       mesh = new THREE.Mesh(new THREE.SphereGeometry(0.42, 8, 6), mat);
       mesh.scale.y = h; mesh.position.y = h * 0.4; break;
     }
-    default: { // flat floor patches (swamp/lava/ice/sand/path/pond/floor/trench)
+    case 'lava': { // glowing molten floor patch
+      const m2 = new THREE.MeshStandardMaterial({ color: mat.color, emissive: mat.color, emissiveIntensity: 0.8, roughness: 0.4 });
+      mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 1), m2);
+      mesh.position.y = 0.04; break;
+    }
+    default: { // flat floor patches (swamp/ice/sand/path/pond/floor/trench/ash)
       mesh = new THREE.Mesh(new THREE.BoxGeometry(1, 0.06, 1), mat);
       mesh.position.y = 0.03; break;
     }
@@ -311,16 +321,17 @@ function buildEnemies(data, cfg, scene) {
 const ENEMY_COLORS = {
   monkeys: 0x7a4a24, golems: 0x6f7d6a, lizards: 0x4aa02c, panthers: 0x1c1a24, parrots: 0xe0392f,
   miniBoss: 0x8a5a2a, tigers: 0xceb888, mammoths: 0x6b4a2f, yeti: 0xeaf2ff,
-  squid: 0xb257c8, piranha: 0x9aa2a8, octopus: 0xd0405a
+  squid: 0xb257c8, piranha: 0x9aa2a8, octopus: 0xd0405a, magma: 0xff5a1e
 };
 
 function createEnemy(cfg, variant, worldX, worldZ, e, key) {
   e = e || {}; key = key || variant;
   const hp = e.hp || e.maxhp || e.maxHp || 3;
-  const boss = (key === 'miniBoss' || key === 'yeti' || variant === 'octopus');
+  const boss = (key === 'miniBoss' || key === 'yeti' || variant === 'octopus' || variant === 'magma' || key === 'magma');
   const size = boss ? (key === 'yeti' ? 1.05 : variant === 'octopus' ? 0.85 : 0.95)
                     : Math.max(0.28, (e.size || 13) / 30);
-  const color = e.color ? new THREE.Color(e.color) : new THREE.Color(ENEMY_COLORS[variant] || 0xdd4444);
+  const color = e.color ? new THREE.Color(e.color)
+    : new THREE.Color((cfg.enemyColors && cfg.enemyColors[variant]) || ENEMY_COLORS[variant] || 0xdd4444);
   const mesh = makeEnemyMesh(cfg.enemyKind, size, color, boss, variant);
   mesh.position.set(worldX, size, worldZ);
   E.scene.add(mesh);
@@ -388,7 +399,7 @@ function sprinkleExtras(cfg, scene) {
   }
 
   // Enemies (non-boss). Aquatic uses squid/piranha; jungle/tundra use their beasts.
-  let pool = (cfg.enemyKeys || []).filter(k => k !== 'miniBoss' && k !== 'yeti');
+  let pool = (cfg.enemyKeys || []).filter(k => k !== 'miniBoss' && k !== 'yeti' && k !== 'magma');
   if (cfg.underwater) pool = ['squid', 'piranha'];
   pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
   if (pool.length) {
@@ -414,6 +425,7 @@ function makeEnemyMesh(kind, size, color, boss, species) {
   if (species === 'squid') return makeSquidMesh(size, color);
   if (species === 'piranha') return makePiranhaMesh(size, color);
   if (species === 'octopus') return makeOctopusMesh(size, color);
+  if (species === 'magma') return makeMagmaBossMesh(size, color);
   const g = new THREE.Group();
   const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.6,
     emissive: color.clone().multiplyScalar(0.25), emissiveIntensity: 0.5 });
@@ -938,6 +950,26 @@ function makeOctopusMesh(size, color) {
 }
 
 // ── Player (the astronaut) ─────────────────────────────────────
+// Magma Titan — Volcano boss: a rocky hulk veined with glowing lava.
+function makeMagmaBossMesh(size, color) {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x3a1410, emissive: new THREE.Color(0xff3a08), emissiveIntensity: 0.4, roughness: 0.95 });
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x1e0e0a, roughness: 1 });
+  const lavaMat = new THREE.MeshStandardMaterial({ color: 0xff7a1e, emissive: new THREE.Color(0xff5a08), emissiveIntensity: 1.2, roughness: 0.5 });
+  const body = new THREE.Mesh(new THREE.IcosahedronGeometry(size, 0), bodyMat); body.scale.set(1, 1.1, 1); body.castShadow = true;
+  // glowing lava chunks studded around the torso
+  for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const chunk = new THREE.Mesh(new THREE.DodecahedronGeometry(size * 0.2), lavaMat); chunk.position.set(Math.cos(a) * size * 0.72, size * 0.15 + Math.sin(i * 2) * size * 0.35, Math.sin(a) * size * 0.72); g.add(chunk); }
+  // head with horns and glowing eyes
+  const head = new THREE.Mesh(new THREE.DodecahedronGeometry(size * 0.52), bodyMat); head.position.set(0, size * 1.05, 0);
+  [-1, 1].forEach(s => { const horn = new THREE.Mesh(new THREE.ConeGeometry(size * 0.13, size * 0.5, 5), rockMat); horn.position.set(s * size * 0.3, size * 1.42, 0); horn.rotation.z = s * 0.45; g.add(horn); });
+  [-1, 1].forEach(s => { const eye = new THREE.Mesh(new THREE.SphereGeometry(size * 0.1, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: new THREE.Color(0xffcc00), emissiveIntensity: 1.6 })); eye.position.set(s * size * 0.18, size * 1.1, size * 0.42); g.add(eye); });
+  // chunky arms
+  [-1, 1].forEach(s => { const arm = new THREE.Mesh(new THREE.IcosahedronGeometry(size * 0.42, 0), bodyMat); arm.position.set(s * size * 1.05, size * 0.15, 0); arm.castShadow = true; g.add(arm); });
+  g.add(body, head);
+  g.userData.body = body;
+  return g;
+}
+
 function buildPlayer(cfg, scene) {
   const g = new THREE.Group();
   const sc = (typeof SKIN_SUITS !== 'undefined' && SKIN_SUITS[save.skin]) || { suit: '#eef2f7', accent: '#2f7ad8', visor: '#12202f' };
@@ -1240,8 +1272,10 @@ function planetCleared() {
   save.spaceCoins = (save.spaceCoins || 0) + 50;
   if (typeof SFX !== 'undefined') SFX.win();
   persist();
-  const next = n + 1;
-  const hasNext = next <= 4;
+  const ORDER = [1, 2, 3, 4, 6];           // adventure sequence (5 = home hub)
+  const oi = ORDER.indexOf(n);
+  const next = (oi >= 0 && oi < ORDER.length - 1) ? ORDER[oi + 1] : null;
+  const hasNext = next != null;
   showMsg('🎉 Planet Cleared!', E.cfg.name + ' complete! +50 🪙\n\n' +
     (hasNext ? 'Onward to the next world…' : 'You have cleared every planet. Legendary gerbil!'),
     () => {

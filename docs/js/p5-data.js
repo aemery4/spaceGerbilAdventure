@@ -32,6 +32,7 @@ const P5_TROPHIES = [
   { planet: 2, emoji: '🦍', name: 'Jungle King',    desc: 'Toppled the mighty ape boss of Zorbax.' },
   { planet: 3, emoji: '⛄', name: 'Frost Yeti',      desc: 'Bested the shaggy horned terror of the tundra.' },
   { planet: 4, emoji: '🐙', name: 'Deep Octopus',    desc: 'Vanquished the ink-spewing horror of Neptuna.' },
+  { planet: 6, emoji: '🌋', name: 'Magma Titan',     desc: 'Extinguished the molten colossus of Magmara.' },
 ];
 
 // Alien visitor pool — randomly selected each visit

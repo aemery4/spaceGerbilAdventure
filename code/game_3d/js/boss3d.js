@@ -5,7 +5,7 @@
 // Called from the engine's enemy update + main loop.
 // ════════════════════════════════════════
 
-const BOSS_NAME = { miniBoss: '🦍 Jungle King', yeti: '⛄ Frost Yeti', octopus: '🐙 Deep Octopus' };
+const BOSS_NAME = { miniBoss: '🦍 Jungle King', yeti: '⛄ Frost Yeti', octopus: '🐙 Deep Octopus', magma: '🌋 Magma Titan' };
 
 function bossBlocked(x, z) {
   return isSolid(x, z) || (E.cfg && E.cfg.village && typeof tileAt === 'function' && tileAt(x, z) === 7); // village/camp is a safe zone
@@ -82,8 +82,20 @@ function bossReset(en, t) { en.mode = 'idle'; en.atkTimer = t + Math.random(); }
 const BOSS_ATTACKS = {
   miniBoss: [atkJump, atkJump, atkCharge, atkSlam, atkBananas, atkSummon],
   yeti: [atkSnow, atkSnow, atkBigSnow, atkIceBurst, atkFrostStomp, atkCharge],
-  octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkInkCloud, atkTentacleSlam, atkLunge]
+  octopus: [atkInkRadial, atkInkSpiral, atkInkAimed, atkInkCloud, atkTentacleSlam, atkLunge],
+  magma: [atkMeteor, atkMeteor, atkFireRadial, atkFireSpread, atkCharge, atkJump, atkSlam]
 };
+
+// Magma Titan
+function atkMeteor(en, p) {
+  const m = en.mesh; if (typeof SFX !== 'undefined') SFX.slam();
+  spawnParticles(m.position.clone().add(new THREE.Vector3(0, 0.7, 0)), new THREE.Color(0xff7a1e), 14);
+  spawnBossLob(m.position, new THREE.Vector3(p.x, 0, p.z), 0xff5a1e, 0.7, 22, 1.9);
+  showToast('🌋 Meteor Strike!', 'A blazing rock is falling — move off the shadow!');
+  bossReset(en, 2.0);
+}
+function atkFireRadial(en) { bossRadial(en, 12, 0xff5a1e); bossReset(en, 1.5); }
+function atkFireSpread(en, p) { bossSpread(en, p, 4, 0xff7a2a, 6.5, 0.8); bossReset(en, 1.4); }
 
 function startBossAttack(en, p) { bossPick(BOSS_ATTACKS[en.species] || [atkSlam])(en, p); }
 
