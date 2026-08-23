@@ -16,9 +16,10 @@ function buildHomeStructures(scene) {
   list.forEach(b => {
     const info = P5_BUILDINGS.find(pb => pb.type === b.type);
     if (!info) return;
+    const tileVal = info.walkable ? 2 : 5; // paths stay walkable
     for (let dr = 0; dr < info.h; dr++)
       for (let dc = 0; dc < info.w; dc++)
-        if (E.map[b.gridY + dr] && E.map[b.gridY + dr][b.gridX + dc] !== undefined) E.map[b.gridY + dr][b.gridX + dc] = 5;
+        if (E.map[b.gridY + dr] && E.map[b.gridY + dr][b.gridX + dc] !== undefined) E.map[b.gridY + dr][b.gridX + dc] = tileVal;
     placeBuildingMesh(scene, b.type, info.w, info.h, b.gridX, b.gridY);
   });
   applyHomeFarmsOnVisit();
@@ -667,8 +668,9 @@ function openHomeBuildMenu(gx, gy) {
       el.onclick = () => {
         save.spaceCoins -= b.cost;
         save.homePlanet.buildings.push({ type: b.type, gridX: gx, gridY: gy });
+        const tileVal = b.walkable ? 2 : 5; // paths stay walkable
         for (let dr = 0; dr < b.h; dr++)
-          for (let dc = 0; dc < b.w; dc++) E.map[gy + dr][gx + dc] = 5;
+          for (let dc = 0; dc < b.w; dc++) E.map[gy + dr][gx + dc] = tileVal;
         placeBuildingMesh(E.scene, b.type, b.w, b.h, gx, gy);
         if (typeof SFX !== 'undefined') SFX.build();
         persist(); updateHUD();
@@ -999,6 +1001,9 @@ function makeBuildingMesh(type, w, h) {
     const light = new THREE.PointLight(0xff8a3a, 0.8, 6, 2); light.position.y = 0.6;
     g.add(f1, f2, light);
     g.userData.flame = f1; g.userData.flame2 = f2; g.userData.fireLight = light;
+  } else if (type === 'path') {
+    const pave = new THREE.Mesh(new THREE.BoxGeometry(w * 0.99, 0.06, h * 0.99), M(0xcbb184, 0.95));
+    pave.position.y = -0.03; pave.receiveShadow = true; g.add(pave); // sits ~flush with the ground
   } else if (type === 'tree') {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 8), M(0x6b4a2a)); trunk.position.y = 0.3;
     const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), M(0x2f8a3a)); f1.position.y = 0.95;
