@@ -35,38 +35,52 @@ function makePetMesh(pet) {
   const legs = [];
   const kind = pet.kind;
 
-  if (kind === 'dog' || kind === 'cat') {
-    const isDog = kind === 'dog';
-    const main = petMat(isDog ? 0x2b2b2b : 0x8f8f96);      // collie black / cat grey
-    const light = petMat(0xf2f2f2);                          // white markings
+  if (kind === 'dog') {
+    const main = petMat(0x2b2b2b), light = petMat(0xf2f2f2);  // border-collie black + white
     const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.5, 12), main);
     torso.rotation.z = Math.PI / 2; torso.position.y = 0.34; torso.castShadow = true;
     const belly = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.46, 12), light);
     belly.rotation.z = Math.PI / 2; belly.position.set(0, 0.28, 0.03);
     const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 14, 12), main); head.position.set(0.28, 0.44, 0);
     const blaze = new THREE.Mesh(new THREE.SphereGeometry(0.1, 12, 10), light); blaze.position.set(0.34, 0.46, 0);
-    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.13), isDog ? light : main); snout.position.set(0.42, 0.4, 0);
+    const snout = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.11, 0.13), light); snout.position.set(0.42, 0.4, 0);
     const nose = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), petMat(0x111111)); nose.position.set(0.5, 0.42, 0);
     g.add(torso, belly, head, blaze, snout, nose);
     petEyes(g, 0.06, 0.5, 0.36, 0.035);
-    // ears — floppy for dog, pointy for cat
-    [-1, 1].forEach(s => {
-      const ear = isDog
-        ? new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), main)
-        : new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.13, 6), main);
-      ear.scale.set(1, isDog ? 1.5 : 1, 0.6);
-      ear.position.set(0.24, isDog ? 0.55 : 0.6, s * 0.1);
-      g.add(ear);
-    });
-    // 4 legs
+    [-1, 1].forEach(s => { const ear = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), main); ear.scale.set(1, 1.5, 0.6); ear.position.set(0.24, 0.55, s * 0.1); g.add(ear); });
     const legGeo = new THREE.CylinderGeometry(0.045, 0.04, 0.28, 7); legGeo.translate(0, -0.14, 0);
-    [[0.2, 0.12], [0.2, -0.12], [-0.16, 0.12], [-0.16, -0.12]].forEach(([x, z]) => {
-      const l = new THREE.Mesh(legGeo, main); l.position.set(x, 0.28, z); l.castShadow = true; g.add(l); legs.push(l);
+    [[0.2, 0.12], [0.2, -0.12], [-0.16, 0.12], [-0.16, -0.12]].forEach(([x, z]) => { const l = new THREE.Mesh(legGeo, main); l.position.set(x, 0.28, z); l.castShadow = true; g.add(l); legs.push(l); });
+    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, 0.34, 6), main); tail.position.set(-0.04, 0.02, 0); tail.rotation.z = -0.7;
+    const pivot = new THREE.Group(); pivot.position.set(-0.28, 0.4, 0); pivot.add(tail); g.add(pivot); g.userData.tail = pivot;
+    g.userData.baseY = 0;
+  } else if (kind === 'cat') {
+    const fur = petMat(0x8a8a92), white = petMat(0xf4f4f4), pink = petMat(0xe08a9a); // grey shorthair
+    const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.36, 12), fur);
+    torso.rotation.z = Math.PI / 2; torso.position.y = 0.3; torso.castShadow = true;
+    const rump = new THREE.Mesh(new THREE.SphereGeometry(0.14, 12, 10), fur); rump.position.set(-0.16, 0.32, 0);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 10), white); chest.position.set(0.14, 0.26, 0);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 12), fur); head.position.set(0.28, 0.46, 0);
+    const muzzle = new THREE.Mesh(new THREE.SphereGeometry(0.075, 10, 8), white); muzzle.scale.set(1, 0.8, 1.1); muzzle.position.set(0.37, 0.42, 0);
+    const nose = new THREE.Mesh(new THREE.SphereGeometry(0.026, 6, 6), pink); nose.position.set(0.43, 0.44, 0);
+    g.add(torso, rump, chest, head, muzzle, nose);
+    petEyes(g, 0.055, 0.5, 0.32, 0.032);
+    // tall upright triangular ears with pink inner
+    [-1, 1].forEach(s => {
+      const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.16, 4), fur); ear.position.set(0.24, 0.62, s * 0.08); ear.rotation.x = s * 0.25;
+      const inner = new THREE.Mesh(new THREE.ConeGeometry(0.032, 0.1, 4), pink); inner.position.set(0.252, 0.62, s * 0.08); inner.rotation.x = s * 0.25;
+      g.add(ear, inner);
     });
-    // tail
-    const tail = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.02, isDog ? 0.34 : 0.4, 6), main);
-    tail.position.set(-0.32, 0.42, 0); tail.rotation.z = isDog ? -0.7 : -1.1;
-    const pivot = new THREE.Group(); pivot.position.set(-0.28, 0.4, 0); pivot.add(tail); tail.position.set(-0.04, 0.02, 0);
+    // slim legs with white paws
+    const legGeo = new THREE.CylinderGeometry(0.035, 0.03, 0.26, 7); legGeo.translate(0, -0.13, 0);
+    [[0.16, 0.09], [0.16, -0.09], [-0.14, 0.09], [-0.14, -0.09]].forEach(([x, z]) => {
+      const l = new THREE.Mesh(legGeo, fur); l.position.set(x, 0.26, z); l.castShadow = true;
+      const paw = new THREE.Mesh(new THREE.SphereGeometry(0.038, 6, 6), white); paw.position.set(0, -0.26, 0); l.add(paw);
+      g.add(l); legs.push(l);
+    });
+    // long tail curving up (pivot at the rump so it can sway)
+    const pivot = new THREE.Group(); pivot.position.set(-0.28, 0.32, 0);
+    const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.02, 0.42, 6), fur); seg.position.set(-0.09, 0.14, 0); seg.rotation.z = -2.2; pivot.add(seg);
+    const tip = new THREE.Mesh(new THREE.SphereGeometry(0.03, 6, 6), white); tip.position.set(-0.2, 0.34, 0); pivot.add(tip);
     g.add(pivot); g.userData.tail = pivot;
     g.userData.baseY = 0;
   } else if (kind === 'bunny') {
