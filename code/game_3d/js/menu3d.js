@@ -95,4 +95,6 @@ window.addEventListener('DOMContentLoaded', () => {
   document.getElementById('mFree').onclick = startFreePlay;
   document.getElementById('mHome').onclick = openHomeBase;
   document.getElementById('mSkins').onclick = () => { if (typeof openSkinMenu === 'function') openSkinMenu(); };
+  const petsBtn = document.getElementById('mPets');
+  if (petsBtn) petsBtn.onclick = () => { if (typeof openPetMenu === 'function') openPetMenu(); };
 });

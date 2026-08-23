@@ -80,6 +80,24 @@ body { background:#05060c; display:flex; flex-direction:column; align-items:cent
 .skin-cost { font-size:8px; color:#888; margin-top:4px; } .skin-cost .has { color:#5d9; } .skin-cost .lacks { color:#f55; }
 #skinCloseBtn { display:block; margin:0 auto; padding:9px 28px; background:rgba(40,10,70,0.9); border:1px solid rgba(160,80,255,0.5); color:#c8a0ff; cursor:pointer; font-family:inherit; font-size:11px; border-radius:8px; }
 #gearPanel h2 { text-align:center; }
+/* ===== PETS MENU ===== */
+#petMenu { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); background:linear-gradient(145deg, rgba(6,14,20,0.99), rgba(8,20,26,0.99)); border:1px solid rgba(90,200,180,0.5); border-radius:18px; padding:24px 28px; display:none; z-index:70; width:620px; max-width:96vw; max-height:82vh; overflow-y:auto; box-shadow:0 0 80px rgba(60,200,170,0.2); }
+#petMenuTitle { font-size:18px; color:#7ef0d0; text-align:center; margin-bottom:4px; font-weight:bold; letter-spacing:3px; }
+#petMenuSub { font-size:10px; color:#577; text-align:center; margin-bottom:6px; }
+#petMenuCoins { font-size:12px; color:#ffd54a; text-align:center; margin-bottom:16px; }
+#petGrid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:16px; }
+.pet-card { background:rgba(10,30,34,0.9); border:1px solid rgba(60,160,150,0.4); border-radius:12px; padding:14px 8px 12px; text-align:center; cursor:pointer; transition:all .18s; position:relative; }
+.pet-card:hover { border-color:rgba(90,220,190,0.8); transform:translateY(-2px); }
+.pet-card.pet-active { border-color:#7ef0d0; background:rgba(20,80,72,0.4); }
+.pet-card.pet-locked { opacity:0.55; cursor:default; }
+.pet-emoji { font-size:38px; display:block; margin-bottom:6px; }
+.pet-name { font-size:11px; font-weight:bold; color:#dfeeea; margin-bottom:4px; }
+.pet-how { font-size:8px; color:#799; line-height:1.4; min-height:22px; }
+.pet-badge { position:absolute; top:5px; right:5px; font-size:7px; padding:2px 5px; border-radius:4px; font-weight:bold; }
+.b-active { background:rgba(120,240,208,0.25); color:#8ffce0; } .b-owned { background:rgba(80,200,160,0.2); color:#7ed; }
+.b-buy { background:rgba(80,160,255,0.2); color:#8cf; } .b-rare { background:rgba(255,200,60,0.25); color:#ffd86a; }
+.pet-cost { font-size:8px; color:#888; margin-top:4px; } .pet-cost .has { color:#5d9; } .pet-cost .lacks { color:#f55; }
+#petCloseBtn { display:block; margin:0 auto; padding:9px 28px; background:rgba(10,50,44,0.9); border:1px solid rgba(90,200,170,0.5); color:#8ffce0; cursor:pointer; font-family:inherit; font-size:11px; border-radius:8px; }
 /* ===== VILLAGE SHOP ===== */
 #villageShop { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
   background:linear-gradient(145deg, rgba(20,12,5,0.98), rgba(30,18,8,0.98));
@@ -201,7 +219,7 @@ body.touch #view3d, body.touch #view3d canvas { touch-action:none; }
   background:rgba(200,70,40,0.72); border:2px solid rgba(255,170,110,0.6); color:#fff; font-size:32px;
   display:flex; align-items:center; justify-content:center; z-index:46; touch-action:none; user-select:none; -webkit-user-select:none; }
 #touchAct.pressed { background:rgba(240,110,60,0.92); transform:scale(0.94); }
-body.touch #villageShop, body.touch #arcadePanel, body.touch #trophyPanel, body.touch #skinMenu,
+body.touch #villageShop, body.touch #arcadePanel, body.touch #trophyPanel, body.touch #skinMenu, body.touch #petMenu,
 body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
   max-width:94vw !important; min-width:0 !important; width:auto; max-height:82dvh; overflow-y:auto; }
 </style>
@@ -251,6 +269,7 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
     <button class="mbtn free" id="mFree">🎮 Free Play</button>
     <button class="mbtn home" id="mHome">🏠 Home Base</button>
     <button class="mbtn skins" id="mSkins">🎭 Skins</button>
+    <button class="mbtn pets" id="mPets" style="border-color:rgba(90,200,170,0.6);color:#7ef0d0;">🐾 Pets</button>
   </div>
   <div id="menuCoins"></div>
 </div>
@@ -291,6 +310,13 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
   <div id="shopGrid"></div>
   <button id="shopCloseBtn" onclick="closeShop()">Leave Shop [Esc]</button>
 </div>
+<div id="petMenu">
+  <div id="petMenuTitle">🐾 COMPANION PETS</div>
+  <div id="petMenuSub">Adopt a buddy — they follow you everywhere and help you fight</div>
+  <div id="petMenuCoins"></div>
+  <div id="petGrid"></div>
+  <button id="petCloseBtn" onclick="closePetMenu()">✕ CLOSE</button>
+</div>
 <div id="skinMenu">
   <div id="skinMenuTitle">🎭 SKIN WARDROBE</div>
   <div id="skinMenuSub">SELECT YOUR LOOK — Some earned, some bought, some secret</div>
@@ -309,34 +335,35 @@ body.touch #craftPanel, body.touch #gearPanel, body.touch #message {
 </div>
 
 <!-- Three.js (vendored locally — no external CDN dependency) -->
-<script src="js/three.min.js?v=60"></script>
+<script src="js/three.min.js?v=61"></script>
 
 <!-- Shared systems (reused from the 2D build, unchanged) -->
-<script src="js/globals.js?v=60"></script>
-<script src="js/save.js?v=60"></script>
-<script src="js/hud.js?v=60"></script>
-<script src="js/craft.js?v=60"></script>
+<script src="js/globals.js?v=61"></script>
+<script src="js/save.js?v=61"></script>
+<script src="js/hud.js?v=61"></script>
+<script src="js/craft.js?v=61"></script>
 
 <!-- Pure data layers (reused, unchanged) -->
-<script src="js/p1-data.js?v=60"></script>
-<script src="js/p2-data.js?v=60"></script>
-<script src="js/p3-data.js?v=60"></script>
-<script src="js/p4-data.js?v=60"></script>
-<script src="js/p5-data.js?v=60"></script>
+<script src="js/p1-data.js?v=61"></script>
+<script src="js/p2-data.js?v=61"></script>
+<script src="js/p3-data.js?v=61"></script>
+<script src="js/p4-data.js?v=61"></script>
+<script src="js/p5-data.js?v=61"></script>
 
 <!-- 3D engine + theme + menu + skins -->
-<script src="js/mobile3d.js?v=60"></script>
-<script src="js/sfx3d.js?v=60"></script>
-<script src="js/cutscene3d.js?v=60"></script>
-<script src="js/planets3d.js?v=60"></script>
-<script src="js/engine3d.js?v=60"></script>
-<script src="js/boss3d.js?v=60"></script>
-<script src="js/village3d.js?v=60"></script>
-<script src="js/home3d.js?v=60"></script>
-<script src="js/arcade3d.js?v=60"></script>
-<script src="js/interior3d.js?v=60"></script>
-<script src="js/seahorse3d.js?v=60"></script>
-<script src="js/menu3d.js?v=60"></script>
-<script src="js/skins.js?v=60"></script>
+<script src="js/mobile3d.js?v=61"></script>
+<script src="js/sfx3d.js?v=61"></script>
+<script src="js/cutscene3d.js?v=61"></script>
+<script src="js/planets3d.js?v=61"></script>
+<script src="js/engine3d.js?v=61"></script>
+<script src="js/boss3d.js?v=61"></script>
+<script src="js/village3d.js?v=61"></script>
+<script src="js/home3d.js?v=61"></script>
+<script src="js/arcade3d.js?v=61"></script>
+<script src="js/interior3d.js?v=61"></script>
+<script src="js/pets3d.js?v=61"></script>
+<script src="js/seahorse3d.js?v=61"></script>
+<script src="js/menu3d.js?v=61"></script>
+<script src="js/skins.js?v=61"></script>
 </body>
 </html>

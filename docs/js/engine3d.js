@@ -98,6 +98,7 @@ function stopEngine() {
   E.resources = []; E.enemies = []; E.particles = []; E.projectiles = [];
   E.exit = null; E.exitActive = false; E.player = null;
   E.interior = null; E.doorTiles = null; E.interiorProps = null; E.interiorExitMat = null;
+  E.pet = null;
 }
 
 // Pad a tile map with M tiles of open floor on every side (plus a new outer
@@ -167,6 +168,7 @@ function buildWorld(n, cfg) {
   ensureFuel(cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
+  if (typeof spawnPet === 'function') spawnPet(scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
   if (typeof hideBossBar === 'function') hideBossBar();
   const _ink = document.getElementById('inkOverlay'); if (_ink) { _ink.style.transition = 'none'; _ink.style.opacity = '0'; }
@@ -1294,6 +1296,7 @@ function animate() {
     if (typeof updateVillage === 'function') updateVillage(dt);
     if (typeof updateHome === 'function') updateHome(dt);
     if (typeof updateInterior === 'function') updateInterior(dt);
+    if (typeof updatePet === 'function') updatePet(dt);
     if (typeof updateSeahorses === 'function') updateSeahorses(dt);
     if (typeof updateBossShots === 'function') updateBossShots(dt);
     if (typeof updateBossBar === 'function') updateBossBar();
