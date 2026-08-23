@@ -273,7 +273,6 @@ function placeBuildingMesh(scene, type, w, h, gx, gy) {
   mesh.position.set(gx + w / 2, 0.06, gy + h / 2);
   scene.add(mesh);
   E.homeMeshes.push({ mesh, type, x: gx + w / 2, z: gy + h / 2 });
-  if (type === 'trophy') addTrophyStatues(scene, gx + w / 2, gy + h / 2);
   return mesh;
 }
 
