@@ -530,6 +530,57 @@ function completeHomeQuest(i) {
   showToast('✅ Quest Complete!', 'You earned ' + q.rewardAmt + ' 🪙 from ' + q.giver + '!');
 }
 
+// ── Collectibles — claw-machine prizes + greenhouse crops ───────
+const COLLECTIBLES = [
+  // Claw-machine prizes
+  { id: 'teddy',      name: 'Teddy Bear',  emoji: '🧸', src: 'claw' },
+  { id: 'dino',       name: 'Dino Toy',    emoji: '🦖', src: 'claw' },
+  { id: 'robot_toy',  name: 'Toy Robot',   emoji: '🤖', src: 'claw' },
+  { id: 'balloon',    name: 'Balloon',     emoji: '🎈', src: 'claw' },
+  { id: 'yoyo',       name: 'Yo-Yo',       emoji: '🪀', src: 'claw' },
+  { id: 'alien_toy',  name: 'Alien Plush', emoji: '👾', src: 'claw' },
+  { id: 'star_plush', name: 'Star Plush',  emoji: '⭐', src: 'claw' },
+  { id: 'gem_toy',    name: 'Shiny Gem',   emoji: '💎', src: 'claw' },
+  { id: 'rocket_toy', name: 'Toy Rocket',  emoji: '🚀', src: 'claw' },
+  { id: 'crown_toy',  name: 'Tiny Crown',  emoji: '👑', src: 'claw' },
+  // Greenhouse crops
+  { id: 'star_berry',  name: 'Star Berry',   emoji: '🍓', src: 'crop' },
+  { id: 'moon_melon',  name: 'Moon Melon',   emoji: '🍈', src: 'crop' },
+  { id: 'sun_bloom',   name: 'Sun Bloom',    emoji: '🌻', src: 'crop' },
+  { id: 'void_grape',  name: 'Void Grapes',  emoji: '🍇', src: 'crop' },
+  { id: 'ember_pepper',name: 'Ember Pepper', emoji: '🌶️', src: 'crop' },
+  { id: 'glow_shroom', name: 'Glow Shroom',  emoji: '🍄', src: 'crop' }
+];
+function collectiblesBySrc(src) { return COLLECTIBLES.filter(c => c.src === src); }
+function getCollectible(id) { return COLLECTIBLES.find(c => c.id === id); }
+function randomCollectible(src) { const a = collectiblesBySrc(src); return a[Math.floor(Math.random() * a.length)]; }
+function addCollectible(id, n) { if (!save.collectibles) save.collectibles = {}; save.collectibles[id] = (save.collectibles[id] || 0) + (n || 1); persist(); }
+
+function openCollection() {
+  gamePaused = true;
+  if (!save.collectibles) save.collectibles = {};
+  const owned = COLLECTIBLES.filter(c => save.collectibles[c.id]).length;
+  document.getElementById('shopMerchantName').textContent = '🏆 My Collection';
+  document.getElementById('shopMerchantDialog').textContent = `"${owned}/${COLLECTIBLES.length} unique treasures gathered."`;
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  COLLECTIBLES.forEach(c => {
+    const cnt = save.collectibles[c.id] || 0;
+    const el = document.createElement('div');
+    el.className = 'shop-item' + (cnt ? '' : ' shop-disabled');
+    el.innerHTML = `<div class="shop-item-name">${cnt ? c.emoji : '❔'} ${cnt ? c.name : '???'}</div>
+      <div class="shop-item-desc">${c.src === 'claw' ? '🕹️ Claw prize' : '🌱 Greenhouse crop'}</div>
+      <div class="shop-cost">${cnt ? '<span class="has">×' + cnt + '</span>' : '<span class="lacks">not found</span>'}</div>`;
+    grid.appendChild(el);
+  });
+  const close = document.createElement('div');
+  close.className = 'shop-item';
+  close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Keep collecting!</div>';
+  close.onclick = () => closeShop();
+  grid.appendChild(close);
+  document.getElementById('villageShop').style.display = 'block';
+}
+
 // ── Greenhouse — plant seeds, wait, harvest crops ───────────────
 const GREENHOUSE_GROW_MS = 45000; // 45s to ripen (grows even while away)
 const GREENHOUSE_PLOTS = 4;
@@ -546,26 +597,35 @@ function openGreenhouse() {
   renderGreenhouse();
   document.getElementById('villageShop').style.display = 'block';
 }
+// plots hold either null, a legacy number (seed time), or { seed, crop }
+function plotSeed(p) { return (p && typeof p === 'object') ? p.seed : p; }
+function plotCrop(p) { return (p && typeof p === 'object' && p.crop) ? getCollectible(p.crop) : null; }
 function renderGreenhouse() {
   const grid = document.getElementById('shopGrid');
   grid.innerHTML = '';
   const now = Date.now();
-  save.homePlanet.greenhouse.plots.forEach((seed, i) => {
+  save.homePlanet.greenhouse.plots.forEach((plot, i) => {
     const el = document.createElement('div');
     let cls = 'shop-item', name, desc, cost, onclick = null;
-    if (seed == null) {
+    if (plot == null) {
       name = '🟫 Empty Plot'; desc = 'Plant a seed here (free)';
       cost = '<span class="has">🌱 Plant</span>'; onclick = () => plantSeed(i);
     } else {
-      const age = now - seed;
-      if (age >= GREENHOUSE_GROW_MS) { name = '🌾 Ripe crop!'; desc = 'Harvest for a bundle of resources'; cost = '<span class="has">✓ Harvest</span>'; onclick = () => harvestPlot(i); }
-      else { cls += ' shop-disabled'; const s = Math.ceil((GREENHOUSE_GROW_MS - age) / 1000); name = '🌱 Growing…'; desc = 'Ready in ' + s + 's'; cost = '<span class="lacks">' + s + 's</span>'; }
+      const crop = plotCrop(plot), ce = crop ? crop.emoji : '🌱', cn = crop ? crop.name : 'crop';
+      const age = now - plotSeed(plot);
+      if (age >= GREENHOUSE_GROW_MS) { name = ce + ' Ripe ' + cn + '!'; desc = 'Harvest it for your collection (+resources)'; cost = '<span class="has">✓ Harvest</span>'; onclick = () => harvestPlot(i); }
+      else { cls += ' shop-disabled'; const s = Math.ceil((GREENHOUSE_GROW_MS - age) / 1000); name = '🌱 Growing ' + cn + '…'; desc = 'Ready in ' + s + 's'; cost = '<span class="lacks">' + s + 's</span>'; }
     }
     el.className = cls;
     el.innerHTML = `<div class="shop-item-name">${name}</div><div class="shop-item-desc">${desc}</div><div class="shop-cost">${cost}</div>`;
     if (onclick) el.onclick = onclick;
     grid.appendChild(el);
   });
+  const coll = document.createElement('div');
+  coll.className = 'shop-item';
+  coll.innerHTML = '<div class="shop-item-name">🏆 My Collection</div><div class="shop-item-desc">See everything you\'ve grown & won</div>';
+  coll.onclick = () => openCollection();
+  grid.appendChild(coll);
   const close = document.createElement('div');
   close.className = 'shop-item';
   close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Let them grow</div>';
@@ -574,23 +634,26 @@ function renderGreenhouse() {
 }
 function plantSeed(i) {
   ensureGreenhouse();
-  save.homePlanet.greenhouse.plots[i] = Date.now();
+  const crop = randomCollectible('crop');
+  save.homePlanet.greenhouse.plots[i] = { seed: Date.now(), crop: crop.id };
   if (typeof SFX !== 'undefined' && SFX.build) SFX.build();
   persist(); renderGreenhouse();
+  showToast('🌱 Planted!', 'A ' + crop.emoji + ' ' + crop.name + ' seed is growing.');
 }
 function harvestPlot(i) {
-  const g = save.homePlanet.greenhouse;
-  if (g.plots[i] == null || Date.now() - g.plots[i] < GREENHOUSE_GROW_MS) return;
+  const g = save.homePlanet.greenhouse, plot = g.plots[i];
+  if (plot == null || Date.now() - plotSeed(plot) < GREENHOUSE_GROW_MS) return;
+  const crop = plotCrop(plot) || randomCollectible('crop');
   g.plots[i] = null;
+  addCollectible(crop.id, 1); // the crop goes into your collection
+  // plus a couple of raw resources
   const types = ['plant', 'rock', 'crystal'];
-  const got = {};
-  const n = 2 + Math.floor(Math.random() * 2); // 2-3 resources
-  for (let k = 0; k < n; k++) { const t = types[Math.floor(Math.random() * types.length)]; save.resources[t] = (save.resources[t] || 0) + 1; got[t] = (got[t] || 0) + 1; }
+  const t = types[Math.floor(Math.random() * types.length)];
+  save.resources[t] = (save.resources[t] || 0) + 2;
   const icons = { plant: '🌿', rock: '🪨', crystal: '💎' };
-  const summary = Object.entries(got).map(([t, c]) => c + ' ' + icons[t]).join(', ');
   if (typeof SFX !== 'undefined' && SFX.coin) SFX.coin();
   persist(); updateHUD(); renderGreenhouse();
-  showToast('🌾 Harvest!', 'You gathered ' + summary + '.');
+  showToast('🌾 Harvested ' + crop.emoji + ' ' + crop.name + '!', 'Added to your collection, plus 2 ' + icons[t] + '.');
 }
 
 // Is the home base currently in its night phase? (day/night cycle)

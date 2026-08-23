@@ -334,13 +334,13 @@ function gameClaw(el) {
   el.innerHTML = `<div class="ag-title">🕹️ Prize Claw</div>
     <div class="ag-msg" id="clMsg">Click or press Space to drop the claw on a prize!</div>
     <canvas id="clCanvas" width="440" height="300" style="background:#0a0a1e;border:1px solid #55f;border-radius:8px;max-width:100%;cursor:pointer;"></canvas>
-    <div class="ag-sub" id="clScore">Won: 0 🪙</div>`;
+    <div class="ag-sub" id="clScore">Prizes won: 0</div>`;
   const cv = el.querySelector('#clCanvas'), ctx = cv.getContext('2d');
   const W = cv.width, H = cv.height, prizeY = H - 46;
-  const POOL = [['🧸', 10], ['💎', 40], ['🍬', 5], ['🎁', 25], ['⭐', 15], ['🍭', 5], ['🚀', 20]];
+  const POOL = (typeof collectiblesBySrc === 'function') ? collectiblesBySrc('claw') : [{ emoji: '🧸', id: 'teddy', name: 'Teddy Bear' }];
   function makeRow() {
     const n = 5, gap = (W - 90) / (n - 1), arr = [];
-    for (let i = 0; i < n; i++) { const p = POOL[Math.floor(Math.random() * POOL.length)]; arr.push({ x: 45 + i * gap, emoji: p[0], val: p[1], gone: false }); }
+    for (let i = 0; i < n; i++) { const p = POOL[Math.floor(Math.random() * POOL.length)]; arr.push({ x: 45 + i * gap, emoji: p.emoji, id: p.id, name: p.name, gone: false }); }
     return arr;
   }
   let prizes = makeRow(), clawX = W / 2, dir = 1, clawY = 34, state = 'aim', total = 0, held = null;
@@ -369,7 +369,7 @@ function gameClaw(el) {
       if (clawY >= prizeY - 6) {
         let best = null, bd = grabRange;
         prizes.forEach(p => { if (p.gone) return; const d = Math.abs(p.x - clawX); if (d < bd) { bd = d; best = p; } });
-        if (best && Math.random() < 0.72) { held = { emoji: best.emoji, val: best.val }; best.gone = true; }
+        if (best && Math.random() < 0.72) { held = { emoji: best.emoji, id: best.id, name: best.name }; best.gone = true; }
         else held = null;
         state = 'rise';
       }
@@ -378,9 +378,9 @@ function gameClaw(el) {
       if (clawY <= 34) {
         clawY = 34;
         if (held) {
-          total += held.val; arcadeAward(held.val);
-          el.querySelector('#clScore').textContent = 'Won: ' + total + ' 🪙';
-          el.querySelector('#clMsg').textContent = 'Grabbed ' + held.emoji + '  +' + held.val + ' 🪙! Drop again!';
+          total += 1; if (typeof addCollectible === 'function') addCollectible(held.id, 1);
+          el.querySelector('#clScore').textContent = 'Prizes won: ' + total;
+          el.querySelector('#clMsg').textContent = 'Won a ' + held.emoji + ' ' + held.name + '! Added to your collection. Drop again!';
         } else {
           el.querySelector('#clMsg').textContent = 'So close — the claw slipped! Try again.';
         }

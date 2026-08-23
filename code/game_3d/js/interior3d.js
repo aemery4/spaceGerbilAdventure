@@ -370,7 +370,7 @@ function populateArcadeInterior(scene, COLS, ROWS, def) {
     new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffaa00, emissiveIntensity: 0.9, metalness: 0.5, roughness: 0.3 }));
   prize.position.set(COLS / 2, 1.05, ROWS / 2 + 0.5); scene.add(prize);
   const podLight = new THREE.PointLight(0xffcf66, 0.7, 5, 2); podLight.position.set(COLS / 2, 1.6, ROWS / 2 + 0.5); scene.add(podLight);
-  E.interiorProps.push({ mesh: prize, x: COLS / 2, z: ROWS / 2 + 0.5, spin: prize, action: () => showToast('🏆 Prize Podium', 'Rack up Space Coins at the cabinets — big spenders get bragging rights!') });
+  E.interiorProps.push({ mesh: prize, x: COLS / 2, z: ROWS / 2 + 0.5, spin: prize, action: () => (typeof openCollection === 'function') ? openCollection() : showToast('🏆 Prize Podium', 'Win prizes at the claw machine!') });
 
   // big glowing ARCADE sign high on the back wall
   const sign = makeSign('★ ARCADE ★', 0x22ffdd, 5.2, 1.3); sign.position.set(COLS / 2, 2.55, 0.5); scene.add(sign);
