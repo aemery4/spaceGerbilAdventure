@@ -15,6 +15,8 @@ const P5_BUILDINGS = [
   { type: 'trophy',  name: 'Trophy Hall',  emoji: '🏛️', desc: 'A museum of every boss you have defeated.', cost: 250, w: 2, h: 2 },
   { type: 'observatory', name: 'Observatory', emoji: '🔭', desc: 'Launch from home to any unlocked planet.', cost: 350, w: 2, h: 2 },
   { type: 'quest',   name: 'Quest Board',  emoji: '📋', desc: 'Alien visitors post tasks that pay Space Coins.', cost: 120, w: 1, h: 1 },
+  { type: 'greenhouse', name: 'Greenhouse', emoji: '🌱', desc: 'Plant seeds, wait, and harvest crops for resources.', cost: 180, w: 2, h: 2 },
+  { type: 'campfire', name: 'Campfire',    emoji: '🔥', desc: 'Alien visitors gather around it at night.', cost: 40, w: 1, h: 1 },
   // ── Decorations (cosmetic, 1×1) ──
   { type: 'tree',    name: 'Shade Tree',   emoji: '🌳', desc: 'A big leafy tree.',            cost: 20, w: 1, h: 1, deco: true },
   { type: 'pine',    name: 'Pine Tree',    emoji: '🌲', desc: 'A tall evergreen.',            cost: 20, w: 1, h: 1, deco: true },

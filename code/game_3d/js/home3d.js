@@ -190,9 +190,21 @@ function updateHomeAliens(dt) {
     a.mesh.position.y = 0.05 + Math.abs(Math.sin(a.bob * 3)) * 0.06;
     a.mesh.rotation.y = Math.atan2(a.dir.x, a.dir.z);
   };
+  const fire = (E.homeMeshes || []).find(b => b.type === 'campfire');
+  const nightFire = (fire && isHomeNight()) ? fire : null;
   E.homeAliens.forEach(a => {
     a.bob += dt;
     if (a.marker && a.mesh.visible) { a.marker.rotation.y += dt * 2; a.marker.position.y = 1.3 + Math.sin(a.bob * 2) * 0.1; }
+
+    if (nightFire) {                                   // gather around the campfire at night
+      if (!a.mesh.visible) { a.mesh.visible = true; a.state = 'out'; }
+      if (a._fireAng == null) a._fireAng = Math.random() * Math.PI * 2;
+      const tx = nightFire.x + Math.cos(a._fireAng) * 1.15, tz = nightFire.z + Math.sin(a._fireAng) * 1.15;
+      const dx = tx - a.x, dz = tz - a.z, d = Math.hypot(dx, dz);
+      if (d > 0.18) { a.dir.set(dx, 0, dz).normalize(); step(a, 0.9); }
+      else { a.mesh.position.set(a.x, 0.05, a.z); a.mesh.rotation.y = Math.atan2(nightFire.x - a.x, nightFire.z - a.z); }
+      return;
+    }
 
     if (a.resident) {
       a.stateTimer = (a.stateTimer == null ? 5 + Math.random() * 6 : a.stateTimer) - dt;
@@ -517,6 +529,75 @@ function completeHomeQuest(i) {
   showToast('✅ Quest Complete!', 'You earned ' + q.rewardAmt + ' 🪙 from ' + q.giver + '!');
 }
 
+// ── Greenhouse — plant seeds, wait, harvest crops ───────────────
+const GREENHOUSE_GROW_MS = 45000; // 45s to ripen (grows even while away)
+const GREENHOUSE_PLOTS = 4;
+function ensureGreenhouse() {
+  if (!save.homePlanet.greenhouse) save.homePlanet.greenhouse = { plots: [] };
+  const g = save.homePlanet.greenhouse;
+  while (g.plots.length < GREENHOUSE_PLOTS) g.plots.push(null);
+}
+function openGreenhouse() {
+  gamePaused = true;
+  ensureGreenhouse();
+  document.getElementById('shopMerchantName').textContent = '🌱 Greenhouse';
+  document.getElementById('shopMerchantDialog').textContent = '"Plant a seed, come back later, and reap the harvest!"';
+  renderGreenhouse();
+  document.getElementById('villageShop').style.display = 'block';
+}
+function renderGreenhouse() {
+  const grid = document.getElementById('shopGrid');
+  grid.innerHTML = '';
+  const now = Date.now();
+  save.homePlanet.greenhouse.plots.forEach((seed, i) => {
+    const el = document.createElement('div');
+    let cls = 'shop-item', name, desc, cost, onclick = null;
+    if (seed == null) {
+      name = '🟫 Empty Plot'; desc = 'Plant a seed here (free)';
+      cost = '<span class="has">🌱 Plant</span>'; onclick = () => plantSeed(i);
+    } else {
+      const age = now - seed;
+      if (age >= GREENHOUSE_GROW_MS) { name = '🌾 Ripe crop!'; desc = 'Harvest for a bundle of resources'; cost = '<span class="has">✓ Harvest</span>'; onclick = () => harvestPlot(i); }
+      else { cls += ' shop-disabled'; const s = Math.ceil((GREENHOUSE_GROW_MS - age) / 1000); name = '🌱 Growing…'; desc = 'Ready in ' + s + 's'; cost = '<span class="lacks">' + s + 's</span>'; }
+    }
+    el.className = cls;
+    el.innerHTML = `<div class="shop-item-name">${name}</div><div class="shop-item-desc">${desc}</div><div class="shop-cost">${cost}</div>`;
+    if (onclick) el.onclick = onclick;
+    grid.appendChild(el);
+  });
+  const close = document.createElement('div');
+  close.className = 'shop-item';
+  close.innerHTML = '<div class="shop-item-name">❌ Close</div><div class="shop-item-desc">Let them grow</div>';
+  close.onclick = () => closeShop();
+  grid.appendChild(close);
+}
+function plantSeed(i) {
+  ensureGreenhouse();
+  save.homePlanet.greenhouse.plots[i] = Date.now();
+  if (typeof SFX !== 'undefined' && SFX.build) SFX.build();
+  persist(); renderGreenhouse();
+}
+function harvestPlot(i) {
+  const g = save.homePlanet.greenhouse;
+  if (g.plots[i] == null || Date.now() - g.plots[i] < GREENHOUSE_GROW_MS) return;
+  g.plots[i] = null;
+  const types = ['plant', 'rock', 'crystal'];
+  const got = {};
+  const n = 2 + Math.floor(Math.random() * 2); // 2-3 resources
+  for (let k = 0; k < n; k++) { const t = types[Math.floor(Math.random() * types.length)]; save.resources[t] = (save.resources[t] || 0) + 1; got[t] = (got[t] || 0) + 1; }
+  const icons = { plant: '🌿', rock: '🪨', crystal: '💎' };
+  const summary = Object.entries(got).map(([t, c]) => c + ' ' + icons[t]).join(', ');
+  if (typeof SFX !== 'undefined' && SFX.coin) SFX.coin();
+  persist(); updateHUD(); renderGreenhouse();
+  showToast('🌾 Harvest!', 'You gathered ' + summary + '.');
+}
+
+// Is the home base currently in its night phase? (day/night cycle)
+function isHomeNight() {
+  const p = (E.time % HOME_DAY_LEN) / HOME_DAY_LEN;
+  return homeSkySample(p).sunI < 0.5;
+}
+
 // Rebuild the home base from the (updated) save, keeping the player put
 function refreshHome() {
   const p = E.player ? { x: E.player.position.x, z: E.player.position.z } : null;
@@ -639,6 +720,8 @@ function useHomeBuilding(b) {
       else openObservatory();
       break;
     case 'quest': openQuestBoard(); break;
+    case 'greenhouse': openGreenhouse(); break;
+    case 'campfire': showToast('🔥 Campfire', 'When night falls, your visitors gather around the fire.'); break;
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);
       if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
@@ -779,7 +862,15 @@ function updateHome(dt) {
     save.hp = Math.min(save.maxHp, save.hp + dt * 2.5);
     updateHUD();
   }
-  if (E.homeMeshes) E.homeMeshes.forEach(b => { if (b.mesh.userData.spin) b.mesh.userData.spin.rotation.y += dt; });
+  if (E.homeMeshes) E.homeMeshes.forEach(b => {
+    if (b.mesh.userData.spin) b.mesh.userData.spin.rotation.y += dt;
+    const ud = b.mesh.userData;
+    if (ud.flame) { // campfire flicker
+      const f = 0.85 + Math.sin(E.time * 18 + b.x) * 0.12 + Math.sin(E.time * 31) * 0.05;
+      ud.flame.scale.set(1, f, 1); if (ud.flame2) ud.flame2.scale.set(1, f * 1.05, 1);
+      if (ud.fireLight) ud.fireLight.intensity = 0.7 + Math.abs(Math.sin(E.time * 12 + b.z)) * 0.4;
+    }
+  });
   updateHomeAliens(dt);
 }
 
@@ -889,6 +980,25 @@ function makeBuildingMesh(type, w, h) {
     }
     const pin = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 6), new THREE.MeshStandardMaterial({ color: 0xd83b3b, emissive: 0x882020, emissiveIntensity: 0.5 }));
     pin.position.set(0, 1.28, 0.06); g.add(pin);
+  } else if (type === 'greenhouse') {
+    const glass = new THREE.MeshStandardMaterial({ color: 0xbfeadf, transparent: true, opacity: 0.32, roughness: 0.1, metalness: 0.2 });
+    const frameMat = M(0x8a9490, 0.5);
+    const base = new THREE.Mesh(new THREE.BoxGeometry(w * 0.86, 0.18, h * 0.86), M(0x5a3a1e)); base.position.y = 0.09;
+    const walls = new THREE.Mesh(new THREE.BoxGeometry(w * 0.78, 0.9, h * 0.78), glass); walls.position.y = 0.6;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.62, 0.5, 4), glass); roof.rotation.y = Math.PI / 4; roof.position.y = 1.25;
+    g.add(base, walls, roof);
+    // corner frame posts
+    [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.05, 0.06), frameMat); p.position.set(sx * w * 0.38, 0.6, sz * h * 0.38); g.add(p); });
+    // rows of little plants inside
+    for (let i = 0; i < 6; i++) { const c = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 6), M(0x3fae50)); c.position.set((i % 3 - 1) * w * 0.28, 0.35, (i < 3 ? -1 : 1) * h * 0.2); g.add(c); }
+  } else if (type === 'campfire') {
+    for (let i = 0; i < 7; i++) { const a = i / 7 * Math.PI * 2; const s = new THREE.Mesh(new THREE.DodecahedronGeometry(0.1), M(0x8a8f96, 0.9)); s.position.set(Math.cos(a) * 0.3, 0.07, Math.sin(a) * 0.3); g.add(s); }
+    [0, 1, 2].forEach(i => { const log = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 6), M(0x6b4a2a)); log.rotation.set(0, i * Math.PI / 3, Math.PI / 2); log.position.y = 0.12; g.add(log); });
+    const f1 = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.5, 7), new THREE.MeshStandardMaterial({ color: 0xff7a1e, emissive: 0xff5a08, emissiveIntensity: 1.2, transparent: true, opacity: 0.92 })); f1.position.y = 0.36;
+    const f2 = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.34, 7), new THREE.MeshStandardMaterial({ color: 0xffd23a, emissive: 0xffaa00, emissiveIntensity: 1.4 })); f2.position.y = 0.44;
+    const light = new THREE.PointLight(0xff8a3a, 0.8, 6, 2); light.position.y = 0.6;
+    g.add(f1, f2, light);
+    g.userData.flame = f1; g.userData.flame2 = f2; g.userData.fireLight = light;
   } else if (type === 'tree') {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 8), M(0x6b4a2a)); trunk.position.y = 0.3;
     const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), M(0x2f8a3a)); f1.position.y = 0.95;
