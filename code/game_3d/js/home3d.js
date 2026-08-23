@@ -854,14 +854,29 @@ function makeBuildingMesh(type, w, h) {
     const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.05, 10), gold); foot.position.y = 1.9;
     g.add(cup, stem, foot); g.userData.spin = cup;
   } else if (type === 'observatory') {
-    // A silver domed observatory with a telescope poking out of the slit
-    const wallMat = M(0xd8dce4, 0.6), domeMat = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.35, metalness: 0.5 });
-    const drum = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.42, w * 0.46, 0.9, 20), wallMat); drum.position.y = 0.45;
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(w * 0.44, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), domeMat); dome.position.y = 0.9;
-    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, 0.9, 12), M(0x2a2a3a, 0.4)); scope.position.set(0, 1.2, w * 0.18); scope.rotation.x = -0.9;
-    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12), new THREE.MeshStandardMaterial({ color: 0x88ddff, emissive: 0x2277bb, emissiveIntensity: 0.7 })); lens.position.set(0, 1.5, w * 0.42); lens.rotation.x = -0.9;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.4, 0.04, 8, 24), new THREE.MeshStandardMaterial({ color: 0x66c2ff, emissive: 0x2277bb, emissiveIntensity: 0.9 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.9;
-    g.add(drum, dome, scope, lens, ring); g.userData.spin = dome;
+    // A proper observatory: white tower with a door + windows, and a
+    // rotating silver dome with a telescope poking out of the slit.
+    const wallMat = M(0xe8ecf4, 0.6), trimMat = M(0x9aa4b8, 0.5);
+    const domeMat = new THREE.MeshStandardMaterial({ color: 0xc2c9d6, roughness: 0.3, metalness: 0.55 });
+    const winMat = new THREE.MeshStandardMaterial({ color: 0x9fe0ff, emissive: 0x2a7fb0, emissiveIntensity: 0.7 });
+    const glow = new THREE.MeshStandardMaterial({ color: 0x66c2ff, emissive: 0x2277bb, emissiveIntensity: 1.0 });
+    const plinth = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.54, w * 0.58, 0.2, 22), trimMat); plinth.position.y = 0.1;
+    const drum = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.46, w * 0.5, 1.0, 22), wallMat); drum.position.y = 0.6;
+    const band = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.47, w * 0.47, 0.12, 22), trimMat); band.position.y = 1.06;
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.6, 0.08), M(0x2a3448, 0.5)); door.position.set(0, 0.4, w * 0.5);
+    const doorTop = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.1, 0.05), glow); doorTop.position.set(0, 0.72, w * 0.5 + 0.01);
+    g.add(plinth, drum, band, door, doorTop);
+    [0.7, 2.44, 3.84, 5.58].forEach(a => { const win = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.26, 0.16), winMat); win.position.set(Math.cos(a) * w * 0.5, 0.78, Math.sin(a) * w * 0.5); win.rotation.y = -a; g.add(win); });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(w * 0.45, 0.045, 8, 26), glow); ring.rotation.x = Math.PI / 2; ring.position.y = 1.12; g.add(ring);
+    // rotating dome assembly (dome + dark slit + telescope + lens)
+    const domeGrp = new THREE.Group(); domeGrp.position.y = 1.12;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(w * 0.46, 22, 14, 0, Math.PI * 2, 0, Math.PI / 2), domeMat);
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(0.24, w * 0.5, 0.42), M(0x0a1420, 0.4)); slit.position.set(0, w * 0.24, w * 0.18); slit.rotation.x = -0.5;
+    const scope = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 1.0, 12), M(0x2a2a3a, 0.4)); scope.position.set(0, w * 0.3, w * 0.28); scope.rotation.x = -0.8;
+    const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 0.06, 12), winMat); lens.position.set(0, w * 0.52, w * 0.52); lens.rotation.x = -0.8;
+    domeGrp.add(dome, slit, scope, lens); g.add(domeGrp);
+    const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffaa00, emissiveIntensity: 1 })); star.position.y = 1.12 + w * 0.5; g.add(star);
+    g.userData.spin = domeGrp;
   } else if (type === 'quest') {
     const post = (x) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 7), M(0x6b4a2a)); p.position.set(x, 0.55, 0); return p; };
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.98, 0.68, 0.06), M(0x5a3a1a, 0.7)); frame.position.set(0, 0.95, -0.02);
