@@ -24,6 +24,7 @@ function buildHomeStructures(scene) {
   });
   applyHomeFarmsOnVisit();
   spawnHomeAliens(scene);
+  spawnHomePets(scene);
   addHomeSky(scene);
   E.fireworks = [];
 }
@@ -705,6 +706,38 @@ function isHomeNight() {
   return homeSkySample(p).sunI < 0.5;
 }
 
+// ── Pet House: your other unlocked pets wander the yard ─────────
+function spawnHomePets(scene) {
+  E.homePets = [];
+  const houses = (E.homeMeshes || []).filter(b => b.type === 'pethouse');
+  if (!houses.length || typeof makePetMesh !== 'function' || typeof PETS === 'undefined') return;
+  const house = houses[0];
+  const others = (save.unlockedPets || []).filter(id => id !== save.pet); // the active pet follows the player
+  others.slice(0, 4).forEach(id => {
+    const pet = PETS.find(p => p.id === id); if (!pet) return;
+    const mesh = makePetMesh(pet);
+    const spot = openTileNear(house.x, house.z);
+    mesh.position.set(spot.x, mesh.userData.baseY || 0, spot.z); scene.add(mesh);
+    E.homePets.push({ mesh, x: spot.x, z: spot.z, t: Math.random() * 3, dir: new THREE.Vector3(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(), wander: Math.random() * 3, homeX: house.x, homeZ: house.z });
+  });
+}
+function updateHomePets(dt) {
+  if (!E.homePets || !E.homePets.length) return;
+  const solid = (x, z) => { const tx = Math.floor(x), tz = Math.floor(z); if (tx < 1 || tz < 1 || tx >= E.cols - 1 || tz >= E.rows - 1) return true; return E.cfg.solid.includes(E.map[tz][tx]); };
+  E.homePets.forEach(p => {
+    p.t += dt; p.wander -= dt;
+    if (p.wander <= 0) { if (Math.hypot(p.homeX - p.x, p.homeZ - p.z) > 4) p.dir.set(p.homeX - p.x, 0, p.homeZ - p.z).normalize(); else p.dir.set(Math.random() - 0.5, 0, Math.random() - 0.5).normalize(); p.wander = 1.5 + Math.random() * 2.5; }
+    const spd = 1.5, nx = p.x + p.dir.x * spd * dt, nz = p.z + p.dir.z * spd * dt;
+    if (!solid(nx, p.z)) p.x = nx; else p.dir.x *= -1;
+    if (!solid(p.x, nz)) p.z = nz; else p.dir.z *= -1;
+    p.mesh.position.x = p.x; p.mesh.position.z = p.z; p.mesh.rotation.y = Math.atan2(p.dir.x, p.dir.z);
+    const ud = p.mesh.userData, by = ud.baseY || 0;
+    if (ud.legs && ud.legs.length) { const sw = Math.sin(p.t * 12) * 0.5; ud.legs.forEach((l, k) => l.rotation.x = ((k % 2) ? -1 : 1) * sw); }
+    p.mesh.position.y = ud.hover ? by + 0.15 + Math.sin(p.t * 3) * 0.1 : by + Math.abs(Math.sin(p.t * 12)) * 0.05;
+    if (ud.tail) ud.tail.rotation.y = Math.sin(p.t * 10) * 0.5;
+  });
+}
+
 // ── Fireworks (from the Fireworks Launcher) ─────────────────────
 function launchFirework(x, z) {
   if (!E.scene) return;
@@ -874,6 +907,10 @@ function useHomeBuilding(b) {
       for (let k = 0; k < 4; k++) launchFirework(b.x + (Math.random() - 0.5) * 0.8, b.z + (Math.random() - 0.5) * 0.8);
       showToast('🎆 Fireworks!', 'Boom! Set them off again anytime — best at night.');
       break;
+    case 'pethouse':
+      if (typeof openPetMenu === 'function') openPetMenu();
+      else showToast('🐾 Pet House', 'A cosy home for your companions.');
+      break;
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);
       if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
@@ -1024,6 +1061,7 @@ function updateHome(dt) {
     }
   });
   updateHomeFireworks(dt);
+  updateHomePets(dt);
   updateHomeAliens(dt);
 }
 
@@ -1152,6 +1190,16 @@ function makeBuildingMesh(type, w, h) {
     const light = new THREE.PointLight(0xff8a3a, 0.8, 6, 2); light.position.y = 0.6;
     g.add(f1, f2, light);
     g.userData.flame = f1; g.userData.flame2 = f2; g.userData.fireLight = light;
+  } else if (type === 'pethouse') {
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.72, h * 0.7), M(0xd08a4a)); wall.position.y = 0.36;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.56, 0.5, 4), M(0x8a3a2a)); roof.rotation.y = Math.PI / 4; roof.position.y = 0.95;
+    const door = new THREE.Mesh(new THREE.CircleGeometry(0.24, 16), M(0x2a1810)); door.position.set(0, 0.3, h * 0.35 + 0.01);
+    const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, 0.1, 12), M(0xd83b3b)); bowl.position.set(w * 0.3, 0.06, h * 0.32);
+    const bowlFood = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.04, 12), M(0x8a5a2a)); bowlFood.position.set(w * 0.3, 0.11, h * 0.32);
+    // little paw sign on a post
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.7, 6), M(0x8a6a3a)); post.position.set(-w * 0.32, 0.35, h * 0.3);
+    const sign = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.2, 0.04), M(0xcaa06a)); sign.position.set(-w * 0.32, 0.66, h * 0.3);
+    g.add(wall, roof, door, bowl, bowlFood, post, sign);
   } else if (type === 'path') {
     const pave = new THREE.Mesh(new THREE.BoxGeometry(w * 0.99, 0.06, h * 0.99), M(0xcbb184, 0.95));
     pave.position.y = -0.03; pave.receiveShadow = true; g.add(pave); // sits ~flush with the ground

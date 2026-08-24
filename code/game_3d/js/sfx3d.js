@@ -67,6 +67,35 @@ const SFX = (function () {
   };
 })();
 
+// ── Jukebox: looping procedural background tunes (original) ──────
+const MUSIC = (function () {
+  let ctx = null, master = null, timer = null, step = 0, curr = -1;
+  const TRACKS = [
+    { name: 'Starlight',  tempo: 400, vol: 0.16, type: 'sine',     notes: [261.63, 329.63, 392, 523.25, 0, 392, 329.63, 392, 440, 523.25, 659.25, 523.25, 0, 392, 329.63, 293.66] },
+    { name: 'Cosmic Jig', tempo: 220, vol: 0.13, type: 'triangle', notes: [523.25, 523.25, 392, 523.25, 659.25, 587.33, 523.25, 0, 440, 523.25, 587.33, 659.25, 784, 659.25, 523.25, 0] },
+    { name: 'Nebula',     tempo: 520, vol: 0.15, type: 'sine',     notes: [440, 523.25, 659.25, 587.33, 523.25, 440, 392, 440, 0, 329.63, 392, 440, 523.25, 440, 392, 0] }
+  ];
+  function ensure() { if (ctx) return; try { ctx = new (window.AudioContext || window.webkitAudioContext)(); master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination); } catch (e) { ctx = null; } }
+  function note(freq, dur, type, vol) {
+    if (!ctx || freq <= 0) return;
+    const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t + dur + 0.02);
+  }
+  function tick() {
+    const tr = TRACKS[curr]; if (!tr) return;
+    if (!(typeof SFX !== 'undefined' && SFX.isMuted && SFX.isMuted())) note(tr.notes[step % tr.notes.length], tr.tempo / 1000 * 0.9, tr.type, tr.vol);
+    step++;
+  }
+  return {
+    tracks() { return TRACKS.map(t => t.name); },
+    playing() { return curr; },
+    play(i) { ensure(); if (ctx && ctx.state === 'suspended') ctx.resume(); this.stop(); if (i == null || i < 0 || i >= TRACKS.length) return; curr = i; step = 0; timer = setInterval(tick, TRACKS[i].tempo); tick(); },
+    stop() { if (timer) { clearInterval(timer); timer = null; } curr = -1; }
+  };
+})();
+
 function updateMuteBtn() {
   const b = document.getElementById('muteBtn');
   if (b) b.textContent = SFX.isMuted() ? '🔇 Sound' : '🔊 Sound';

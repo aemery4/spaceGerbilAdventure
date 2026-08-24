@@ -17,6 +17,7 @@ const P5_BUILDINGS = [
   { type: 'quest',   name: 'Quest Board',  emoji: '📋', desc: 'Alien visitors post tasks that pay Space Coins.', cost: 120, w: 1, h: 1 },
   { type: 'greenhouse', name: 'Greenhouse', emoji: '🌱', desc: 'Plant seeds, wait, and harvest crops for resources.', cost: 180, w: 2, h: 2 },
   { type: 'campfire', name: 'Campfire',    emoji: '🔥', desc: 'Alien visitors gather around it at night.', cost: 40, w: 1, h: 1 },
+  { type: 'pethouse', name: 'Pet House',   emoji: '🐾', desc: 'Swap your pet here; your other pets roam the yard.', cost: 150, w: 2, h: 2 },
   { type: 'path',    name: 'Path',         emoji: '🟫', desc: 'A free walkable path tile. Lay them anywhere!', cost: 0, w: 1, h: 1, deco: true, walkable: true },
   // ── Decorations (cosmetic, 1×1) ──
   { type: 'tree',    name: 'Shade Tree',   emoji: '🌳', desc: 'A big leafy tree.',            cost: 20, w: 1, h: 1, deco: true },
