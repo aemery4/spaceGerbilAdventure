@@ -27,6 +27,13 @@ const P5_BUILDINGS = [
   { type: 'lamp',    name: 'Lamp Post',    emoji: '💡', desc: 'Casts a warm glow, day or night.', cost: 30, w: 1, h: 1, deco: true },
   { type: 'banner',  name: 'Banner',       emoji: '🚩', desc: 'A cheerful flag on a pole.',   cost: 25, w: 1, h: 1, deco: true },
   { type: 'statue',  name: 'Garden Gnome', emoji: '🗿', desc: 'Keeps a watchful eye on the yard.', cost: 40, w: 1, h: 1, deco: true },
+  { type: 'fence',   name: 'Fence',        emoji: '🪵', desc: 'A wooden fence segment.',          cost: 5,  w: 1, h: 1, deco: true },
+  { type: 'crystal', name: 'Crystal Cluster', emoji: '💎', desc: 'A glowing crystal formation.',  cost: 15, w: 1, h: 1, deco: true },
+  { type: 'mushroom',name: 'Giant Mushroom', emoji: '🍄', desc: 'A big red spotted mushroom.',    cost: 10, w: 1, h: 1, deco: true },
+  { type: 'well',    name: 'Wishing Well',  emoji: '🪣', desc: 'A quaint little stone well.',      cost: 30, w: 1, h: 1, deco: true },
+  { type: 'lantern', name: 'Lantern',       emoji: '🏮', desc: 'A warm glowing lantern on a post.', cost: 20, w: 1, h: 1, deco: true },
+  { type: 'signpost',name: 'Signpost',      emoji: '🪧', desc: 'A little wooden signpost.',        cost: 5,  w: 1, h: 1, deco: true },
+  { type: 'fireworks', name: 'Fireworks Launcher', emoji: '🎆', desc: 'Press Space to set off fireworks — best at night!', cost: 60, w: 1, h: 1 },
 ];
 
 // Trophy Hall exhibits — one per planet, earned by clearing that planet.

@@ -25,6 +25,7 @@ function buildHomeStructures(scene) {
   applyHomeFarmsOnVisit();
   spawnHomeAliens(scene);
   addHomeSky(scene);
+  E.fireworks = [];
 }
 
 // ── Alien visitors ──────────────────────────────────────────────
@@ -704,6 +705,46 @@ function isHomeNight() {
   return homeSkySample(p).sunI < 0.5;
 }
 
+// ── Fireworks (from the Fireworks Launcher) ─────────────────────
+function launchFirework(x, z) {
+  if (!E.scene) return;
+  E.fireworks = E.fireworks || [];
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 8), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  shell.position.set(x, 0.7, z); E.scene.add(shell);
+  E.fireworks.push({ kind: 'shell', mesh: shell, vy: 8 + Math.random() * 2, targetY: 6 + Math.random() * 3 });
+  if (typeof SFX !== 'undefined' && SFX.shoot) SFX.shoot();
+}
+function burstFirework(x, y, z) {
+  const n = 46, geo = new THREE.BufferGeometry(), pos = new Float32Array(n * 3), vel = [];
+  const col = [0xff5a5a, 0x5aff8a, 0x5a9aff, 0xffe066, 0xff77cc, 0x66ffe0][Math.floor(Math.random() * 6)];
+  for (let i = 0; i < n; i++) { const a = Math.random() * Math.PI * 2, e = Math.random() * Math.PI, s = 2 + Math.random() * 2.2; vel.push([Math.sin(e) * Math.cos(a) * s, Math.cos(e) * s, Math.sin(e) * Math.sin(a) * s]); pos[i * 3] = x; pos[i * 3 + 1] = y; pos[i * 3 + 2] = z; }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ color: col, size: 0.26, transparent: true, opacity: 1, depthWrite: false }));
+  E.scene.add(pts); E.fireworks.push({ kind: 'burst', pts, vel, t: 0 });
+  if (typeof SFX !== 'undefined' && SFX.win) SFX.win();
+}
+function updateHomeFireworks(dt) {
+  if (!E.fireworks || !E.fireworks.length) return;
+  for (let i = E.fireworks.length - 1; i >= 0; i--) {
+    const f = E.fireworks[i];
+    if (f.kind === 'shell') {
+      f.mesh.position.y += f.vy * dt;
+      if (f.mesh.position.y >= f.targetY) {
+        const p = f.mesh.position; burstFirework(p.x, p.y, p.z);
+        E.scene.remove(f.mesh); f.mesh.geometry.dispose(); f.mesh.material.dispose();
+        E.fireworks.splice(i, 1);
+      }
+    } else {
+      f.t += dt;
+      const p = f.pts.geometry.attributes.position;
+      for (let k = 0; k < f.vel.length; k++) { p.array[k * 3] += f.vel[k][0] * dt; p.array[k * 3 + 1] += (f.vel[k][1] - 4 * f.t) * dt; p.array[k * 3 + 2] += f.vel[k][2] * dt; }
+      p.needsUpdate = true;
+      f.pts.material.opacity = Math.max(0, 1 - f.t / 1.5);
+      if (f.t > 1.5) { E.scene.remove(f.pts); f.pts.geometry.dispose(); f.pts.material.dispose(); E.fireworks.splice(i, 1); }
+    }
+  }
+}
+
 // Rebuild the home base from the (updated) save, keeping the player put
 function refreshHome() {
   const p = E.player ? { x: E.player.position.x, z: E.player.position.z } : null;
@@ -829,6 +870,10 @@ function useHomeBuilding(b) {
     case 'quest': openQuestBoard(); break;
     case 'greenhouse': openGreenhouse(); break;
     case 'campfire': showToast('🔥 Campfire', 'When night falls, your visitors gather around the fire.'); break;
+    case 'fireworks':
+      for (let k = 0; k < 4; k++) launchFirework(b.x + (Math.random() - 0.5) * 0.8, b.z + (Math.random() - 0.5) * 0.8);
+      showToast('🎆 Fireworks!', 'Boom! Set them off again anytime — best at night.');
+      break;
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);
       if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
@@ -978,6 +1023,7 @@ function updateHome(dt) {
       if (ud.fireLight) ud.fireLight.intensity = 0.7 + Math.abs(Math.sin(E.time * 12 + b.z)) * 0.4;
     }
   });
+  updateHomeFireworks(dt);
   updateHomeAliens(dt);
 }
 
@@ -1109,6 +1155,38 @@ function makeBuildingMesh(type, w, h) {
   } else if (type === 'path') {
     const pave = new THREE.Mesh(new THREE.BoxGeometry(w * 0.99, 0.06, h * 0.99), M(0xcbb184, 0.95));
     pave.position.y = -0.03; pave.receiveShadow = true; g.add(pave); // sits ~flush with the ground
+  } else if (type === 'fence') {
+    const wood = M(0x8a6a3a, 0.8);
+    [-0.4, 0.4].forEach(x => { const post = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.7, 0.1), wood); post.position.set(x, 0.35, 0); g.add(post); });
+    [0.4, 0.6].forEach(y => { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.08, 0.06), wood); rail.position.set(0, y, 0); g.add(rail); });
+  } else if (type === 'crystal') {
+    const cm = new THREE.MeshStandardMaterial({ color: 0x66ccff, emissive: 0x2277bb, emissiveIntensity: 0.6, roughness: 0.2, metalness: 0.2 });
+    [[0, 0.6, 0], [0.2, 0.42, 0.1], [-0.16, 0.34, -0.08]].forEach(([x, h, z], i) => { const c = new THREE.Mesh(new THREE.ConeGeometry(0.11, h, 5), cm); c.position.set(x, h / 2, z); c.rotation.z = (i - 1) * 0.25; g.add(c); });
+  } else if (type === 'mushroom') {
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.16, 0.5, 8), M(0xf0e6d0)); stem.position.y = 0.25;
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.34, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), M(0xd83b3b)); cap.position.y = 0.5; cap.scale.y = 0.8;
+    g.add(stem, cap);
+    for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; const s = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), M(0xffffff)); s.position.set(Math.cos(a) * 0.2, 0.6, Math.sin(a) * 0.2); g.add(s); }
+  } else if (type === 'well') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.44, 0.5, 14), M(0x8a8f96, 0.9)); base.position.y = 0.25;
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.32, 0.05, 14), new THREE.MeshStandardMaterial({ color: 0x2a8ad0, roughness: 0.2, metalness: 0.3 })); water.position.y = 0.48;
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.55, 0.4, 4), M(0x8a3a2a)); roof.rotation.y = Math.PI / 4; roof.position.y = 1.25;
+    [-0.36, 0.36].forEach(x => { const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.7, 6), M(0x6b4a2a)); post.position.set(x, 0.85, 0); g.add(post); });
+    g.add(base, water, roof);
+  } else if (type === 'lantern') {
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 1.0, 6), M(0x33333c)); pole.position.y = 0.5;
+    const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.14, 10, 8), new THREE.MeshStandardMaterial({ color: 0xffd27a, emissive: 0xff9a2a, emissiveIntensity: 1.0 })); lamp.position.y = 1.05;
+    const light = new THREE.PointLight(0xffb050, 0.5, 4, 2); light.position.y = 1.05;
+    g.add(pole, lamp, light);
+  } else if (type === 'signpost') {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.9, 6), M(0x8a6a3a)); post.position.y = 0.45;
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.05), M(0xcaa06a)); board.position.set(0.14, 0.72, 0);
+    g.add(post, board);
+  } else if (type === 'fireworks') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.2, 10), M(0x2a2a30)); base.position.y = 0.1;
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.6, 10), M(0xc0402a)); tube.position.set(0, 0.42, 0); tube.rotation.z = 0.2;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.02, 6, 12), new THREE.MeshStandardMaterial({ color: 0xffe066, emissive: 0xffaa00, emissiveIntensity: 0.6 })); rim.position.set(0.07, 0.7, 0); rim.rotation.set(Math.PI / 2, 0, 0.2);
+    g.add(base, tube, rim);
   } else if (type === 'tree') {
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.14, 0.6, 8), M(0x6b4a2a)); trunk.position.y = 0.3;
     const f1 = new THREE.Mesh(new THREE.SphereGeometry(0.42, 12, 10), M(0x2f8a3a)); f1.position.y = 0.95;
