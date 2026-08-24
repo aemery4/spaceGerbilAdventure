@@ -477,14 +477,20 @@ function openManageBuilding(b) {
 
 // ── Quest Board — aliens post fetch tasks that pay Space Coins ───
 function generateHomeQuest() {
+  const pool = (typeof P5_ALIEN_POOL !== 'undefined') ? P5_ALIEN_POOL : [{ emoji: '👽', name: 'Visitor' }];
+  const giver = pool[Math.floor(Math.random() * pool.length)].emoji + ' ' + pool[Math.floor(Math.random() * pool.length)].name;
+  // ~35% of quests ask for a collectible prize/crop (pays more than selling it)
+  if (typeof COLLECTIBLES !== 'undefined' && Math.random() < 0.35) {
+    const c = COLLECTIBLES[Math.floor(Math.random() * COLLECTIBLES.length)];
+    const coins = (c.src === 'claw' ? (c.val || 15) + 20 : 30 + Math.floor(Math.random() * 15));
+    return { kind: 'collectible', id: c.id, label: c.emoji, amt: 1, rewardAmt: coins, giver: giver };
+  }
   const gives = (typeof P5_QUEST_GIVES !== 'undefined') ? P5_QUEST_GIVES : [{ res: 'rock', label: '🪨', base: 5 }];
   const g = gives[Math.floor(Math.random() * gives.length)];
   const amt = 2 + Math.floor(Math.random() * 7); // 2..8
   let coins = Math.round((amt * g.base) * (0.9 + Math.random() * 0.5) / 5) * 5;
   coins = Math.max(15, coins);
-  const pool = (typeof P5_ALIEN_POOL !== 'undefined') ? P5_ALIEN_POOL : [{ emoji: '👽', name: 'Visitor' }];
-  const giver = pool[Math.floor(Math.random() * pool.length)];
-  return { give: g.res, label: g.label, amt, rewardAmt: coins, giver: giver.emoji + ' ' + giver.name };
+  return { give: g.res, label: g.label, amt, rewardAmt: coins, giver: giver };
 }
 function ensureHomeQuests() {
   if (!save.homePlanet.quests) save.homePlanet.quests = [];
@@ -503,13 +509,21 @@ function renderQuestBoard() {
   grid.innerHTML = '';
   const icons = { rock: '🪨', plant: '🌿', crystal: '💎', banana: '🍌', fuel: '⚡' };
   (save.homePlanet.quests || []).forEach((q, i) => {
-    const have = save.resources[q.give] || 0, can = have >= q.amt;
+    let have, wantIcon, wantName = '';
+    if (q.kind === 'collectible') {
+      const c = getCollectible(q.id);
+      have = (save.collectibles && save.collectibles[q.id]) || 0;
+      wantIcon = c ? c.emoji : '❔'; wantName = c ? ' ' + c.name : '';
+    } else {
+      have = save.resources[q.give] || 0; wantIcon = icons[q.give] || '';
+    }
+    const can = have >= q.amt;
     const el = document.createElement('div');
     el.className = 'shop-item' + (can ? '' : ' shop-disabled');
     el.innerHTML = `<div class="shop-item-name">${q.giver} wants…</div>
-      <div class="shop-item-desc">Bring ${q.amt} ${icons[q.give] || ''} → ${q.rewardAmt} 🪙<br>
+      <div class="shop-item-desc">Bring ${q.amt} ${wantIcon}${wantName} → ${q.rewardAmt} 🪙<br>
         <span style="color:${can ? '#5d9' : '#f77'}">You have ${have}/${q.amt}</span></div>
-      <div class="shop-cost">${can ? '<span class="has">✓ Turn in</span>' : '<span class="lacks">Gather more</span>'}</div>`;
+      <div class="shop-cost">${can ? '<span class="has">✓ Turn in</span>' : '<span class="lacks">Need more</span>'}</div>`;
     if (can) el.onclick = () => completeHomeQuest(i);
     grid.appendChild(el);
   });
@@ -521,8 +535,15 @@ function renderQuestBoard() {
 }
 function completeHomeQuest(i) {
   const q = save.homePlanet.quests[i];
-  if (!q || (save.resources[q.give] || 0) < q.amt) return;
-  save.resources[q.give] -= q.amt;
+  if (!q) return;
+  if (q.kind === 'collectible') {
+    if (((save.collectibles && save.collectibles[q.id]) || 0) < q.amt) return;
+    save.collectibles[q.id] -= q.amt;
+    if (save.collectibles[q.id] <= 0) delete save.collectibles[q.id];
+  } else {
+    if ((save.resources[q.give] || 0) < q.amt) return;
+    save.resources[q.give] -= q.amt;
+  }
   save.spaceCoins = (save.spaceCoins || 0) + q.rewardAmt;
   if (typeof SFX !== 'undefined' && SFX.coin) SFX.coin();
   save.homePlanet.quests[i] = generateHomeQuest(); // a fresh task takes its place
@@ -532,29 +553,48 @@ function completeHomeQuest(i) {
 
 // ── Collectibles — claw-machine prizes + greenhouse crops ───────
 const COLLECTIBLES = [
-  // Claw-machine prizes
-  { id: 'teddy',      name: 'Teddy Bear',  emoji: '🧸', src: 'claw' },
-  { id: 'dino',       name: 'Dino Toy',    emoji: '🦖', src: 'claw' },
-  { id: 'robot_toy',  name: 'Toy Robot',   emoji: '🤖', src: 'claw' },
-  { id: 'balloon',    name: 'Balloon',     emoji: '🎈', src: 'claw' },
-  { id: 'yoyo',       name: 'Yo-Yo',       emoji: '🪀', src: 'claw' },
-  { id: 'alien_toy',  name: 'Alien Plush', emoji: '👾', src: 'claw' },
-  { id: 'star_plush', name: 'Star Plush',  emoji: '⭐', src: 'claw' },
-  { id: 'gem_toy',    name: 'Shiny Gem',   emoji: '💎', src: 'claw' },
-  { id: 'rocket_toy', name: 'Toy Rocket',  emoji: '🚀', src: 'claw' },
-  { id: 'crown_toy',  name: 'Tiny Crown',  emoji: '👑', src: 'claw' },
-  // Greenhouse crops
-  { id: 'star_berry',  name: 'Star Berry',   emoji: '🍓', src: 'crop' },
-  { id: 'moon_melon',  name: 'Moon Melon',   emoji: '🍈', src: 'crop' },
-  { id: 'sun_bloom',   name: 'Sun Bloom',    emoji: '🌻', src: 'crop' },
-  { id: 'void_grape',  name: 'Void Grapes',  emoji: '🍇', src: 'crop' },
-  { id: 'ember_pepper',name: 'Ember Pepper', emoji: '🌶️', src: 'crop' },
-  { id: 'glow_shroom', name: 'Glow Shroom',  emoji: '🍄', src: 'crop' }
+  // Claw-machine prizes (val = sell price in coins)
+  { id: 'teddy',      name: 'Teddy Bear',  emoji: '🧸', src: 'claw', val: 15 },
+  { id: 'dino',       name: 'Dino Toy',    emoji: '🦖', src: 'claw', val: 15 },
+  { id: 'robot_toy',  name: 'Toy Robot',   emoji: '🤖', src: 'claw', val: 18 },
+  { id: 'balloon',    name: 'Balloon',     emoji: '🎈', src: 'claw', val: 12 },
+  { id: 'yoyo',       name: 'Yo-Yo',       emoji: '🪀', src: 'claw', val: 12 },
+  { id: 'alien_toy',  name: 'Alien Plush', emoji: '👾', src: 'claw', val: 18 },
+  { id: 'star_plush', name: 'Star Plush',  emoji: '⭐', src: 'claw', val: 22 },
+  { id: 'gem_toy',    name: 'Shiny Gem',   emoji: '💎', src: 'claw', val: 40 },
+  { id: 'rocket_toy', name: 'Toy Rocket',  emoji: '🚀', src: 'claw', val: 25 },
+  { id: 'crown_toy',  name: 'Tiny Crown',  emoji: '👑', src: 'claw', val: 50 },
+  // Greenhouse crops (heal = HP restored when eaten)
+  { id: 'star_berry',  name: 'Star Berry',   emoji: '🍓', src: 'crop', heal: 20 },
+  { id: 'moon_melon',  name: 'Moon Melon',   emoji: '🍈', src: 'crop', heal: 30 },
+  { id: 'sun_bloom',   name: 'Sun Bloom',    emoji: '🌻', src: 'crop', heal: 15 },
+  { id: 'void_grape',  name: 'Void Grapes',  emoji: '🍇', src: 'crop', heal: 25 },
+  { id: 'ember_pepper',name: 'Ember Pepper', emoji: '🌶️', src: 'crop', heal: 20 },
+  { id: 'glow_shroom', name: 'Glow Shroom',  emoji: '🍄', src: 'crop', heal: 25 }
 ];
 function collectiblesBySrc(src) { return COLLECTIBLES.filter(c => c.src === src); }
 function getCollectible(id) { return COLLECTIBLES.find(c => c.id === id); }
 function randomCollectible(src) { const a = collectiblesBySrc(src); return a[Math.floor(Math.random() * a.length)]; }
 function addCollectible(id, n) { if (!save.collectibles) save.collectibles = {}; save.collectibles[id] = (save.collectibles[id] || 0) + (n || 1); persist(); }
+
+// Use a collectible: eat a crop to heal, or sell a prize for coins
+function useCollectible(id) {
+  const c = getCollectible(id); if (!c) return;
+  const cnt = (save.collectibles && save.collectibles[id]) || 0;
+  if (cnt <= 0) return;
+  if (c.src === 'crop') {
+    if (save.hp >= save.maxHp) { showToast('💚 Full health', 'Save your ' + c.emoji + ' ' + c.name + ' for a tougher moment.'); return; }
+    const heal = c.heal || 20; save.hp = Math.min(save.maxHp, save.hp + heal);
+    showToast('🍽️ Ate ' + c.emoji + ' ' + c.name, 'Restored ' + heal + ' HP.');
+  } else {
+    const val = c.val || 15; save.spaceCoins = (save.spaceCoins || 0) + val;
+    showToast('🪙 Sold ' + c.emoji + ' ' + c.name, '+' + val + ' Space Coins.');
+  }
+  save.collectibles[id] = cnt - 1;
+  if (save.collectibles[id] <= 0) delete save.collectibles[id];
+  if (typeof SFX !== 'undefined' && SFX.coin) SFX.coin();
+  persist(); updateHUD(); openCollection();
+}
 
 function openCollection() {
   gamePaused = true;
@@ -568,9 +608,11 @@ function openCollection() {
     const cnt = save.collectibles[c.id] || 0;
     const el = document.createElement('div');
     el.className = 'shop-item' + (cnt ? '' : ' shop-disabled');
+    const use = c.src === 'crop' ? 'Tap to eat (+' + (c.heal || 20) + ' HP)' : 'Tap to sell (+' + (c.val || 15) + ' 🪙)';
     el.innerHTML = `<div class="shop-item-name">${cnt ? c.emoji : '❔'} ${cnt ? c.name : '???'}</div>
-      <div class="shop-item-desc">${c.src === 'claw' ? '🕹️ Claw prize' : '🌱 Greenhouse crop'}</div>
-      <div class="shop-cost">${cnt ? '<span class="has">×' + cnt + '</span>' : '<span class="lacks">not found</span>'}</div>`;
+      <div class="shop-item-desc">${cnt ? use : (c.src === 'claw' ? '🕹️ Claw prize — not found' : '🌱 Greenhouse crop — not grown')}</div>
+      <div class="shop-cost">${cnt ? '<span class="has">×' + cnt + '</span>' : '<span class="lacks">—</span>'}</div>`;
+    if (cnt) el.onclick = () => useCollectible(c.id);
     grid.appendChild(el);
   });
   const close = document.createElement('div');
