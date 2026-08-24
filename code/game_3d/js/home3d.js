@@ -911,6 +911,14 @@ function useHomeBuilding(b) {
       if (typeof openPetMenu === 'function') openPetMenu();
       else showToast('🐾 Pet House', 'A cosy home for your companions.');
       break;
+    case 'hotspring': {
+      const before = save.hp;
+      save.hp = Math.min(save.maxHp, save.hp + 40);
+      const gained = Math.round(save.hp - before);
+      updateHUD(); persist();
+      showToast('♨️ Hot Spring', gained > 0 ? ('Ahh… so relaxing. +' + gained + ' HP.') : 'You soak in the warm water. Already at full health!');
+      break;
+    }
     default: {
       const info = P5_BUILDINGS.find(pb => pb.type === b.type);
       if (info && info.deco) showToast(info.emoji + ' ' + info.name, 'A lovely touch for your home base.');
@@ -1047,9 +1055,12 @@ function executeP5ShopEffect(eff) {
 function updateHome(dt) {
   if (!E.cfg || !E.cfg.home) return;
   updateHomeDayNight(dt);
-  if ((save.homePlanet.buildings || []).some(b => b.type === 'hut') && save.hp < save.maxHp) {
-    save.hp = Math.min(save.maxHp, save.hp + dt * 2.5);
-    updateHUD();
+  if (save.hp < save.maxHp) {
+    const blds = save.homePlanet.buildings || [];
+    let rate = 0;
+    if (blds.some(b => b.type === 'hut')) rate += 2.5;
+    if (blds.some(b => b.type === 'hotspring')) rate += 7;  // the hot spring heals faster
+    if (rate > 0) { save.hp = Math.min(save.maxHp, save.hp + dt * rate); updateHUD(); }
   }
   if (E.homeMeshes) E.homeMeshes.forEach(b => {
     if (b.mesh.userData.spin) b.mesh.userData.spin.rotation.y += dt;
@@ -1059,6 +1070,7 @@ function updateHome(dt) {
       ud.flame.scale.set(1, f, 1); if (ud.flame2) ud.flame2.scale.set(1, f * 1.05, 1);
       if (ud.fireLight) ud.fireLight.intensity = 0.7 + Math.abs(Math.sin(E.time * 12 + b.z)) * 0.4;
     }
+    if (ud.steam) ud.steam.forEach(s => { s.position.y += dt * 0.35; if (s.position.y > 1.7) s.position.y = 0.45; s.material.opacity = Math.max(0, 0.32 * (1.7 - s.position.y) / 1.25); });
   });
   updateHomeFireworks(dt);
   updateHomePets(dt);
@@ -1190,6 +1202,14 @@ function makeBuildingMesh(type, w, h) {
     const light = new THREE.PointLight(0xff8a3a, 0.8, 6, 2); light.position.y = 0.6;
     g.add(f1, f2, light);
     g.userData.flame = f1; g.userData.flame2 = f2; g.userData.fireLight = light;
+  } else if (type === 'hotspring') {
+    const rockMat = M(0x8a7f74, 0.9);
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; const r = new THREE.Mesh(new THREE.DodecahedronGeometry(0.16), rockMat); r.position.set(Math.cos(a) * w * 0.44, 0.1, Math.sin(a) * h * 0.44); r.rotation.set(i, i * 2, i * 3); g.add(r); }
+    const water = new THREE.Mesh(new THREE.CylinderGeometry(w * 0.42, w * 0.42, 0.14, 22), new THREE.MeshStandardMaterial({ color: 0x4fd0c0, emissive: 0x1a7a6a, emissiveIntensity: 0.35, roughness: 0.2, metalness: 0.2 })); water.position.y = 0.14;
+    g.add(water);
+    const steam = [];
+    for (let i = 0; i < 4; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(0.18, 8, 6), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })); s.position.set((i % 2 ? 1 : -1) * w * 0.2, 0.45 + i * 0.1, (i < 2 ? -1 : 1) * h * 0.18); g.add(s); steam.push(s); }
+    g.userData.steam = steam;
   } else if (type === 'pethouse') {
     const wall = new THREE.Mesh(new THREE.BoxGeometry(w * 0.7, 0.72, h * 0.7), M(0xd08a4a)); wall.position.y = 0.36;
     const roof = new THREE.Mesh(new THREE.ConeGeometry(w * 0.56, 0.5, 4), M(0x8a3a2a)); roof.rotation.y = Math.PI / 4; roof.position.y = 0.95;
