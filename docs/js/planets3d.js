@@ -123,6 +123,6 @@ const PLANETS_3D = {
       9: { kind: 'vent', color: 0xff7a2a, h: 0.5 }
     },
     ambient: 0x6a2a1a, sun: 0xffb060, sunPos: [6, 14, 5],
-    enemyKind: 'beast'
+    enemyKind: 'beast', volcano: true
   }
 };

@@ -98,7 +98,7 @@ function stopEngine() {
   E.resources = []; E.enemies = []; E.particles = []; E.projectiles = [];
   E.exit = null; E.exitActive = false; E.player = null;
   E.interior = null; E.doorTiles = null; E.interiorProps = null; E.interiorExitMat = null;
-  E.pet = null;
+  E.pet = null; E.volcano = null;
 }
 
 // Pad a tile map with M tiles of open floor on every side (plus a new outer
@@ -168,6 +168,8 @@ function buildWorld(n, cfg) {
   ensureFuel(cfg, scene);
   buildPlayer(cfg, scene);
   buildExit(cfg, scene);
+  E.volcano = null;
+  if (cfg.volcano) addVolcano(scene);
   if (typeof spawnPet === 'function') spawnPet(scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
   if (typeof hideBossBar === 'function') hideBossBar();
@@ -1140,6 +1142,37 @@ function applySkinAdornments(g, skinId) {
   }
 }
 
+// A giant erupting volcano looming beyond the arena's far wall (Magmara).
+function addVolcano(scene) {
+  const g = new THREE.Group();
+  const rockMat = new THREE.MeshStandardMaterial({ color: 0x2a1512, roughness: 1, fog: false });
+  const rock2 = new THREE.MeshStandardMaterial({ color: 0x3a1e14, roughness: 1, fog: false });
+  const lavaMat = new THREE.MeshStandardMaterial({ color: 0xff5a1e, emissive: new THREE.Color(0xff3a08), emissiveIntensity: 1.1, roughness: 0.5, fog: false });
+  const mountain = new THREE.Mesh(new THREE.ConeGeometry(13, 15, 12), rockMat); mountain.position.y = 6.5;
+  const skirt = new THREE.Mesh(new THREE.ConeGeometry(17, 6, 12), rock2); skirt.position.y = 2.8;
+  const crater = new THREE.Mesh(new THREE.CylinderGeometry(4.4, 3.2, 1.8, 12, 1, true), lavaMat); crater.position.y = 13.4;
+  const pool = new THREE.Mesh(new THREE.CircleGeometry(3.6, 16), lavaMat); pool.rotation.x = -Math.PI / 2; pool.position.y = 13.0;
+  g.add(mountain, skirt, crater, pool);
+  // lava streaks running down the slopes
+  for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; const s = new THREE.Mesh(new THREE.BoxGeometry(0.7, 8, 0.3), lavaMat); s.position.set(Math.cos(a) * 4.5, 9, Math.sin(a) * 4.5); s.lookAt(0, 14, 0); g.add(s); }
+  const light = new THREE.PointLight(0xff6a2a, 1.5, 60, 2); light.position.y = 14; g.add(light);
+  // rising ember particles from the crater
+  const N = 140, geo = new THREE.BufferGeometry(), pos = new Float32Array(N * 3), vel = [];
+  for (let i = 0; i < N; i++) { const a = Math.random() * Math.PI * 2, r = Math.random() * 3; pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = 13 + Math.random() * 8; pos[i * 3 + 2] = Math.sin(a) * r; vel.push(1.5 + Math.random() * 3); }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const embers = new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffb040, size: 0.45, transparent: true, opacity: 0.9, depthWrite: false, fog: false }));
+  g.add(embers);
+  g.position.set(E.cols / 2, 0, -18); scene.add(g); // beyond the north wall
+  E.volcano = { group: g, embers, vel, light };
+}
+function updateVolcano(dt) {
+  const v = E.volcano; if (!v) return;
+  const p = v.embers.geometry.attributes.position;
+  for (let i = 0; i < v.vel.length; i++) { p.array[i * 3 + 1] += v.vel[i] * dt; if (p.array[i * 3 + 1] > 22) { p.array[i * 3 + 1] = 13; } }
+  p.needsUpdate = true;
+  v.light.intensity = 1.5 + Math.sin(E.time * 3) * 0.35;
+}
+
 // ── Exit rocket / portal ───────────────────────────────────────
 function buildExit(cfg, scene) {
   if (cfg.home) { E.exit = null; return; } // home base has no exit gate
@@ -1417,6 +1450,7 @@ function animate() {
     if (typeof updateHome === 'function') updateHome(dt);
     if (typeof updateInterior === 'function') updateInterior(dt);
     if (typeof updatePet === 'function') updatePet(dt);
+    if (E.volcano) updateVolcano(dt);
     if (typeof updateSeahorses === 'function') updateSeahorses(dt);
     if (typeof updateBossShots === 'function') updateBossShots(dt);
     if (typeof updateBossBar === 'function') updateBossBar();
