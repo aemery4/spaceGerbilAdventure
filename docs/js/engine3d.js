@@ -138,6 +138,78 @@ function paintWild(cfg) {
   }
 }
 
+// ── Boss temple (Zorbax) ───────────────────────────────────────
+// Stamp a temple deep in a big planet: a floored plaza (tile 9) ringed by
+// walls with a south gate, plus a solid stepped-pyramid footprint at the
+// north. Tile 20 = temple-solid: it blocks movement but the tile renderer
+// skips it, so addTemple() draws the real 3D meshes on top.
+function stampTemple(cfg) {
+  const cx = E.cols - 22, cz = E.rows - 20;   // deep from spawn (SE)
+  const x0 = cx - 7, x1 = cx + 7, z0 = cz - 8, z1 = cz + 7;
+  if (!cfg.solid.includes(20)) cfg.solid.push(20);
+  const inB = (x, z) => x > 0 && z > 0 && x < E.cols - 1 && z < E.rows - 1;
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (inB(x, z)) E.map[z][x] = 9; // plaza floor
+  const gate = x => (x >= cx - 1 && x <= cx + 1);
+  for (let x = x0; x <= x1; x++) { E.map[z0][x] = 20; if (!gate(x)) E.map[z1][x] = 20; }
+  for (let z = z0; z <= z1; z++) { E.map[z][x0] = 20; E.map[z][x1] = 20; }
+  const px0 = cx - 4, px1 = cx + 4, pz0 = z0, pz1 = z0 + 6;   // pyramid footprint (north)
+  for (let z = pz0; z <= pz1; z++) for (let x = px0; x <= px1; x++) E.map[z][x] = 20;
+  E.map[pz1][cx] = 9; // doorway notch at the pyramid's south face
+  // Clear a short approach path south of the gate through the wild jungle.
+  for (let z = z1 + 1; z <= z1 + 5 && z < E.rows - 1; z++) for (let x = cx - 1; x <= cx + 1; x++) if (E.map[z][x] !== 1) E.map[z][x] = 0;
+  E.temple = { cx, cz, x0, x1, z0, z1, px0, px1, pz0, pz1, bossX: cx + 0.5, bossZ: cz + 3.5 };
+}
+
+function addTemple(scene) {
+  const t = E.temple; if (!t) return;
+  const stone = new THREE.MeshStandardMaterial({ color: 0x7d7368, roughness: 1 });
+  const stoneDark = new THREE.MeshStandardMaterial({ color: 0x5c5449, roughness: 1 });
+  const moss = new THREE.MeshStandardMaterial({ color: 0x3f6a34, roughness: 1 });
+  const g = new THREE.Group();
+  const wallH = 1.9, wallGeo = new THREE.BoxGeometry(1, wallH, 1);
+  const inPyr = (x, z) => x >= t.px0 && x <= t.px1 && z >= t.pz0 && z <= t.pz1;
+  const addWall = (x, z) => {
+    if (inPyr(x, z)) return; // pyramid drawn separately
+    const m = new THREE.Mesh(wallGeo, stone);
+    m.position.set(x + 0.5, wallH / 2, z + 0.5); m.castShadow = m.receiveShadow = true; g.add(m);
+  };
+  for (let x = t.x0; x <= t.x1; x++) { addWall(x, t.z0); if (E.map[t.z1][x] === 20) addWall(x, t.z1); }
+  for (let z = t.z0; z <= t.z1; z++) { addWall(t.x0, z); addWall(t.x1, z); }
+
+  // Stepped pyramid over the footprint
+  const pcx = (t.px0 + t.px1) / 2 + 0.5, pcz = (t.pz0 + t.pz1) / 2 + 0.5;
+  const baseW = t.px1 - t.px0 + 1, baseD = t.pz1 - t.pz0 + 1, steps = 4, stepH = 2.0;
+  for (let i = 0; i < steps; i++) {
+    const f = 1 - i / steps;
+    const w = Math.max(2, baseW * f), d = Math.max(1.5, baseD * f);
+    const box = new THREE.Mesh(new THREE.BoxGeometry(w, stepH, d), i % 2 ? stoneDark : stone);
+    box.position.set(pcx, stepH / 2 + i * stepH, pcz); box.castShadow = box.receiveShadow = true; g.add(box);
+  }
+  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), moss);
+  cap.position.set(pcx, steps * stepH + 0.8, pcz); cap.castShadow = true; g.add(cap);
+  // Dark doorway on the pyramid's south face
+  const door = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x0b0e08 }));
+  door.position.set(pcx, 1.1, t.pz1 + 0.9); g.add(door);
+
+  const addTorch = (x, z) => {
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 2.4, 6), stoneDark);
+    post.position.set(x, 1.2, z); g.add(post);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffb050, emissive: 0xff6a10, emissiveIntensity: 1.3 }));
+    flame.position.set(x, 2.7, z); g.add(flame);
+    const light = new THREE.PointLight(0xff8030, 0.9, 11, 2); light.position.set(x, 2.9, z); g.add(light);
+  };
+  addTorch(pcx - 2.5, t.pz1 + 1.3); addTorch(pcx + 2.5, t.pz1 + 1.3);      // flank the doorway
+  addTorch(t.cx - 2 + 0.5, t.z1 + 0.5); addTorch(t.cx + 2 + 0.5, t.z1 + 0.5); // gate posts
+  scene.add(g); t.group = g;
+}
+
+function placeBossAtTemple() {
+  const t = E.temple; if (!t) return;
+  const boss = E.enemies.find(e => e.boss); if (!boss) return;
+  boss.mesh.position.set(t.bossX, boss.size, t.bossZ);
+  boss.homeX = t.bossX; boss.homeZ = t.bossZ;
+}
+
 // ── World construction ─────────────────────────────────────────
 function buildWorld(n, cfg) {
   const data = cfg.build(cfg.tile, cfg.cols, cfg.rows);
@@ -152,6 +224,8 @@ function buildWorld(n, cfg) {
   E.map = grown.map; E.worldOff = grown.off;
   E.rows = E.map.length; E.cols = E.map[0].length;
   if (cfg.wildFill) paintWild(cfg);
+  E.temple = null;
+  if (cfg.temple) stampTemple(cfg);
   const map = E.map;
 
   const scene = new THREE.Scene();
@@ -196,6 +270,7 @@ function buildWorld(n, cfg) {
   buildExit(cfg, scene);
   E.volcano = null;
   if (cfg.volcano) addVolcano(scene);
+  if (cfg.temple && E.temple) { addTemple(scene); placeBossAtTemple(); }
   if (typeof spawnPet === 'function') spawnPet(scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
   if (typeof hideBossBar === 'function') hideBossBar();
