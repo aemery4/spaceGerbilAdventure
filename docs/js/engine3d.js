@@ -117,15 +117,41 @@ function growMap(map, M) {
   return { map: nm, off: M };
 }
 
+// Fill the padded ring of a "big" planet with scattered wild terrain so the
+// enlarged area reads as real jungle (cover + collision), not bare floor.
+// Only touches open floor OUTSIDE the authored core, and leaves the spawn
+// clear. cfg.wildFill is a list of [tileValue, probability] pairs.
+function paintWild(cfg) {
+  const M = E.worldOff; if (!M) return;
+  const rows = E.rows, cols = E.cols;
+  const coreX0 = 1 + M, coreX1 = cols - 1 - M, coreY0 = 1 + M, coreY1 = rows - 1 - M;
+  const sx = cfg.spawn.tx + M, sz = cfg.spawn.tz + M;
+  for (let z = 1; z < rows - 1; z++) {
+    for (let x = 1; x < cols - 1; x++) {
+      if (x >= coreX0 && x < coreX1 && z >= coreY0 && z < coreY1) continue; // authored core
+      if (E.map[z][x] !== 0) continue;                                      // only open floor
+      if (Math.abs(x - sx) < 5 && Math.abs(z - sz) < 5) continue;          // breathing room
+      const r = Math.random();
+      let acc = 0;
+      for (const [tile, p] of cfg.wildFill) { acc += p; if (r < acc) { E.map[z][x] = tile; break; } }
+    }
+  }
+}
+
 // ── World construction ─────────────────────────────────────────
 function buildWorld(n, cfg) {
   const data = cfg.build(cfg.tile, cfg.cols, cfg.rows);
   // Enlarge the playable area by padding with open floor + a new outer wall.
   // Home base is left unpadded so its saved building coordinates stay valid.
-  const grow = cfg.home ? 0 : (cfg.grow != null ? cfg.grow : ((typeof IS_TOUCH !== 'undefined' && IS_TOUCH) ? 4 : 8));
+  const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
+  const grow = cfg.home ? 0
+    : (cfg.grow != null ? cfg.grow
+      : cfg.big ? (touch ? 12 : 28)   // huge worlds (e.g. Zorbax)
+        : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
   E.rows = E.map.length; E.cols = E.map[0].length;
+  if (cfg.wildFill) paintWild(cfg);
   const map = E.map;
 
   const scene = new THREE.Scene();
@@ -405,7 +431,7 @@ function sprinkleExtras(cfg, scene) {
   if (cfg.underwater) pool = ['squid', 'piranha'];
   pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
   if (pool.length) {
-    const nEn = Math.round((E.cols * E.rows) / 260);
+    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 520 : 260));
     for (let i = 0; i < nEn; i++) {
       const [x, z] = pick();
       const variant = pool[Math.floor(Math.random() * pool.length)];
