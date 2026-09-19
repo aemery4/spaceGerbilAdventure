@@ -1624,7 +1624,18 @@ function updateExit(dt) {
 function updateCamera(dt) {
   if (!E.player) return;
   const p = E.player.position;
-  const target = new THREE.Vector3(p.x, 6.5, p.z + 7.5);
+  // On Magmara, reveal the erupting volcano as the player approaches it:
+  // ease the camera up and widen the FOV so the peak rises into view.
+  // Every other planet keeps the original framing (near stays 0).
+  let near = 0;
+  if (E.volcano) {
+    const v = E.volcano.group.position;
+    const d = Math.hypot(p.x - v.x, p.z - v.z);
+    near = Math.max(0, Math.min(1, (38 - d) / 19)); // 0 when far (d>=38), 1 up close (d<=19)
+  }
+  const target = new THREE.Vector3(p.x, 6.5 + near * 0.5, p.z + 7.5 + near * 1.5);
   E.camera.position.lerp(target, 1 - Math.pow(0.001, dt));
-  E.camera.lookAt(p.x, 0.6, p.z - 1.5);
+  E.camera.lookAt(p.x, 0.6 + near * 3.9, p.z - 1.5);
+  const wantFov = 52 + near * 6;
+  if (Math.abs(E.camera.fov - wantFov) > 0.03) { E.camera.fov = wantFov; E.camera.updateProjectionMatrix(); }
 }
