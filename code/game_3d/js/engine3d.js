@@ -218,7 +218,7 @@ function buildWorld(n, cfg) {
   const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
   const grow = cfg.home ? 0
     : (cfg.grow != null ? cfg.grow
-      : cfg.big ? (touch ? 12 : 28)   // huge worlds (e.g. Zorbax)
+      : cfg.big ? (touch ? 20 : 46)   // huge worlds (e.g. Zorbax)
         : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
