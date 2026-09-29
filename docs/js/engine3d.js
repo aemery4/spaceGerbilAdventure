@@ -144,20 +144,55 @@ function paintWild(cfg) {
 // north. Tile 20 = temple-solid: it blocks movement but the tile renderer
 // skips it, so addTemple() draws the real 3D meshes on top.
 function stampTemple(cfg) {
-  const cx = E.cols - 22, cz = E.rows - 20;   // deep from spawn (SE)
-  const x0 = cx - 7, x1 = cx + 7, z0 = cz - 8, z1 = cz + 7;
   if (!cfg.solid.includes(20)) cfg.solid.push(20);
   const inB = (x, z) => x > 0 && z > 0 && x < E.cols - 1 && z < E.rows - 1;
-  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (inB(x, z)) E.map[z][x] = 9; // plaza floor
-  const gate = x => (x >= cx - 1 && x <= cx + 1);
-  for (let x = x0; x <= x1; x++) { E.map[z0][x] = 20; if (!gate(x)) E.map[z1][x] = 20; }
-  for (let z = z0; z <= z1; z++) { E.map[z][x0] = 20; E.map[z][x1] = 20; }
-  const px0 = cx - 4, px1 = cx + 4, pz0 = z0, pz1 = z0 + 6;   // pyramid footprint (north)
+  // Village centroid (tile 7) so the temple can be placed as far from it as possible.
+  let vx = 0, vz = 0, vn = 0;
+  for (let z = 0; z < E.rows; z++) for (let x = 0; x < E.cols; x++) if (E.map[z][x] === 7) { vx += x; vz += z; vn++; }
+  if (vn) { vx /= vn; vz /= vn; } else { vx = cfg.spawn.tx + E.worldOff; vz = cfg.spawn.tz + E.worldOff; }
+  // Place the temple in whichever far corner is most distant from the village.
+  const I = 13;
+  const cands = [[I, I], [E.cols - 1 - I, I], [I, E.rows - 1 - I], [E.cols - 1 - I, E.rows - 1 - I]];
+  let cx = cands[0][0], cz = cands[0][1], bd = -1;
+  for (const c of cands) { const d = Math.hypot(c[0] - vx, c[1] - vz); if (d > bd) { bd = d; cx = c[0]; cz = c[1]; } }
+  const x0 = cx - 7, x1 = cx + 7, z0 = cz - 7, z1 = cz + 7;
+  // Gate faces the interior (toward the village), so the player reaches it from the explorable side.
+  const dx = vx - cx, dz = vz - cz;
+  const gate = Math.abs(dx) >= Math.abs(dz) ? (dx > 0 ? 'E' : 'W') : (dz > 0 ? 'S' : 'N');
+  // Plaza floor
+  for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (inB(x, z)) E.map[z][x] = 9;
+  // Perimeter walls with a 3-tile gate gap on the gate side
+  const gapX = x => x >= cx - 1 && x <= cx + 1, gapZ = z => z >= cz - 1 && z <= cz + 1;
+  for (let x = x0; x <= x1; x++) {
+    if (!(gate === 'N' && gapX(x))) E.map[z0][x] = 20;
+    if (!(gate === 'S' && gapX(x))) E.map[z1][x] = 20;
+  }
+  for (let z = z0; z <= z1; z++) {
+    if (!(gate === 'W' && gapZ(z))) E.map[z][x0] = 20;
+    if (!(gate === 'E' && gapZ(z))) E.map[z][x1] = 20;
+  }
+  // Pyramid footprint at the back, opposite the gate
+  let px0, px1, pz0, pz1;
+  if (gate === 'S') { px0 = cx - 4; px1 = cx + 4; pz0 = z0; pz1 = z0 + 6; }
+  else if (gate === 'N') { px0 = cx - 4; px1 = cx + 4; pz0 = z1 - 6; pz1 = z1; }
+  else if (gate === 'E') { px0 = x0; px1 = x0 + 6; pz0 = cz - 4; pz1 = cz + 4; }
+  else { px0 = x1 - 6; px1 = x1; pz0 = cz - 4; pz1 = cz + 4; }
   for (let z = pz0; z <= pz1; z++) for (let x = px0; x <= px1; x++) E.map[z][x] = 20;
-  E.map[pz1][cx] = 9; // doorway notch at the pyramid's south face
-  // Clear a short approach path south of the gate through the wild jungle.
-  for (let z = z1 + 1; z <= z1 + 5 && z < E.rows - 1; z++) for (let x = cx - 1; x <= cx + 1; x++) if (E.map[z][x] !== 1) E.map[z][x] = 0;
-  E.temple = { cx, cz, x0, x1, z0, z1, px0, px1, pz0, pz1, bossX: cx + 0.5, bossZ: cz + 3.5 };
+  const bx = gate === 'E' ? cx + 3 : gate === 'W' ? cx - 3 : cx;
+  const bz = gate === 'S' ? cz + 3 : gate === 'N' ? cz - 3 : cz;
+  // Dense concealing jungle thicket around the temple so it isn't visible from afar.
+  for (let z = z0 - 3; z <= z1 + 3; z++) for (let x = x0 - 3; x <= x1 + 3; x++) {
+    if (!inB(x, z)) continue;
+    if (x >= x0 && x <= x1 && z >= z0 && z <= z1) continue; // skip plaza
+    const v = E.map[z][x];
+    if (v === 0 || v === 2 || v === 4 || v === 6) { if (Math.random() < 0.62) E.map[z][x] = 3; }
+  }
+  // Punch a short, hidden entry stub through the thicket at the gate (blends as jungle floor).
+  if (gate === 'S') for (let z = z1 + 1; z <= z1 + 4 && inB(cx, z); z++) for (let x = cx - 1; x <= cx + 1; x++) E.map[z][x] = 0;
+  else if (gate === 'N') for (let z = z0 - 1; z >= z0 - 4 && inB(cx, z); z--) for (let x = cx - 1; x <= cx + 1; x++) E.map[z][x] = 0;
+  else if (gate === 'E') for (let x = x1 + 1; x <= x1 + 4 && inB(x, cz); x++) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
+  else for (let x = x0 - 1; x >= x0 - 4 && inB(x, cz); x--) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
+  E.temple = { cx, cz, x0, x1, z0, z1, px0, px1, pz0, pz1, gate, bossX: bx + 0.5, bossZ: bz + 0.5 };
 }
 
 function addTemple(scene) {
@@ -173,7 +208,7 @@ function addTemple(scene) {
     const m = new THREE.Mesh(wallGeo, stone);
     m.position.set(x + 0.5, wallH / 2, z + 0.5); m.castShadow = m.receiveShadow = true; g.add(m);
   };
-  for (let x = t.x0; x <= t.x1; x++) { addWall(x, t.z0); if (E.map[t.z1][x] === 20) addWall(x, t.z1); }
+  for (let x = t.x0; x <= t.x1; x++) { addWall(x, t.z0); addWall(x, t.z1); }
   for (let z = t.z0; z <= t.z1; z++) { addWall(t.x0, z); addWall(t.x1, z); }
 
   // Stepped pyramid over the footprint
@@ -187,9 +222,6 @@ function addTemple(scene) {
   }
   const cap = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), moss);
   cap.position.set(pcx, steps * stepH + 0.8, pcz); cap.castShadow = true; g.add(cap);
-  // Dark doorway on the pyramid's south face
-  const door = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x0b0e08 }));
-  door.position.set(pcx, 1.1, t.pz1 + 0.9); g.add(door);
 
   const addTorch = (x, z) => {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 2.4, 6), stoneDark);
@@ -198,8 +230,14 @@ function addTemple(scene) {
     flame.position.set(x, 2.7, z); g.add(flame);
     const light = new THREE.PointLight(0xff8030, 0.9, 11, 2); light.position.set(x, 2.9, z); g.add(light);
   };
-  addTorch(pcx - 2.5, t.pz1 + 1.3); addTorch(pcx + 2.5, t.pz1 + 1.3);      // flank the doorway
-  addTorch(t.cx - 2 + 0.5, t.z1 + 0.5); addTorch(t.cx + 2 + 0.5, t.z1 + 0.5); // gate posts
+  // Doorway on the pyramid face toward the gate; torches flank the doorway and the gate.
+  const ew = (t.gate === 'E' || t.gate === 'W');
+  const door = new THREE.Mesh(ew ? new THREE.BoxGeometry(0.7, 2.2, 1.6) : new THREE.BoxGeometry(1.6, 2.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x0b0e08 }));
+  if (t.gate === 'S') { door.position.set(pcx, 1.1, t.pz1 + 0.9); addTorch(pcx - 2.5, t.pz1 + 1.3); addTorch(pcx + 2.5, t.pz1 + 1.3); addTorch(t.cx - 1.5, t.z1 + 0.5); addTorch(t.cx + 2.5, t.z1 + 0.5); }
+  else if (t.gate === 'N') { door.position.set(pcx, 1.1, t.pz0 - 0.9); addTorch(pcx - 2.5, t.pz0 - 1.3); addTorch(pcx + 2.5, t.pz0 - 1.3); addTorch(t.cx - 1.5, t.z0 + 0.5); addTorch(t.cx + 2.5, t.z0 + 0.5); }
+  else if (t.gate === 'E') { door.position.set(t.px1 + 0.9, 1.1, pcz); addTorch(t.px1 + 1.3, pcz - 2.5); addTorch(t.px1 + 1.3, pcz + 2.5); addTorch(t.x1 + 0.5, t.cz - 1.5); addTorch(t.x1 + 0.5, t.cz + 2.5); }
+  else { door.position.set(t.px0 - 0.9, 1.1, pcz); addTorch(t.px0 - 1.3, pcz - 2.5); addTorch(t.px0 - 1.3, pcz + 2.5); addTorch(t.x0 + 0.5, t.cz - 1.5); addTorch(t.x0 + 0.5, t.cz + 2.5); }
+  g.add(door);
   scene.add(g); t.group = g;
 }
 
@@ -218,7 +256,7 @@ function buildWorld(n, cfg) {
   const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
   const grow = cfg.home ? 0
     : (cfg.grow != null ? cfg.grow
-      : cfg.big ? (touch ? 20 : 46)   // huge worlds (e.g. Zorbax)
+      : cfg.big ? (touch ? 24 : 56)   // huge worlds (e.g. Zorbax)
         : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
@@ -506,7 +544,7 @@ function sprinkleExtras(cfg, scene) {
   if (cfg.underwater) pool = ['squid', 'piranha'];
   pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
   if (pool.length) {
-    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 520 : 260));
+    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 760 : 260));
     for (let i = 0; i < nEn; i++) {
       const [x, z] = pick();
       const variant = pool[Math.floor(Math.random() * pool.length)];
