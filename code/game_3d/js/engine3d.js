@@ -96,7 +96,7 @@ function stopEngine() {
   }
   E.scene = null;
   E.resources = []; E.enemies = []; E.particles = []; E.projectiles = [];
-  E.exit = null; E.exitActive = false; E.player = null;
+  E.exit = null; E.exitActive = false; E.player = null; E.exitBlock = null; E.exitBlockCd = 0;
   E.interior = null; E.doorTiles = null; E.interiorProps = null; E.interiorExitMat = null;
   E.pet = null; E.volcano = null;
 }
@@ -1637,7 +1637,10 @@ function animate() {
   animFrameId = requestAnimationFrame(animate);
   const dt = Math.min(E.clock.getDelta(), 0.05);
   E.time += dt;
-  if (!gamePaused) {
+  if (!gamePaused && E.exitBlock) {
+    updateExitBlock(dt);
+    updateParticles(dt);
+  } else if (!gamePaused) {
     updatePlayer(dt);
     updateEnemies(dt);
     updateResources(dt);
@@ -1816,9 +1819,49 @@ function updateExit(dt) {
   const ready = E.exitActive;
   E.exit.ring.material.emissiveIntensity = ready ? 1.2 + Math.sin(E.time * 6) * 0.6 : 0.15;
   E.exit.ring.rotation.z += dt * (ready ? 2 : 0.4);
-  E.exit.mesh.position.y = ready ? Math.sin(E.time * 2) * 0.1 : 0;
-  if (ready && E.player.position.distanceTo(new THREE.Vector3(E.exit.x, 0, E.exit.z)) < 1.1) {
-    planetCleared();
+  if (!E.exitBlock) E.exit.mesh.position.y = ready ? Math.sin(E.time * 2) * 0.1 : 0;
+  if (E.exitBlockCd > 0) E.exitBlockCd -= dt;
+  if (ready && !E.exitBlock && E.exitBlockCd <= 0 &&
+      E.player.position.distanceTo(new THREE.Vector3(E.exit.x, 0, E.exit.z)) < 1.1) {
+    if (E.cfg.bossRequired && E.enemies.some(en => en.boss)) startExitBlock();
+    else planetCleared();
+  }
+}
+
+// The Jungle King won't let you leave: he leaps up, grabs the launching
+// rocket and drags it back to the ground. Plays when the player reaches a
+// ready exit on a boss-required planet while the boss is still alive.
+function startExitBlock() {
+  const ape = makeApeBossMesh(1.4, new THREE.Color(0x8a5a2a));
+  ape.position.set(E.exit.x, -5, E.exit.z);
+  E.scene.add(ape);
+  E.exitBlock = { t: 0, ape, grabbed: false };
+  if (typeof SFX !== 'undefined' && SFX.powerup) SFX.powerup();
+}
+
+function updateExitBlock(dt) {
+  const b = E.exitBlock; b.t += dt;
+  const t = b.t, rk = E.exit.mesh, ape = b.ape, ex = E.exit.x, ez = E.exit.z;
+  if (t < 0.7) {                                   // rocket blasts upward
+    rk.position.set(ex, (t / 0.7) * 6, ez);
+  } else if (t < 1.3) {                            // King leaps up after it
+    rk.position.set(ex, 6, ez);
+    ape.position.y = -5 + ((t - 0.7) / 0.6) * 11;  // -5 → ~6
+    ape.rotation.y += dt * 5;
+  } else if (t < 2.2) {                            // King drags it back down
+    if (!b.grabbed) { b.grabbed = true; if (typeof SFX !== 'undefined' && SFX.hurt) SFX.hurt(); if (typeof spawnParticles === 'function') spawnParticles(new THREE.Vector3(ex, 6, ez), new THREE.Color(0xffd24a), 22); }
+    const p = (t - 1.3) / 0.9, yy = 6 - p * 6;
+    rk.position.set(ex + Math.sin(t * 45) * 0.07, yy, ez);
+    ape.position.y = yy + 0.8;
+  } else if (t < 2.9) {                            // King thumps down and sinks away
+    rk.position.set(ex, 0, ez);
+    ape.position.y = 0.8 - ((t - 2.2) / 0.7) * 6;
+  } else {                                         // done
+    rk.position.set(ex, 0, ez);
+    E.scene.remove(b.ape); E.exitBlock = null; E.exitBlockCd = 2.5;
+    E.player.position.z += 2.6;                    // step the player back off the pad
+    if (typeof SFX !== 'undefined' && SFX.hurt) SFX.hurt();
+    showMsg('🦍 The Jungle King!', 'With a mighty roar the Jungle King leaps up and drags your rocket back down!\n\n"No one leaves my jungle until they face me!"\n\nDefeat the King at his temple, then blast off.', null, 'Gulp!');
   }
 }
 

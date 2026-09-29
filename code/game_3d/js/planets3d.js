@@ -47,8 +47,9 @@ const PLANETS_3D = {
     // Huge explorable jungle: pad the world out and fill the new ring with
     // scattered wild terrain (tree=solid, bush/swamp=slow, vine=deco).
     big: true, wildFill: [[3, 0.08], [2, 0.07], [4, 0.025], [6, 0.03]],
-    // The Jungle King waits inside a temple deep in the jungle.
-    temple: true
+    // The Jungle King waits inside a temple deep in the jungle. You can't
+    // leave until you defeat him (he yanks your rocket back down).
+    temple: true, bossRequired: true
   },
   3: {
     name: 'Tundra Frigia', emoji: '❄️', tile: 26, cols: 48, rows: 28,
