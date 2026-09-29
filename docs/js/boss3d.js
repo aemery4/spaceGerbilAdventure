@@ -310,7 +310,7 @@ function updateBossShots(dt) {
 function updateBossBar() {
   const bar = document.getElementById('bossBar'); if (!bar) return;
   let boss = null;
-  if (E.enemies) for (const en of E.enemies) { if (en.boss && E.player && E.player.position.distanceTo(en.mesh.position) < 13) { boss = en; break; } }
+  if (E.enemies) for (const en of E.enemies) { if (en.boss && !en.dormant && E.player && E.player.position.distanceTo(en.mesh.position) < 13) { boss = en; break; } }
   if (!boss) { bar.style.display = 'none'; return; }
   bar.style.display = 'block';
   document.getElementById('bossName').textContent = BOSS_NAME[boss.species] || 'Boss';

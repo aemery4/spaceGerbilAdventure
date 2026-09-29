@@ -284,6 +284,7 @@ function placeBossAtTemple() {
   const boss = E.enemies.find(e => e.boss); if (!boss) return;
   boss.mesh.position.set(t.bossX, boss.size, t.bossZ);
   boss.homeX = t.bossX; boss.homeZ = t.bossZ;
+  boss.dormant = true; // sleeps until the player enters the temple
 }
 
 // ── World construction ─────────────────────────────────────────
@@ -1775,6 +1776,22 @@ function updateEnemies(dt) {
     const d = p.distanceTo(m.position);
     const hostile = (!en.neutral || en.angered) && !playerSafe; // give up the chase if the player is safe
     if (en.boss && typeof updateBoss === 'function') {
+      if (en.dormant) {
+        // Asleep in its temple: just face the player. No attacks, no moving,
+        // no summons, no jumping out — until the player actually enters.
+        en.dir.set(p.x - m.position.x, 0, p.z - m.position.z);
+        if (en.dir.lengthSq() > 1e-4) en.dir.normalize();
+        const tt = E.temple;
+        const gateOpen = !E.cfg.temple || (save.zorbax && save.zorbax.gate);
+        const inPlaza = tt && p.x >= tt.x0 - 0.5 && p.x <= tt.x1 + 1.5 && p.z >= tt.z0 - 0.5 && p.z <= tt.z1 + 1.5;
+        if (gateOpen && (inPlaza || d < 4)) {
+          en.dormant = false;
+          if (typeof showToast === 'function') showToast('🦍 The Jungle King Awakens!', 'The beast rises to defend its temple!');
+          if (typeof SFX !== 'undefined' && SFX.boss) SFX.boss();
+        }
+        m.rotation.y = Math.atan2(en.dir.x, en.dir.z);
+        return; // skip attacks and contact damage while dormant
+      }
       updateBoss(en, dt, d, p, playerSafe);
     } else {
       // Village (tile 7) is a safe zone — enemies can't step onto it.
