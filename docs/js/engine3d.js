@@ -256,7 +256,7 @@ function buildWorld(n, cfg) {
   const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
   const grow = cfg.home ? 0
     : (cfg.grow != null ? cfg.grow
-      : cfg.big ? (touch ? 44 : 100)   // huge worlds (e.g. Zorbax) — instanced terrain keeps this cheap
+      : cfg.big ? (touch ? 62 : 140)   // huge worlds (e.g. Zorbax) — instanced terrain keeps this cheap
         : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
