@@ -193,6 +193,7 @@ function stampTemple(cfg) {
   else if (gate === 'E') for (let x = x1 + 1; x <= x1 + 4 && inB(x, cz); x++) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
   else for (let x = x0 - 1; x >= x0 - 4 && inB(x, cz); x--) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
   E.temple = { cx, cz, x0, x1, z0, z1, px0, px1, pz0, pz1, gate, bossX: bx + 0.5, bossZ: bz + 0.5 };
+  if (typeof stampTempleGates === 'function') stampTempleGates(cfg);
 }
 
 function addTemple(scene) {
@@ -308,7 +309,7 @@ function buildWorld(n, cfg) {
   buildExit(cfg, scene);
   E.volcano = null;
   if (cfg.volcano) addVolcano(scene);
-  if (cfg.temple && E.temple) { addTemple(scene); placeBossAtTemple(); }
+  if (cfg.temple && E.temple) { addTemple(scene); placeBossAtTemple(); if (typeof buildTempleQuest === 'function') buildTempleQuest(scene); }
   if (typeof spawnPet === 'function') spawnPet(scene);
   E.merchants = []; E.campfire = null; E.homeMeshes = []; E.seahorses = []; E.bossShots = []; E.dying = [];
   if (typeof hideBossBar === 'function') hideBossBar();
@@ -1428,10 +1429,18 @@ function doAttack(worldPoint) {
     ? worldPoint.distanceTo(obj.mesh.position) < 1.0 && p.distanceTo(obj.mesh.position) < reach + 0.6
     : p.distanceTo(obj.mesh.position) < reach;
 
+  // Light a temple totem if we're standing by one (Zorbax quest)
+  if (typeof templeTotemNear === 'function') {
+    const ti = templeTotemNear(worldPoint);
+    if (ti >= 0) { lightTotem(ti); return; }
+  }
   // Talk to a village merchant if we're standing by one
   if (typeof merchantNear === 'function') {
     const mn = merchantNear(worldPoint);
-    if (mn) { openP2Shop(mn.data); return; }
+    if (mn) {
+      if (mn.data.id === 'elder' && typeof elderQuestInteract === 'function' && elderQuestInteract()) return;
+      openP2Shop(mn.data); return;
+    }
   }
   // Greet a home-base alien visitor first (they live by their huts)
   if (E.cfg.home && typeof homeAlienNear === 'function') {
@@ -1636,6 +1645,7 @@ function animate() {
     updateDying(dt);
     updateExit(dt);
     if (typeof updateVillage === 'function') updateVillage(dt);
+    if (typeof updateTempleQuest === 'function') updateTempleQuest(dt);
     if (typeof updateHome === 'function') updateHome(dt);
     if (typeof updateInterior === 'function') updateInterior(dt);
     if (typeof updatePet === 'function') updatePet(dt);
