@@ -256,7 +256,7 @@ function buildWorld(n, cfg) {
   const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
   const grow = cfg.home ? 0
     : (cfg.grow != null ? cfg.grow
-      : cfg.big ? (touch ? 32 : 74)   // huge worlds (e.g. Zorbax)
+      : cfg.big ? (touch ? 44 : 100)   // huge worlds (e.g. Zorbax) — instanced terrain keeps this cheap
         : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
@@ -322,29 +322,81 @@ function buildWorld(n, cfg) {
 }
 
 // Instanced-ish tile meshes (merged by reusing shared geometry/materials)
+// Scratch objects reused when composing instance matrices (avoid per-tile GC).
+const _iv = new THREE.Vector3(), _iq = new THREE.Quaternion(), _is = new THREE.Vector3(), _ie = new THREE.Euler(), _im = new THREE.Matrix4();
+
+// Walls and repeated tile decorations are drawn with InstancedMesh — one draw
+// call per type instead of one mesh per tile — so huge worlds stay fast.
 function buildTiles(map, cfg, scene) {
-  const wallGeo = new THREE.BoxGeometry(1, cfg.wall.h, 1);
-  const wallMat = new THREE.MeshStandardMaterial({ color: cfg.wall.color, roughness: 0.9 });
-  const decoMats = {};
+  const byVal = new Map(); const wallPts = [];
   for (let z = 0; z < E.rows; z++) {
     for (let x = 0; x < E.cols; x++) {
       const v = map[z][x];
-      if (v === 1) {
-        const m = new THREE.Mesh(wallGeo, wallMat);
-        m.position.set(x + 0.5, cfg.wall.h / 2, z + 0.5);
-        m.castShadow = true; m.receiveShadow = true;
-        scene.add(m);
-      } else if (cfg.deco[v]) {
-        const spec = cfg.deco[v];
-        if (!decoMats[v]) decoMats[v] = new THREE.MeshStandardMaterial({
-          color: spec.color, roughness: 0.85,
-          emissive: (spec.kind === 'lava' || spec.kind === 'vent') ? new THREE.Color(spec.color) : 0x000000,
-          emissiveIntensity: (spec.kind === 'lava' || spec.kind === 'vent') ? 0.6 : 0
-        });
-        scene.add(makeDeco(spec, decoMats[v], x, z, wallGeo));
-      }
+      if (v === 1) wallPts.push([x, z]);
+      else if (cfg.deco[v]) { let a = byVal.get(v); if (!a) { a = []; byVal.set(v, a); } a.push([x, z]); }
     }
   }
+  if (wallPts.length) {
+    const wallH = cfg.wall.h;
+    const im = new THREE.InstancedMesh(new THREE.BoxGeometry(1, wallH, 1),
+      new THREE.MeshStandardMaterial({ color: cfg.wall.color, roughness: 0.9 }), wallPts.length);
+    im.castShadow = true; im.receiveShadow = true;
+    wallPts.forEach(([x, z], i) => { _iv.set(x + 0.5, wallH / 2, z + 0.5); _iq.identity(); _is.set(1, 1, 1); _im.compose(_iv, _iq, _is); im.setMatrixAt(i, _im); });
+    im.instanceMatrix.needsUpdate = true; scene.add(im);
+  }
+  byVal.forEach((pts, v) => buildDecoInstances(scene, cfg.deco[v], pts));
+}
+
+// Build InstancedMesh(es) for all tiles of one decoration spec.
+function buildDecoInstances(scene, spec, pts) {
+  const h = spec.h, kind = spec.kind, col = new THREE.Color(spec.color);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const place = (im, i, px, py, pz, sy, yaw, sxz) => {
+    _ie.set(0, yaw || 0, 0); _iq.setFromEuler(_ie); _iv.set(px, py, pz); _is.set(sxz || 1, sy, sxz || 1);
+    _im.compose(_iv, _iq, _is); im.setMatrixAt(i, _im);
+  };
+  const mk = (geo, mat, count, shadow) => { const im = new THREE.InstancedMesh(geo, mat, count); im.castShadow = !!shadow; im.receiveShadow = false; return im; };
+
+  if (kind === 'tree') {
+    const tI = mk(new THREE.CylinderGeometry(0.12, 0.16, h, 6), new THREE.MeshStandardMaterial({ color: 0x5a3a1e }), pts.length, false);
+    const cI = mk(new THREE.ConeGeometry(0.55, h * 0.8, 7), new THREE.MeshStandardMaterial({ color: col }), pts.length, false);
+    pts.forEach(([x, z], i) => { const s = rnd(0.82, 1.18), yaw = rnd(0, 6.283);
+      place(tI, i, x + 0.5, (h / 2) * s, z + 0.5, s, yaw, s);
+      place(cI, i, x + 0.5, (h * 0.9) * s, z + 0.5, s, yaw, s); });
+    tI.instanceMatrix.needsUpdate = cI.instanceMatrix.needsUpdate = true; scene.add(tI); scene.add(cI); return;
+  }
+  if (kind === 'kelp') {
+    const im = mk(new THREE.CylinderGeometry(0.06, 0.1, h, 5), new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }), pts.length * 3, false);
+    let i = 0; pts.forEach(([x, z]) => { for (let k = 0; k < 3; k++) place(im, i++, x + 0.5 + (Math.random() - 0.5) * 0.4, h / 2, z + 0.5 + (Math.random() - 0.5) * 0.4, 1, rnd(0, 6.283), 1); });
+    im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  if (kind === 'vine') {
+    const im = mk(new THREE.CylinderGeometry(0.08, 0.08, h, 5), new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }), pts.length, false);
+    pts.forEach(([x, z], i) => place(im, i, x + 0.5, h / 2, z + 0.5, 1, 0, 1)); im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  if (kind === 'rock' || kind === 'coral' || kind === 'building' || kind === 'wreck') {
+    const geo = kind === 'coral' ? new THREE.DodecahedronGeometry(0.5) : kind === 'building' ? new THREE.BoxGeometry(0.9, h, 0.9) : new THREE.IcosahedronGeometry(0.5, 0);
+    const sy = kind === 'building' ? 1 : Math.max(0.5, h);
+    const im = mk(geo, new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }), pts.length, true);
+    pts.forEach(([x, z], i) => place(im, i, x + 0.5, h / 2, z + 0.5, sy, kind === 'rock' ? rnd(0, 6.283) : 0, 1)); im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  if (kind === 'vent') {
+    const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.9, roughness: 0.5 });
+    const im = mk(new THREE.SphereGeometry(0.42, 8, 6), m, pts.length, false);
+    pts.forEach(([x, z], i) => place(im, i, x + 0.5, h * 0.4, z + 0.5, h, 0, 1)); im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  if (kind === 'bush' || kind === 'snow' || kind === 'garden') {
+    const im = mk(new THREE.SphereGeometry(0.42, 8, 6), new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }), pts.length, false);
+    pts.forEach(([x, z], i) => { const s = rnd(0.8, 1.25); place(im, i, x + 0.5, h * 0.4 * s, z + 0.5, h * s, rnd(0, 6.283), s); }); im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  if (kind === 'lava') {
+    const m = new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.8, roughness: 0.4 });
+    const im = mk(new THREE.BoxGeometry(1, 0.08, 1), m, pts.length, false);
+    pts.forEach(([x, z], i) => place(im, i, x + 0.5, 0.04, z + 0.5, 1, 0, 1)); im.instanceMatrix.needsUpdate = true; scene.add(im); return;
+  }
+  // default: flat floor patch (swamp/ice/sand/path/pond/floor/trench/ash)
+  const im = mk(new THREE.BoxGeometry(1, 0.06, 1), new THREE.MeshStandardMaterial({ color: col, roughness: 0.85 }), pts.length, false);
+  pts.forEach(([x, z], i) => place(im, i, x + 0.5, 0.03, z + 0.5, 1, 0, 1)); im.instanceMatrix.needsUpdate = true; scene.add(im);
 }
 
 function makeDeco(spec, mat, x, z, wallGeo) {
@@ -544,7 +596,7 @@ function sprinkleExtras(cfg, scene) {
   if (cfg.underwater) pool = ['squid', 'piranha'];
   pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
   if (pool.length) {
-    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 1000 : 260));
+    const nEn = Math.min(cfg.big ? 60 : 999, Math.round((E.cols * E.rows) / (cfg.big ? 1300 : 260)));
     for (let i = 0; i < nEn; i++) {
       const [x, z] = pick();
       const variant = pool[Math.floor(Math.random() * pool.length)];

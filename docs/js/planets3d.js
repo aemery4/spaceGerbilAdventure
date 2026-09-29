@@ -46,7 +46,7 @@ const PLANETS_3D = {
     enemyKind: 'beast', village: true,
     // Huge explorable jungle: pad the world out and fill the new ring with
     // scattered wild terrain (tree=solid, bush/swamp=slow, vine=deco).
-    big: true, wildFill: [[3, 0.03], [2, 0.03], [4, 0.01], [6, 0.01]],
+    big: true, wildFill: [[3, 0.08], [2, 0.07], [4, 0.025], [6, 0.03]],
     // The Jungle King waits inside a temple deep in the jungle.
     temple: true
   },
