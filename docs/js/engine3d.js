@@ -256,7 +256,7 @@ function buildWorld(n, cfg) {
   const touch = (typeof IS_TOUCH !== 'undefined' && IS_TOUCH);
   const grow = cfg.home ? 0
     : (cfg.grow != null ? cfg.grow
-      : cfg.big ? (touch ? 24 : 56)   // huge worlds (e.g. Zorbax)
+      : cfg.big ? (touch ? 32 : 74)   // huge worlds (e.g. Zorbax)
         : (touch ? 4 : 8));
   const grown = growMap(data.map, grow);
   E.map = grown.map; E.worldOff = grown.off;
@@ -544,7 +544,7 @@ function sprinkleExtras(cfg, scene) {
   if (cfg.underwater) pool = ['squid', 'piranha'];
   pool = pool.filter(k => k !== 'parrots'); // parrots are harmless collectibles
   if (pool.length) {
-    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 760 : 260));
+    const nEn = Math.round((E.cols * E.rows) / (cfg.big ? 1000 : 260));
     for (let i = 0; i < nEn; i++) {
       const [x, z] = pick();
       const variant = pool[Math.floor(Math.random() * pool.length)];
