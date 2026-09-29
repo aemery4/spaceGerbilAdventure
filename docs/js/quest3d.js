@@ -30,18 +30,18 @@ function stampTempleGates(cfg) {
   if (!cfg.solid.includes(22)) cfg.solid.push(22);
   const inB = (x, z) => x > 0 && z > 0 && x < E.cols - 1 && z < E.rows - 1;
 
-  // Gate gap tiles (the 3-tile opening in the plaza wall on the gate side)
+  // Gate gap tiles (the 5-tile opening in the plaza wall on the gate side)
   const gateTiles = [];
-  if (t.gate === 'S') for (let x = t.cx - 1; x <= t.cx + 1; x++) gateTiles.push([x, t.z1]);
-  else if (t.gate === 'N') for (let x = t.cx - 1; x <= t.cx + 1; x++) gateTiles.push([x, t.z0]);
-  else if (t.gate === 'E') for (let z = t.cz - 1; z <= t.cz + 1; z++) gateTiles.push([t.x1, z]);
-  else for (let z = t.cz - 1; z <= t.cz + 1; z++) gateTiles.push([t.x0, z]);
+  if (t.gate === 'S') for (let x = t.cx - 2; x <= t.cx + 2; x++) gateTiles.push([x, t.z1]);
+  else if (t.gate === 'N') for (let x = t.cx - 2; x <= t.cx + 2; x++) gateTiles.push([x, t.z0]);
+  else if (t.gate === 'E') for (let z = t.cz - 2; z <= t.cz + 2; z++) gateTiles.push([t.x1, z]);
+  else for (let z = t.cz - 2; z <= t.cz + 2; z++) gateTiles.push([t.x0, z]);
   if (!s.gate) gateTiles.forEach(([x, z]) => { if (inB(x, z)) E.map[z][x] = 21; });
   t.gateTiles = gateTiles;
 
   // Outer thorn barrier: an L across the two interior-facing sides so the
   // temple corner is fully enclosed (map border walls close the other two).
-  const R = 12;
+  const R = 16;
   const sx = t.cx < E.cols / 2 ? 1 : -1, sz = t.cz < E.rows / 2 ? 1 : -1;
   const bx = t.cx + sx * R, bz = t.cz + sz * R;
   const barrier = [];
@@ -50,14 +50,20 @@ function stampTempleGates(cfg) {
   if (!s.elder) barrier.forEach(([x, z]) => { E.map[z][x] = 22; });
   t.barrierTiles = barrier;
 
-  // Totem spots: four diagonal corners just outside the plaza walls, each in
-  // a small cleared patch so it isn't buried in the thicket.
-  const spots = [[t.x0 - 2, t.z0 - 2], [t.x1 + 2, t.z0 - 2], [t.x0 - 2, t.z1 + 2], [t.x1 + 2, t.z1 + 2]];
-  t.totemSpots = spots.map(([x, z]) => [Math.max(2, Math.min(E.cols - 3, x)), Math.max(2, Math.min(E.rows - 3, z))]);
+  // Totem spots: spread far and wide across the jungle so lighting them all
+  // is a real trek. Snap each anchor to a nearby open, walkable tile.
+  const anchors = [[0.30, 0.30], [0.72, 0.26], [0.26, 0.74], [0.70, 0.70]];
+  const snap = (fx, fz) => {
+    const spot = (typeof findOpenTile === 'function')
+      ? findOpenTile(cfg, Math.floor(E.cols * fx), Math.floor(E.rows * fz))
+      : { x: Math.floor(E.cols * fx), z: Math.floor(E.rows * fz) };
+    return [spot.x, spot.z];
+  };
+  t.totemSpots = anchors.map(([fx, fz]) => snap(fx, fz));
   t.totemSpots.forEach(([x, z]) => {
     for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
       const nx = x + dx, nz = z + dz;
-      if (inB(nx, nz) && E.map[nz][nx] !== 20 && E.map[nz][nx] !== 22 && E.map[nz][nx] !== 21) E.map[nz][nx] = 0;
+      if (inB(nx, nz) && E.map[nz][nx] !== 20 && E.map[nz][nx] !== 22 && E.map[nz][nx] !== 21 && E.map[nz][nx] !== 7) E.map[nz][nx] = 0;
     }
   });
 }
@@ -73,9 +79,14 @@ function makeTotemMesh(lit) {
   crystal.position.y = 2.2;
   g.add(base, post, crystal);
   g.traverse(o => { if (o.isMesh) o.castShadow = true; });
+  // A tall light beam so the totem can be spotted from across the jungle.
+  const beam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.55, 34, 8, 1, true),
+    new THREE.MeshBasicMaterial({ color: 0x9ff7ff, transparent: true, opacity: lit ? 0.34 : 0.16, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+  beam.position.y = 17; g.add(beam);
   let light = null;
   if (lit) { light = new THREE.PointLight(0x38e0ff, 1.1, 9, 2); light.position.y = 2.3; g.add(light); }
-  g.userData = { crystal, light };
+  g.userData = { crystal, light, beam };
   return g;
 }
 
@@ -135,7 +146,7 @@ function buildTempleQuest(scene) {
     const mesh = makeTotemMesh(lit);
     mesh.position.set(x + 0.5, 0, z + 0.5);
     scene.add(mesh);
-    q.totems.push({ x: x + 0.5, z: z + 0.5, mesh, crystal: mesh.userData.crystal, light: mesh.userData.light, lit });
+    q.totems.push({ x: x + 0.5, z: z + 0.5, mesh, crystal: mesh.userData.crystal, light: mesh.userData.light, beam: mesh.userData.beam, lit });
   });
 
   // Location beam once the Elder has revealed the temple
@@ -174,7 +185,7 @@ function completeElderQuest() {
   const west = t.cx < E.cols / 2, north = t.cz < E.rows / 2;
   const dir = (north ? 'north' : 'south') + (west ? 'west' : 'east');
   if (typeof SFX !== 'undefined' && SFX.powerup) SFX.powerup();
-  showMsg('🌿 The Path Opens', 'The thorns wither away!\n\nThe sacred temple stands far to the ' + dir + ' — follow the beam of light.\n\nLight the ' + TOTEM_COUNT + ' ancient totems around it to open its gate.', null, 'Onward!');
+  showMsg('🌿 The Path Opens', 'The thorns wither away!\n\nThe sacred temple stands far to the ' + dir + ' — follow the great beam of light.\n\nBut its gate is bound by ' + TOTEM_COUNT + ' ancient totems scattered across the whole jungle. Seek out each one and light it (they shine with light too), then enter the temple.', null, 'Onward!');
 }
 
 function dropThornBarrier() {
@@ -212,6 +223,7 @@ function lightTotem(i) {
   tt.crystal.material.emissive.set(0x38e0ff);
   tt.crystal.material.emissiveIntensity = 1.4;
   if (!tt.light) { tt.light = new THREE.PointLight(0x38e0ff, 1.1, 9, 2); tt.light.position.y = 2.3; tt.mesh.add(tt.light); }
+  if (tt.beam) tt.beam.material.opacity = 0.34;
   if (typeof spawnParticles === 'function') spawnParticles(new THREE.Vector3(tt.x, 2.2, tt.z), new THREE.Color(0x38e0ff), 18);
   if (typeof SFX !== 'undefined' && SFX.powerup) SFX.powerup();
   const lit = totemsLit();
@@ -239,6 +251,9 @@ function updateTempleQuest(dt) {
   q.totems.forEach(tt => {
     tt.crystal.rotation.y += dt * 1.5;
     if (tt.lit) { tt.crystal.position.y = 2.2 + Math.sin(E.time * 3) * 0.08; tt.crystal.material.emissiveIntensity = 1.2 + Math.sin(E.time * 5) * 0.4; }
+    if (tt.beam) { tt.beam.rotation.y += dt * 0.4; const base = tt.lit ? 0.30 : 0.14; tt.beam.material.opacity = base + Math.abs(Math.sin(E.time * 1.7 + tt.x)) * 0.10; }
   });
+  const t = E.temple;
+  if (t && t.idol) { t.idol.rotation.y += dt * 0.8; t.idol.position.y = (t.idol.userData.baseY || (t.idol.userData.baseY = t.idol.position.y)) + Math.sin(E.time * 2) * 0.15; }
   if (q.beam) { q.beam.material.opacity = 0.16 + Math.abs(Math.sin(E.time * 1.5)) * 0.14; q.beam.rotation.y += dt * 0.3; }
 }

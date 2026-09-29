@@ -151,18 +151,18 @@ function stampTemple(cfg) {
   for (let z = 0; z < E.rows; z++) for (let x = 0; x < E.cols; x++) if (E.map[z][x] === 7) { vx += x; vz += z; vn++; }
   if (vn) { vx /= vn; vz /= vn; } else { vx = cfg.spawn.tx + E.worldOff; vz = cfg.spawn.tz + E.worldOff; }
   // Place the temple in whichever far corner is most distant from the village.
-  const I = 13;
+  const I = 16;
   const cands = [[I, I], [E.cols - 1 - I, I], [I, E.rows - 1 - I], [E.cols - 1 - I, E.rows - 1 - I]];
   let cx = cands[0][0], cz = cands[0][1], bd = -1;
   for (const c of cands) { const d = Math.hypot(c[0] - vx, c[1] - vz); if (d > bd) { bd = d; cx = c[0]; cz = c[1]; } }
-  const x0 = cx - 7, x1 = cx + 7, z0 = cz - 7, z1 = cz + 7;
+  const x0 = cx - 9, x1 = cx + 9, z0 = cz - 9, z1 = cz + 9;
   // Gate faces the interior (toward the village), so the player reaches it from the explorable side.
   const dx = vx - cx, dz = vz - cz;
   const gate = Math.abs(dx) >= Math.abs(dz) ? (dx > 0 ? 'E' : 'W') : (dz > 0 ? 'S' : 'N');
   // Plaza floor
   for (let z = z0; z <= z1; z++) for (let x = x0; x <= x1; x++) if (inB(x, z)) E.map[z][x] = 9;
-  // Perimeter walls with a 3-tile gate gap on the gate side
-  const gapX = x => x >= cx - 1 && x <= cx + 1, gapZ = z => z >= cz - 1 && z <= cz + 1;
+  // Perimeter walls with a 5-tile gate gap on the gate side
+  const gapX = x => x >= cx - 2 && x <= cx + 2, gapZ = z => z >= cz - 2 && z <= cz + 2;
   for (let x = x0; x <= x1; x++) {
     if (!(gate === 'N' && gapX(x))) E.map[z0][x] = 20;
     if (!(gate === 'S' && gapX(x))) E.map[z1][x] = 20;
@@ -173,13 +173,13 @@ function stampTemple(cfg) {
   }
   // Pyramid footprint at the back, opposite the gate
   let px0, px1, pz0, pz1;
-  if (gate === 'S') { px0 = cx - 4; px1 = cx + 4; pz0 = z0; pz1 = z0 + 6; }
-  else if (gate === 'N') { px0 = cx - 4; px1 = cx + 4; pz0 = z1 - 6; pz1 = z1; }
-  else if (gate === 'E') { px0 = x0; px1 = x0 + 6; pz0 = cz - 4; pz1 = cz + 4; }
-  else { px0 = x1 - 6; px1 = x1; pz0 = cz - 4; pz1 = cz + 4; }
+  if (gate === 'S') { px0 = cx - 5; px1 = cx + 5; pz0 = z0; pz1 = z0 + 8; }
+  else if (gate === 'N') { px0 = cx - 5; px1 = cx + 5; pz0 = z1 - 8; pz1 = z1; }
+  else if (gate === 'E') { px0 = x0; px1 = x0 + 8; pz0 = cz - 5; pz1 = cz + 5; }
+  else { px0 = x1 - 8; px1 = x1; pz0 = cz - 5; pz1 = cz + 5; }
   for (let z = pz0; z <= pz1; z++) for (let x = px0; x <= px1; x++) E.map[z][x] = 20;
-  const bx = gate === 'E' ? cx + 3 : gate === 'W' ? cx - 3 : cx;
-  const bz = gate === 'S' ? cz + 3 : gate === 'N' ? cz - 3 : cz;
+  const bx = gate === 'E' ? cx + 4 : gate === 'W' ? cx - 4 : cx;
+  const bz = gate === 'S' ? cz + 4 : gate === 'N' ? cz - 4 : cz;
   // Dense concealing jungle thicket around the temple so it isn't visible from afar.
   for (let z = z0 - 3; z <= z1 + 3; z++) for (let x = x0 - 3; x <= x1 + 3; x++) {
     if (!inB(x, z)) continue;
@@ -188,10 +188,10 @@ function stampTemple(cfg) {
     if (v === 0 || v === 2 || v === 4 || v === 6) { if (Math.random() < 0.62) E.map[z][x] = 3; }
   }
   // Punch a short, hidden entry stub through the thicket at the gate (blends as jungle floor).
-  if (gate === 'S') for (let z = z1 + 1; z <= z1 + 4 && inB(cx, z); z++) for (let x = cx - 1; x <= cx + 1; x++) E.map[z][x] = 0;
-  else if (gate === 'N') for (let z = z0 - 1; z >= z0 - 4 && inB(cx, z); z--) for (let x = cx - 1; x <= cx + 1; x++) E.map[z][x] = 0;
-  else if (gate === 'E') for (let x = x1 + 1; x <= x1 + 4 && inB(x, cz); x++) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
-  else for (let x = x0 - 1; x >= x0 - 4 && inB(x, cz); x--) for (let z = cz - 1; z <= cz + 1; z++) E.map[z][x] = 0;
+  if (gate === 'S') for (let z = z1 + 1; z <= z1 + 4 && inB(cx, z); z++) for (let x = cx - 2; x <= cx + 2; x++) E.map[z][x] = 0;
+  else if (gate === 'N') for (let z = z0 - 1; z >= z0 - 4 && inB(cx, z); z--) for (let x = cx - 2; x <= cx + 2; x++) E.map[z][x] = 0;
+  else if (gate === 'E') for (let x = x1 + 1; x <= x1 + 4 && inB(x, cz); x++) for (let z = cz - 2; z <= cz + 2; z++) E.map[z][x] = 0;
+  else for (let x = x0 - 1; x >= x0 - 4 && inB(x, cz); x--) for (let z = cz - 2; z <= cz + 2; z++) E.map[z][x] = 0;
   E.temple = { cx, cz, x0, x1, z0, z1, px0, px1, pz0, pz1, gate, bossX: bx + 0.5, bossZ: bz + 0.5 };
   if (typeof stampTempleGates === 'function') stampTempleGates(cfg);
 }
@@ -212,33 +212,70 @@ function addTemple(scene) {
   for (let x = t.x0; x <= t.x1; x++) { addWall(x, t.z0); addWall(x, t.z1); }
   for (let z = t.z0; z <= t.z1; z++) { addWall(t.x0, z); addWall(t.x1, z); }
 
-  // Stepped pyramid over the footprint
+  // Direction from the pyramid out toward the gate (the "front")
+  const fx = t.gate === 'E' ? 1 : t.gate === 'W' ? -1 : 0;
+  const fz = t.gate === 'S' ? 1 : t.gate === 'N' ? -1 : 0;
+  const ew = (t.gate === 'E' || t.gate === 'W');
+
+  // Grand stepped pyramid over the footprint
   const pcx = (t.px0 + t.px1) / 2 + 0.5, pcz = (t.pz0 + t.pz1) / 2 + 0.5;
-  const baseW = t.px1 - t.px0 + 1, baseD = t.pz1 - t.pz0 + 1, steps = 4, stepH = 2.0;
+  const baseW = t.px1 - t.px0 + 1, baseD = t.pz1 - t.pz0 + 1, steps = 6, stepH = 1.7;
+  let topY = 0;
   for (let i = 0; i < steps; i++) {
-    const f = 1 - i / steps;
-    const w = Math.max(2, baseW * f), d = Math.max(1.5, baseD * f);
+    const f = 1 - i / (steps + 0.6);
+    const w = Math.max(2, baseW * f), d = Math.max(2, baseD * f);
     const box = new THREE.Mesh(new THREE.BoxGeometry(w, stepH, d), i % 2 ? stoneDark : stone);
     box.position.set(pcx, stepH / 2 + i * stepH, pcz); box.castShadow = box.receiveShadow = true; g.add(box);
+    // carved trim band along each step edge
+    const band = new THREE.Mesh(new THREE.BoxGeometry(w + 0.12, 0.18, d + 0.12), moss);
+    band.position.set(pcx, i * stepH + stepH - 0.09, pcz); g.add(band);
+    topY = (i + 1) * stepH;
   }
-  const cap = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.6, 1.6), moss);
-  cap.position.set(pcx, steps * stepH + 0.8, pcz); cap.castShadow = true; g.add(cap);
+  // Shrine + glowing idol at the summit
+  const shrine = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1.4, 2.2), stoneDark);
+  shrine.position.set(pcx, topY + 0.7, pcz); shrine.castShadow = true; g.add(shrine);
+  const idolMat = new THREE.MeshStandardMaterial({ color: 0xffe08a, emissive: 0xffb020, emissiveIntensity: 1.5, roughness: 0.35, metalness: 0.3 });
+  const idol = new THREE.Mesh(new THREE.OctahedronGeometry(0.7), idolMat);
+  idol.position.set(pcx, topY + 2.1, pcz); g.add(idol);
+  const idolLight = new THREE.PointLight(0xffc040, 1.6, 22, 2); idolLight.position.set(pcx, topY + 2.4, pcz); g.add(idolLight);
+  t.idol = idol;
+
+  // Grand staircase down the front face toward the gate
+  const stairMat = stone;
+  for (let s = 0; s < 5; s++) {
+    const stair = new THREE.Mesh(new THREE.BoxGeometry(ew ? 0.9 : 4.2, 0.5 + s * 0.5, ew ? 4.2 : 0.9), stairMat);
+    const dist = (baseD / 2) * (fz !== 0 ? 1 : 0) + (baseW / 2) * (fx !== 0 ? 1 : 0) + 0.5 + s * 0.9;
+    stair.position.set(pcx + fx * dist, (0.5 + s * 0.5) / 2, pcz + fz * dist);
+    stair.castShadow = stair.receiveShadow = true; g.add(stair);
+  }
+  // Dark doorway set into the front face
+  const door = new THREE.Mesh(ew ? new THREE.BoxGeometry(0.7, 2.6, 1.8) : new THREE.BoxGeometry(1.8, 2.6, 0.7), new THREE.MeshStandardMaterial({ color: 0x0a0d07 }));
+  door.position.set(pcx + fx * (baseW / 2 + 0.2), 1.3, pcz + fz * (baseD / 2 + 0.2)); g.add(door);
+
+  // Tall obelisks at the four plaza corners, each capped with a small gem
+  const obeliskAt = (x, z) => {
+    const ob = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.42, 4.6, 4), stone);
+    ob.position.set(x, 2.3, z); ob.rotation.y = Math.PI / 4; ob.castShadow = true; g.add(ob);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.9, 4), stoneDark);
+    tip.position.set(x, 4.9, z); tip.rotation.y = Math.PI / 4; g.add(tip);
+    const gem = new THREE.Mesh(new THREE.OctahedronGeometry(0.22), new THREE.MeshStandardMaterial({ color: 0x7ff0d8, emissive: 0x24c0a0, emissiveIntensity: 1.2 }));
+    gem.position.set(x, 5.5, z); g.add(gem);
+  };
+  obeliskAt(t.x0 + 1.2, t.z0 + 1.2); obeliskAt(t.x1 - 0.2, t.z0 + 1.2);
+  obeliskAt(t.x0 + 1.2, t.z1 - 0.2); obeliskAt(t.x1 - 0.2, t.z1 - 0.2);
 
   const addTorch = (x, z) => {
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 2.4, 6), stoneDark);
-    post.position.set(x, 1.2, z); g.add(post);
-    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffb050, emissive: 0xff6a10, emissiveIntensity: 1.3 }));
-    flame.position.set(x, 2.7, z); g.add(flame);
-    const light = new THREE.PointLight(0xff8030, 0.9, 11, 2); light.position.set(x, 2.9, z); g.add(light);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 2.8, 6), stoneDark);
+    post.position.set(x, 1.4, z); g.add(post);
+    const flame = new THREE.Mesh(new THREE.SphereGeometry(0.34, 8, 8), new THREE.MeshStandardMaterial({ color: 0xffb050, emissive: 0xff6a10, emissiveIntensity: 1.4 }));
+    flame.position.set(x, 3.1, z); g.add(flame);
+    const light = new THREE.PointLight(0xff8030, 1.0, 13, 2); light.position.set(x, 3.3, z); g.add(light);
   };
-  // Doorway on the pyramid face toward the gate; torches flank the doorway and the gate.
-  const ew = (t.gate === 'E' || t.gate === 'W');
-  const door = new THREE.Mesh(ew ? new THREE.BoxGeometry(0.7, 2.2, 1.6) : new THREE.BoxGeometry(1.6, 2.2, 0.7), new THREE.MeshStandardMaterial({ color: 0x0b0e08 }));
-  if (t.gate === 'S') { door.position.set(pcx, 1.1, t.pz1 + 0.9); addTorch(pcx - 2.5, t.pz1 + 1.3); addTorch(pcx + 2.5, t.pz1 + 1.3); addTorch(t.cx - 1.5, t.z1 + 0.5); addTorch(t.cx + 2.5, t.z1 + 0.5); }
-  else if (t.gate === 'N') { door.position.set(pcx, 1.1, t.pz0 - 0.9); addTorch(pcx - 2.5, t.pz0 - 1.3); addTorch(pcx + 2.5, t.pz0 - 1.3); addTorch(t.cx - 1.5, t.z0 + 0.5); addTorch(t.cx + 2.5, t.z0 + 0.5); }
-  else if (t.gate === 'E') { door.position.set(t.px1 + 0.9, 1.1, pcz); addTorch(t.px1 + 1.3, pcz - 2.5); addTorch(t.px1 + 1.3, pcz + 2.5); addTorch(t.x1 + 0.5, t.cz - 1.5); addTorch(t.x1 + 0.5, t.cz + 2.5); }
-  else { door.position.set(t.px0 - 0.9, 1.1, pcz); addTorch(t.px0 - 1.3, pcz - 2.5); addTorch(t.px0 - 1.3, pcz + 2.5); addTorch(t.x0 + 0.5, t.cz - 1.5); addTorch(t.x0 + 0.5, t.cz + 2.5); }
-  g.add(door);
+  // Torches flanking the gate opening
+  if (t.gate === 'S') { addTorch(t.cx - 3.0, t.z1 + 0.5); addTorch(t.cx + 4.0, t.z1 + 0.5); }
+  else if (t.gate === 'N') { addTorch(t.cx - 3.0, t.z0 + 0.5); addTorch(t.cx + 4.0, t.z0 + 0.5); }
+  else if (t.gate === 'E') { addTorch(t.x1 + 0.5, t.cz - 3.0); addTorch(t.x1 + 0.5, t.cz + 4.0); }
+  else { addTorch(t.x0 + 0.5, t.cz - 3.0); addTorch(t.x0 + 0.5, t.cz + 4.0); }
   scene.add(g); t.group = g;
 }
 
