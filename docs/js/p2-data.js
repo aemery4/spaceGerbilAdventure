@@ -72,7 +72,7 @@ function buildP2Data(TILE, COLS, ROWS) {
     {x:18,y:23,type:'fuel',label:'⚡',color:'#ff0',hp:1,maxhp:1},{x:13,y:25,type:'fuel',label:'⚡',color:'#ff0',hp:1,maxhp:1},
   ];
 
-  const miniBoss = {x:12*TILE+18,y:6*TILE+18,hp:30,maxhp:30,size:32,speed:1.2,alive:true,discovered:false,attackTimer:0,chargeDir:{x:0,y:0},charging:false,chargeTimer:0};
+  const miniBoss = {x:12*TILE+18,y:6*TILE+18,hp:60,maxhp:60,size:32,speed:1.2,alive:true,discovered:false,attackTimer:0,chargeDir:{x:0,y:0},charging:false,chargeTimer:0};
 
   // Regular monkeys — west jungle
   const monkeys = [
